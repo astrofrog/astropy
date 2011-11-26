@@ -1,4 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+"""
+This module contains functions and classes used by the astropy testing suite. 
+They are also used by affiliated packages that use the astropy test system.
+"""
+
 import sys
 import base64
 import zlib
@@ -7,8 +12,12 @@ import os
 import subprocess
 
 from distutils.core import Command
+from warnings import warn
 
 from .. import __path__ as astropy_path
+
+
+class VersionWarning(Warning): pass
 
 try:
     import pytest
