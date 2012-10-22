@@ -71,7 +71,6 @@ def _is_url(string):
     return url[0] != '' # url[0]==url.scheme, but url[0] is py 2.6-compat
 
 
-@contextlib.contextmanager
 def get_fileobj(name_or_obj, binary=False, cache=False):
     """
     Given a filename or a readable file-like object, return a readable
@@ -100,8 +99,6 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
     cache : bool, optional
         Whether to cache the contents of remote URLs
     """
-    close_fds = []
-
     # Get a file object to the content
     if isinstance(name_or_obj, basestring):
         if _is_url(name_or_obj):
@@ -109,18 +106,11 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
                 fileobj = open(cache_remote(name_or_obj))
             else:
                 fileobj = urllib2.urlopen(name_or_obj, timeout=REMOTE_TIMEOUT())
-                close_fds.append(fileobj)
-                from types import MethodType
-                if sys.version_info[0] < 3:  # pragma: py2
-                    # Need to add in context managers to support with urlopen for <3.x
-                    fileobj.__enter__ = MethodType(_fake_enter, fileobj)
-                    fileobj.__exit__ = MethodType(_fake_exit, fileobj)
-        else:
+
             if sys.version_info[0] >= 3:
                 fileobj = io.FileIO(name_or_obj, 'r')
             else:
                 fileobj = open(name_or_obj, 'rb')
-            close_fds.append(fileobj)
     else:
         fileobj = name_or_obj
 
@@ -152,7 +142,6 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
             tmp = tempfile.NamedTemporaryFile()
             tmp.write(fileobj.read())
             tmp.flush()
-            close_fds.append(tmp)
             import bz2
             fileobj_new = bz2.BZ2File(tmp.name, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really bzip2
@@ -161,6 +150,10 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
         else:
             fileobj_new.seek(0)
             fileobj = fileobj_new
+        finally:
+            # the temporary file can be closed because the BZ2File constructor
+            # reads the file into memory or something 
+            tmp.close()
 
     if sys.version_info[0] >= 3 and not binary:
         import bz2
@@ -170,10 +163,17 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
         if not isinstance(fileobj, bz2.BZ2File):
             fileobj = io.TextIOWrapper(fileobj)
 
-    yield fileobj
+    #this part is necessary because StringIO and urlopen objects don't have
+    # __enter__ or __exit__
+    if not hasattr(fileobj, '__enter__'):
+        from types import MethodType
+        fileobj.__enter__ = MethodType(_fake_enter, fileobj)
+    if not hasattr(fileobj, '__exit__'):
+        from types import MethodType
+        fileobj.__exit__ = MethodType(_fake_exit, fileobj)
 
-    for fd in close_fds:
-        fd.close()
+    return fileobj
+
 
 
 def get_pkg_data_fileobj(data_name, cache=True):
