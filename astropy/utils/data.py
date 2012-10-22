@@ -113,7 +113,7 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
                 fileobj = open(cache_remote(name_or_obj))
             else:
                 fileobj = urllib2.urlopen(name_or_obj, timeout=REMOTE_TIMEOUT())
-
+        else:
             if sys.version_info[0] >= 3:
                 fileobj = io.FileIO(name_or_obj, 'r')
             else:
