@@ -99,7 +99,14 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
     cache : bool, optional
         Whether to cache the contents of remote URLs
     """
-    # Get a file object to the content
+    import bz2
+    from tempfile import NamedTemporaryFile
+    from StringIO import StringIO
+    from types import MethodType
+
+    from .compat import gzip
+
+    # Get a file-like object from either a local filename or a URL
     if isinstance(name_or_obj, basestring):
         if _is_url(name_or_obj):
             if cache:
@@ -117,7 +124,6 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
     # Check if the file object supports random access, and if not, then wrap
     # it in a StringIO buffer.
     if not hasattr(fileobj, 'seek'):
-        from StringIO import StringIO
         fileobj = StringIO(fileobj.read())
 
     # Now read enough bytes to look at signature
@@ -126,7 +132,6 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
 
     if signature[:3] == b'\x1f\x8b\x08':  # gzip
         try:
-            from .compat import gzip
             fileobj_new = gzip.GzipFile(fileobj=fileobj, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really gzip
         except IOError:  # invalid gzip file
@@ -138,11 +143,10 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
         try:
             # bz2.BZ2File does not support file objects, only filenames, so we
             # need to write the data to a temporary file
-            import tempfile
-            tmp = tempfile.NamedTemporaryFile()
+            tmp = NamedTemporaryFile()
             tmp.write(fileobj.read())
             tmp.flush()
-            import bz2
+
             fileobj_new = bz2.BZ2File(tmp.name, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really bzip2
         except IOError:  # invalid bzip2 file
@@ -152,11 +156,10 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
             fileobj = fileobj_new
         finally:
             # the temporary file can be closed because the BZ2File constructor
-            # reads the file into memory or something 
+            # reads the file into memory or something
             tmp.close()
 
     if sys.version_info[0] >= 3 and not binary:
-        import bz2
         # FIXME: A bz2.BZ2File can not be wrapped by a TextIOWrapper,
         # so on Python 3 the user will get back bytes from the file
         # rather than Unicode as expected.
@@ -166,14 +169,11 @@ def get_fileobj(name_or_obj, binary=False, cache=False):
     #this part is necessary because StringIO and urlopen objects don't have
     # __enter__ or __exit__
     if not hasattr(fileobj, '__enter__'):
-        from types import MethodType
         fileobj.__enter__ = MethodType(_fake_enter, fileobj)
     if not hasattr(fileobj, '__exit__'):
-        from types import MethodType
         fileobj.__exit__ = MethodType(_fake_exit, fileobj)
 
     return fileobj
-
 
 
 def get_pkg_data_fileobj(data_name, cache=True):
