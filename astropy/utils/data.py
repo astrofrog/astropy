@@ -107,6 +107,13 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
     cache : bool, optional
         Whether to cache the contents of remote URLs
     """
+    import struct
+    import tempfile
+    import bz2
+    from types import MethodType
+
+    from .compat import gzip
+
     # Get a file object to the content
     if isinstance(name_or_obj, basestring):
         if _is_url(name_or_obj):
@@ -135,9 +142,7 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
     fileobj.seek(0)
 
     if signature[:3] == b'\x1f\x8b\x08':  # gzip
-        import struct
         try:
-            from .compat import gzip
             fileobj_new = gzip.GzipFile(fileobj=fileobj, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really gzip
         except IOError:  # invalid gzip file
@@ -151,11 +156,10 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
         try:
             # bz2.BZ2File does not support file objects, only filenames, so we
             # need to write the data to a temporary file
-            import tempfile
             tmp = tempfile.NamedTemporaryFile()
             tmp.write(fileobj.read())
             tmp.flush()
-            import bz2
+
             fileobj_new = bz2.BZ2File(tmp.name, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really bzip2
         except IOError:  # invalid bzip2 file
@@ -181,7 +185,6 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
         needs_textio_wrapper = encoding != 'binary' and encoding is not None
 
     if needs_textio_wrapper:
-        import bz2
         # FIXME: A bz2.BZ2File can not be wrapped by a TextIOWrapper,
         # so on Python 3 the user will get back bytes from the file
         # rather than Unicode as expected.
@@ -214,10 +217,8 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
     #this part is necessary because StringIO and urlopen objects don't have
     # __enter__ or __exit__
     if not hasattr(fileobj, '__enter__'):
-        from types import MethodType
         fileobj.__enter__ = MethodType(_fake_enter, fileobj)
     if not hasattr(fileobj, '__exit__'):
-        from types import MethodType
         fileobj.__exit__ = MethodType(_fake_exit, fileobj)
 
     return fileobj
