@@ -41,13 +41,13 @@ DELETE_TEMPORARY_DOWNLOADS_AT_EXIT = ConfigurationItem(
 PY3K = sys.version_info[0] >= 3
 
 
-if not PY3K:  # pragma: py2
-    #used for supporting with statements in get_pkg_data_fileobj
-    def _fake_enter(self):
-        return self
+# used for supporting with statements usage for file-like objects, usually for
+# objects that dont have __enter__ and __exit__ in 2.x but do in 3.x
+def _fake_enter(self):
+    return self
 
-    def _fake_exit(self, type, value, traceback):
-        self.close()
+def _fake_exit(self, type, value, traceback):
+    self.close()
 
 
 class CacheMissingWarning(Warning):
