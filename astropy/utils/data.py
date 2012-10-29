@@ -41,13 +41,13 @@ DELETE_TEMPORARY_DOWNLOADS_AT_EXIT = ConfigurationItem(
 PY3K = sys.version_info[0] >= 3
 
 
-if not PY3K:  # pragma: py2
-    #used for supporting with statements in get_pkg_data_fileobj
-    def _fake_enter(self):
-        return self
+# used for supporting with statements usage for file-like objects, usually for
+# objects that dont have __enter__ and __exit__ in 2.x but do in 3.x
+def _fake_enter(self):
+    return self
 
-    def _fake_exit(self, type, value, traceback):
-        self.close()
+def _fake_exit(self, type, value, traceback):
+    self.close()
 
 
 class CacheMissingWarning(Warning):
@@ -77,7 +77,6 @@ def _is_url(string):
     return url[0].lower() in ['http', 'https', 'ftp']
 
 
-@contextlib.contextmanager
 def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
     """
     Given a filename or a readable file-like object, return a readable
@@ -112,7 +111,12 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
     cache : bool, optional
         Whether to cache the contents of remote URLs
     """
-    close_fds = []
+    import struct
+    import tempfile
+    import bz2
+    from types import MethodType
+
+    from .compat import gzip
 
     # Get a file object to the content
     if isinstance(name_or_obj, basestring):
@@ -121,18 +125,11 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
                 fileobj = open(cache_remote(name_or_obj))
             else:
                 fileobj = urllib2.urlopen(name_or_obj, timeout=REMOTE_TIMEOUT())
-                close_fds.append(fileobj)
-                from types import MethodType
-                if not PY3K:  # pragma: py2
-                    # Need to add in context managers to support with urlopen for <3.x
-                    fileobj.__enter__ = MethodType(_fake_enter, fileobj)
-                    fileobj.__exit__ = MethodType(_fake_exit, fileobj)
         else:
             if PY3K:
                 fileobj = io.FileIO(name_or_obj, 'r')
             else:
                 fileobj = open(name_or_obj, 'rb')
-            close_fds.append(fileobj)
     else:
         fileobj = name_or_obj
 
@@ -149,9 +146,7 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
     fileobj.seek(0)
 
     if signature[:3] == b'\x1f\x8b\x08':  # gzip
-        import struct
         try:
-            from .compat import gzip
             fileobj_new = gzip.GzipFile(fileobj=fileobj, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really gzip
         except IOError:  # invalid gzip file
@@ -165,12 +160,10 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
         try:
             # bz2.BZ2File does not support file objects, only filenames, so we
             # need to write the data to a temporary file
-            import tempfile
             tmp = tempfile.NamedTemporaryFile()
             tmp.write(fileobj.read())
             tmp.flush()
-            close_fds.append(tmp)
-            import bz2
+
             fileobj_new = bz2.BZ2File(tmp.name, mode='rb')
             fileobj_new.read(1)  # need to check that the file is really bzip2
         except IOError:  # invalid bzip2 file
@@ -178,6 +171,11 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
         else:
             fileobj_new.seek(0)
             fileobj = fileobj_new
+        finally:
+            # the temporary file can be closed because the BZ2File constructor
+            # reads the file into memory or something
+            tmp.close()
+
 
     # By this point, we have a file, io.FileIO, gzip.GzipFile, or
     # bz2.BZ2File instance opened in binary mode (that is, read
@@ -191,7 +189,6 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
         needs_textio_wrapper = encoding != 'binary' and encoding is not None
 
     if needs_textio_wrapper:
-        import bz2
         # FIXME: A bz2.BZ2File can not be wrapped by a TextIOWrapper,
         # so on Python 3 the user will get back bytes from the file
         # rather than Unicode as expected.
@@ -221,10 +218,14 @@ def get_readable_fileobj(name_or_obj, encoding=None, cache=False):
 
             fileobj.seek(0)
 
-    yield fileobj
+    #this part is necessary because StringIO and urlopen objects don't have
+    # __enter__ or __exit__
+    if not hasattr(fileobj, '__enter__'):
+        fileobj.__enter__ = MethodType(_fake_enter, fileobj)
+    if not hasattr(fileobj, '__exit__'):
+        fileobj.__exit__ = MethodType(_fake_exit, fileobj)
 
-    for fd in close_fds:
-        fd.close()
+    return fileobj
 
 
 def get_pkg_data_fileobj(data_name, encoding=None, cache=True):
