@@ -102,12 +102,15 @@ class Quantity(object):
 
     @property
     def si(self):
-        """ Returns a copy of the current `Quantity` instance with SI units. The value of the
-            resulting object will be scaled.
+        """
+        Returns a copy of the current `Quantity` instance with SI units. The
+        value of the resulting object will be scaled.
         """
 
         from . import si as _si
-        si_unit_set = set([ss for ss in _si.__dict__.values() if isinstance(ss, IrreducibleUnit)])
+
+        si_unit_set = set(ss for ss in vars(_si).itervalues()
+                          if isinstance(ss, IrreducibleUnit))
         si_quantity_value = self.value
 
         if isinstance(self.unit, CompositeUnit):
@@ -117,8 +120,10 @@ class Quantity(object):
             for base_unit, power in zip(self.unit.bases, self.unit.powers):
                 is_si = True
                 for si_unit in si_unit_set:
-                    if base_unit.is_equivalent(si_unit) and base_unit != si_unit:
-                        scale = (base_unit / si_unit).dimensionless_constant()**power
+                    if (base_unit.is_equivalent(si_unit) and
+                        base_unit != si_unit):
+                        const = (base_unit / si_unit).dimensionless_constant()
+                        scale = const ** power
                         si_quantity_value *= scale
                         is_si = False
                         si_quantity_bases.append(si_unit)
@@ -129,11 +134,14 @@ class Quantity(object):
                     si_quantity_bases.append(base_unit)
                     si_quantity_powers.append(power)
 
-            return Quantity(si_quantity_value, CompositeUnit(1., si_quantity_bases, si_quantity_powers).simplify())
+            return Quantity(si_quantity_value,
+                            CompositeUnit(1., si_quantity_bases,
+                                          si_quantity_powers).simplify())
         else:
             for si_unit in si_unit_set:
                 if self.unit.is_equivalent(si_unit) and self.unit != si_unit:
-                    # Don't have to worry about power here because if it has a power, it's a CompositeUnit
+                    # Don't have to worry about power here because if it has a
+                    # power, it's a CompositeUnit
                     scale = (self.unit / si_unit).dimensionless_constant()
                     si_quantity_value *= scale
 
@@ -144,11 +152,13 @@ class Quantity(object):
 
     @property
     def cgs(self):
-        """ Returns a copy of the current `Quantity` instance with CGS units. The value of the
-            resulting object will be scaled.
+        """
+        Returns a copy of the current `Quantity` instance with CGS units. The
+        value of the resulting object will be scaled.
         """
 
         from . import cgs as _cgs
+
         si_quantity = self.si
         cgs_quantity_value = si_quantity.value
 
@@ -156,24 +166,31 @@ class Quantity(object):
             cgs_quantity_bases = []
             cgs_quantity_powers = []
 
-            for base_unit, power in zip(si_quantity.unit.bases, si_quantity.unit.powers):
-                if base_unit in _cgs._cgs_bases.keys():
-                    scale = (base_unit / _cgs._cgs_bases[base_unit]).dimensionless_constant()**power
+            for base_unit, power in zip(si_quantity.unit.bases,
+                                        si_quantity.unit.powers):
+                if base_unit in _cgs._cgs_bases:
+                    cgs_base = _cgs._cgs_bases[base_unit]
+                    const = (base_unit / cgs_base).dimensionless_constant()
+                    scale = const ** power
                     cgs_quantity_value *= scale
-                    cgs_quantity_bases.append(_cgs._cgs_bases[base_unit])
+                    cgs_quantity_bases.append(cgs_base)
                     cgs_quantity_powers.append(power)
                 else:
                     cgs_quantity_bases.append(base_unit)
                     cgs_quantity_powers.append(power)
 
-            return Quantity(cgs_quantity_value, CompositeUnit(1., cgs_quantity_bases, cgs_quantity_powers).simplify())
+            return Quantity(cgs_quantity_value,
+                            CompositeUnit(1., cgs_quantity_bases,
+                                          cgs_quantity_powers).simplify())
         else:
-            if si_quantity.unit in _cgs._cgs_bases.keys():
-                # Don't have to worry about power here because if it has a power, it's a CompositeUnit
-                scale = (si_quantity.unit / _cgs._cgs_bases[si_quantity.unit]).dimensionless_constant()
+            if si_quantity.unit in _cgs._cgs_bases:
+                # Don't have to worry about power here because if it has a
+                # power, it's a CompositeUnit
+                cgs_base = _cgs._cgs_bases[si_quantity.unit]
+                scale = (si_quantity.unit / cgs_base).dimensionless_constant()
                 cgs_quantity_value *= scale
 
-                return Quantity(cgs_quantity_value, _cgs._cgs_bases[si_quantity.unit])
+                return Quantity(cgs_quantity_value, cgs_base)
             else:
                 return Quantity(si_quantity.value, si_quantity.unit)
 
