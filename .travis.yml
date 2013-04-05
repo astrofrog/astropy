@@ -48,7 +48,7 @@ before_install:
 
 install:
    - export PYTHONIOENCODING=UTF8 # just in case
-   - pip install --upgrade "http://www.mpia.de/~robitaille/numpy-$NUMPY_VERSION-py2.7-linux-x86_64.egg"
+   - easy_install --upgrade "http://www.mpia.de/~robitaille/numpy-$NUMPY_VERSION-py2.7-linux-x86_64.egg"
    - if $OPTIONAL_DEPS; then pip install scipy --use-mirrors; fi # this can't be quiet because it takes so long that travis times out
    - if $OPTIONAL_DEPS; then pip install h5py -q --use-mirrors; fi
    - if [[ $SETUP_CMD == build_sphinx* ]]; then pip -q install sphinx --use-mirrors; fi
