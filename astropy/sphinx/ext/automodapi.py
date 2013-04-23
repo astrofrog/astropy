@@ -229,7 +229,7 @@ def automodapi_replace(sourcestr, app, dotoctree=True, docname=None,
             elif toinclude:
                 skips_or_includes = ':include: ' + ','.join(toinclude)
             else:
-                skips_or_includes = None
+                skips_or_includes = ''
 
             if hasfuncs:
                 newstrs.append(automod_templ_funcs.format(modname=modnm,
