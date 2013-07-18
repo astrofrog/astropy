@@ -31,18 +31,20 @@ def _can_cast(arg, dtype):
     return np.can_cast(getattr(arg, 'dtype', type(arg)), dtype)
 
 
-from .quantity_helper import _is_unity
-
 UNIT_NOT_INITIALISED = "(Unit not initialised)"
 
 
-def _validate_value(value):
+def _validate_value(value, dtype):
     """ Make sure that the input is a Python or Numpy numeric type.
 
     Parameters
     ----------
     value : number
         An object that will be checked whether it is a numeric type or not.
+
+    dtype : Numpy dtype or None
+        The dtype of the resulting value.  If None, the dtype of the
+        input value is used or automatically computed.
 
     Returns
     -------
@@ -54,7 +56,7 @@ def _validate_value(value):
 
     if (isinstance(value, (numbers.Number, np.number, np.ndarray)) or
             isiterable(value)):
-        value_obj = np.array(value, copy=True)
+        value_obj = np.array(value, copy=True, dtype=dtype)
     else:
         raise TypeError("The value must be a valid Python or Numpy numeric "
                         "type.")
@@ -100,18 +102,15 @@ class Quantity(np.ndarray):
 
         if isinstance(value, Quantity):
             if unit is None:
-                _value = _validate_value(value.value)
+                _value = _validate_value(value.value, dtype)
             else:
-                _value = _validate_value(value.to(unit).value)
+                _value = _validate_value(value.to(unit).value, dtype)
         elif isiterable(value) and all(isinstance(v, Quantity) for v in value):
-            _value = _validate_value([q.to(unit).value for q in value])
+            _value = _validate_value([q.to(unit).value for q in value], dtype)
         else:
-            _value = _validate_value(value)
+            _value = _validate_value(value, dtype)
 
-        if dtype is not None and dtype != _value.dtype:
-            _value = _value.astype(dtype)
-        else:
-            dtype = _value.dtype
+        dtype = _value.dtype
 
         self = super(Quantity, cls).__new__(cls, _value.shape, dtype=dtype,
                                             buffer=_value.data)
@@ -176,6 +175,10 @@ class Quantity(np.ndarray):
         # this as a special case.
         # TODO: find a better way to deal with this case
         if function is np.power and result_unit is not None:
+            if not np.isscalar(args[1]):
+                raise ValueError(
+                    "Quantities may only be raised to a scalar power")
+
             if units[1] is None:
                 result_unit = result_unit ** args[1]
             else:
@@ -533,6 +536,9 @@ class Quantity(np.ndarray):
 
     def __divmod__(self, other):
         from . import dimensionless_unscaled
+        if isinstance(other, (basestring, UnitBase)):
+            return (self / other, Quantity(0, dimensionless_unscaled))
+
         other_value = self._to_own_unit(other)
         result_tuple = super(Quantity, self.__class__).__divmod__(
             self.view(np.ndarray), other_value)
@@ -614,21 +620,21 @@ class Quantity(np.ndarray):
 
     # Numerical types
     def __float__(self):
-        if not self.isscalar or not _is_unity(self.unit):
+        if not self.isscalar or not self.unit.is_unity():
             raise TypeError('Only dimensionless scalar quantities can be '
                             'converted to Python scalars')
         else:
             return float(self.value)
 
     def __int__(self):
-        if not self.isscalar or not _is_unity(self.unit):
+        if not self.isscalar or not self.unit.is_unity():
             raise TypeError('Only dimensionless scalar quantities can be '
                             'converted to Python scalars')
         else:
             return int(self.value)
 
     def __long__(self):
-        if not self.isscalar or not _is_unity(self.unit):
+        if not self.isscalar or not self.unit.is_unity():
             raise TypeError('Only dimensionless scalar quantities can be '
                             'converted to Python scalars')
         else:
@@ -911,7 +917,7 @@ class Quantity(np.ndarray):
         return Quantity(value, self.unit)
 
     def prod(self, axis=None, dtype=None, out=None, keepdims=False):
-        if _is_unity(self.unit):
+        if self.unit.is_unity():
             out = out and out.view(Quantity)
             try:
                 value = np.prod(self.value, axis=axis, dtype=dtype,
@@ -925,7 +931,7 @@ class Quantity(np.ndarray):
                              "non-dimensionless Quantity arrays")
 
     def cumprod(self, axis=None, dtype=None, out=None):
-        if _is_unity(self.unit):
+        if self.unit.is_unity():
             out = out and out.view(Quantity)
             value = np.cumprod(self.value, axis=axis, dtype=dtype, out=out)
             return Quantity(value, self.unit)

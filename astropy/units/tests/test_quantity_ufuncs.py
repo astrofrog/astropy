@@ -4,7 +4,7 @@
 import numpy as np
 
 from ... import units as u
-from ...tests.helper import pytest
+from ...tests.helper import pytest, raises
 from ...tests.compat import assert_allclose
 
 NUMPY_LT_1P6 = [int(x) for x in np.__version__.split('.')[:2]] < [1, 6]
@@ -177,6 +177,22 @@ class TestQuantityMathFuncs(object):
         assert np.all(function(np.arange(3.) * u.m, 2. * u.s) ==
                       function(np.arange(3.), 2.) * u.m / u.s)
 
+    def test_divmod(self):
+        quotient, remainder = divmod(
+            np.array([1., 2., 3.]) * u.m,
+            np.array([3., 4., 5.]) * u.inch)
+        assert_allclose(quotient.value, [13., 19., 23.])
+        assert quotient.unit == u.dimensionless_unscaled
+        assert_allclose(remainder.value, [0.0094, 0.0696, 0.079])
+        assert remainder.unit == u.m
+
+        quotient, remainder = divmod(
+            np.array([1., 2., 3.]) * u.m, u.km)
+        assert_allclose(quotient.value, [1., 2., 3.])
+        assert quotient.unit == u.m / u.km
+        assert remainder.value == 0.
+        assert remainder.unit == u.dimensionless_unscaled
+
     def test_sqrt_scalar(self):
         assert np.sqrt(4. * u.m) == 2. * u.m ** 0.5
 
@@ -206,6 +222,14 @@ class TestQuantityMathFuncs(object):
     def test_power_array(self):
         assert np.all(np.power(np.array([1., 2., 3.]) * u.m, 3.)
                       == np.array([1., 8., 27.]) * u.m ** 3)
+
+    @raises(ValueError)
+    def test_power_array_array(self):
+        np.power(4. * u.m, [2., 4.])
+
+    @raises(ValueError)
+    def test_power_array_array2(self):
+        np.power([2., 4.] * u.m, [2., 4.])
 
     def test_power_invalid(self):
         with pytest.raises(TypeError) as exc:
