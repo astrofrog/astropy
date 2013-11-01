@@ -563,8 +563,14 @@ class ParametricModel(Model):
         self._param_metrics = {}
         total_size = 0
         for name in self.param_names:
-            value = params.setdefault(name,
-                                      getattr(self, name).default)
+            if params.get(name) is None:
+                # parameters that were not supplied at all or that have
+                # defaults of None should attempt to use the default provided
+                # by their Parameter descriptor
+                params[name] = getattr(self, name).default
+
+            value = params[name]
+
             if self.param_dim == 1:
                 param_size = np.size(value)
                 param_shape = np.shape(value)
