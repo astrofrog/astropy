@@ -981,7 +981,7 @@ class SAMPClient(object):
         return self._public_id
 
 
-class SAMPIntegratedClient(object):
+class SAMPIntegratedClient(SAMPClient):
     """
     A Simple SAMP client.
 
@@ -1049,11 +1049,12 @@ class SAMPIntegratedClient(object):
                  addr=None, port=0, https=False, key_file=None,
                  cert_file=None, cert_reqs=0, ca_certs=None, ssl_version=2,
                  callable=True):
-        self.hub = SAMPHubProxy()
 
-        self.client = SAMPClient(self.hub, name, description, metadata, addr, port,
-                                 https, key_file, cert_file, cert_reqs,
-                                 ca_certs, ssl_version, callable)
+        hub = SAMPHubProxy()
+
+        SAMPClient.__init__(self, hub, name, description, metadata, addr, port,
+                            https, key_file, cert_file, cert_reqs,
+                            ca_certs, ssl_version, callable)
 
     def __del__(self):
         try:
@@ -1062,6 +1063,7 @@ class SAMPIntegratedClient(object):
             pass
 
     # GENERAL
+
     def isConnected(self):
         """
         Testing method to verify the client connection with a running Hub.
@@ -1071,7 +1073,7 @@ class SAMPIntegratedClient(object):
         isConnected : bool
             True if the client is connected to a Hub, False otherwise.
         """
-        return self.hub.isConnected() & self.client.isRunning()
+        return self.hub.isConnected() & self.isRunning()
 
     def connect(self, hub_params=None, user=None, password=None,
                 key_file=None, cert_file=None, cert_reqs=0,
@@ -1127,8 +1129,8 @@ class SAMPIntegratedClient(object):
         """
         self.hub.connect(hub_params, user, password, key_file, cert_file, cert_reqs,
                          ca_certs, ssl_version, pool_size)
-        self.client.start()
-        self.client.register()
+        self.start()
+        self.register()
 
     def disconnect(self):
         """
@@ -1137,53 +1139,48 @@ class SAMPIntegratedClient(object):
         """
         cliEx = None
         try:
-            self.client.unregister()
+            self.unregister()
         except SAMPClientError as cliEx:
             pass
 
-        if self.client.isRunning():
-            self.client.stop()
+        if self.isRunning():
+            self.stop()
         self.hub.disconnect()
 
         if cliEx:
             raise cliEx
 
     # HUB
+
     def ping(self):
         """
         Proxy to `ping` SAMP Hub method (Standard Profile only).
         """
         return self.hub.ping()
 
-    def declareMetadata(self, metadata):
-        """
-        Proxy to `declareMetadata` SAMP Hub method.
-        """
-        return self.client.declareMetadata(metadata)
-
     def getMetadata(self, client_id):
         """
         Proxy to `getMetadata` SAMP Hub method.
         """
-        return self.hub.getMetadata(self.client.getPrivateKey(), client_id)
+        return self.hub.getMetadata(self.getPrivateKey(), client_id)
 
     def getSubscriptions(self, client_id):
         """
         Proxy to `getSubscriptions` SAMP Hub method.
         """
-        return self.hub.getSubscriptions(self.client.getPrivateKey(), client_id)
+        return self.hub.getSubscriptions(self.getPrivateKey(), client_id)
 
     def getRegisteredClients(self):
         """
         Proxy to `getRegisteredClients` SAMP Hub method.
         """
-        return self.hub.getRegisteredClients(self.client.getPrivateKey())
+        return self.hub.getRegisteredClients(self.getPrivateKey())
 
     def getSubscribedClients(self, mtype):
         """
         Proxy to `getSubscribedClients` SAMP Hub method.
         """
-        return self.hub.getSubscribedClients(self.client.getPrivateKey(), mtype)
+        return self.hub.getSubscribedClients(self.getPrivateKey(), mtype)
 
     def _format_easy_msg(self, mtype, params):
 
@@ -1201,7 +1198,7 @@ class SAMPIntegratedClient(object):
 
     def notify(self, recipient_id, message):
         """Proxy to `notify` SAMP Hub method."""
-        return self.hub.notify(self.client.getPrivateKey(), recipient_id, message)
+        return self.hub.notify(self.getPrivateKey(), recipient_id, message)
 
     def enotify(self, recipient_id, mtype, **params):
         """
@@ -1240,7 +1237,7 @@ class SAMPIntegratedClient(object):
         """
         Proxy to `notifyAll` SAMP Hub method.
         """
-        return self.hub.notifyAll(self.client.getPrivateKey(), message)
+        return self.hub.notifyAll(self.getPrivateKey(), message)
 
     def enotifyAll(self, mtype, **params):
         """
@@ -1277,7 +1274,7 @@ class SAMPIntegratedClient(object):
         """
         Proxy to `call` SAMP Hub method.
         """
-        return self.hub.call(self.client.getPrivateKey(), recipient_id, msg_tag, message)
+        return self.hub.call(self.getPrivateKey(), recipient_id, msg_tag, message)
 
     def ecall(self, recipient_id, msg_tag, mtype, **params):
         """
@@ -1318,7 +1315,7 @@ class SAMPIntegratedClient(object):
 
     def callAll(self, msg_tag, message):
         """Proxy to `callAll` SAMP Hub method."""
-        return self.hub.callAll(self.client.getPrivateKey(), msg_tag, message)
+        return self.hub.callAll(self.getPrivateKey(), msg_tag, message)
 
     def ecallAll(self, msg_tag, mtype, **params):
         """
@@ -1359,7 +1356,7 @@ class SAMPIntegratedClient(object):
 
         If timeout expires a `SAMPProxyError` instance is raised.
         """
-        return self.hub.callAndWait(self.client.getPrivateKey(), recipient_id, message, timeout)
+        return self.hub.callAndWait(self.getPrivateKey(), recipient_id, message, timeout)
 
     def ecallAndWait(self, recipient_id, mtype, timeout, **params):
         """
@@ -1397,7 +1394,7 @@ class SAMPIntegratedClient(object):
 
     def reply(self, msg_id, response):
         """Proxy to `reply` SAMP Hub method."""
-        return self.hub.reply(self.client.getPrivateKey(), msg_id, response)
+        return self.hub.reply(self.getPrivateKey(), msg_id, response)
 
     def _format_easy_response(self, status, result, error):
 
@@ -1440,69 +1437,4 @@ class SAMPIntegratedClient(object):
         """
         return self.reply(msg_id, self._format_easy_response(status, result, error))
 
-    # CLIENT
 
-    def receiveNotification(self, private_key, sender_id, message):
-        return self.client.receiveNotification(private_key, sender_id, message)
-
-    receiveNotification.__doc__ = SAMPClient.receiveNotification.__doc__
-
-    def receiveCall(self, private_key, sender_id, msg_id, message):
-        return self.client.receiveCall(private_key, sender_id, msg_id, message)
-
-    receiveCall.__doc__ = SAMPClient.receiveCall.__doc__
-
-    def receiveResponse(self, private_key, responder_id, msg_tag, response):
-        return self.client.receiveResponse(private_key, responder_id, msg_tag, response)
-
-    receiveResponse.__doc__ = SAMPClient.receiveResponse.__doc__
-
-    def bindReceiveMessage(self, mtype, function, declare=True, metadata=None):
-        self.client.bindReceiveMessage(mtype, function, declare=True, metadata=None)
-
-    bindReceiveMessage.__doc__ = SAMPClient.bindReceiveMessage.__doc__
-
-    def bindReceiveNotification(self, mtype, function, declare=True, metadata=None):
-        self.client.bindReceiveNotification(mtype, function, declare, metadata)
-
-    bindReceiveNotification.__doc__ = SAMPClient.bindReceiveNotification.__doc__
-
-    def bindReceiveCall(self, mtype, function, declare=True, metadata=None):
-        self.client.bindReceiveCall(mtype, function, declare, metadata)
-
-    bindReceiveCall.__doc__ = SAMPClient.bindReceiveCall.__doc__
-
-    def bindReceiveResponse(self, msg_tag, function):
-        self.client.bindReceiveResponse(msg_tag, function)
-
-    bindReceiveResponse.__doc__ = SAMPClient.bindReceiveResponse.__doc__
-
-    def unbindReceiveNotification(self, mtype, declare=True):
-        self.client.unbindReceiveNotification(mtype, declare)
-
-    unbindReceiveNotification.__doc__ = SAMPClient.unbindReceiveNotification.__doc__
-
-    def unbindReceiveCall(self, mtype, declare=True):
-        self.client.unbindReceiveCall(mtype, declare)
-
-    unbindReceiveCall.__doc__ = SAMPClient.unbindReceiveCall.__doc__
-
-    def unbindReceiveResponse(self, msg_tag):
-        self.client.unbindReceiveResponse(msg_tag)
-
-    unbindReceiveResponse.__doc__ = SAMPClient.unbindReceiveResponse.__doc__
-
-    def declareSubscriptions(self, subscriptions=None):
-        self.client.declareSubscriptions(subscriptions)
-
-    declareSubscriptions.__doc__ = SAMPClient.declareSubscriptions.__doc__
-
-    def getPrivateKey(self):
-        return self.client.getPrivateKey()
-
-    getPrivateKey.__doc__ = SAMPClient.getPrivateKey.__doc__
-
-    def getPublicId(self):
-        return self.client.getPublicId()
-
-    getPublicId.__doc__ = SAMPClient.getPublicId.__doc__
