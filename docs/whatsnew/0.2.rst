@@ -62,7 +62,7 @@ celestial coordinates, which allows a complete mapping to 3D coordinates::
 
 The package also supports a simple interface for retrieving coordinates for an object by
 name using the `Sesame Name Resolver <http://cds.u-strasbg.fr/cgi-bin/Sesame>`_ . This works
-on all subclasses of :class:`~astropy.coordinates.coordsystems.SphericalCoordinatesBase`::
+on all subclasses of ``SphericalCoordinatesBase``::
 
   >>> c = coord.ICRSCoordinates.from_name("M42")
   >>> c.ra, c.dec
@@ -71,9 +71,8 @@ on all subclasses of :class:`~astropy.coordinates.coordsystems.SphericalCoordina
   >>> c.l, c.b
   (<Angle -150.98622 deg>, <Angle -19.38162 deg>)
 
-For more details about this feature, see
-:func:`~astropy.coordinates.name_resolve.get_icrs_coordinates` and
-:meth:`~astropy.coordinates.coordsystems.SphericalCoordinatesBase.from_name`.
+For more details about this feature, see ``get_icrs_coordinates`` and
+``SphericalCoordinatesBase.from_name``.
 
 Note that this subpackage is still under heavy development, and likely will
 undergo significant changes in the next few versions.
@@ -115,13 +114,10 @@ Now you would do the same thing using::
   >>> from astropy.cosmology import FlatLambdaCDM
   >>> cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
-The convenience functions
-:func:`~astropy.cosmology.funcs.kpc_proper_per_arcmin`,
-:func:`~astropy.cosmology.funcs.kpc_comoving_per_arcmin`,
-:func:`~astropy.cosmology.funcs.arcsec_per_kpc_proper` and
-:func:`~astropy.cosmology.funcs.arcsec_per_kpc_comoving` are now all
-available as methods of the :class:`~astropy.cosmology.core.Cosmology`
-object.
+The convenience functions ``kpc_proper_per_arcmin``,
+``kpc_comoving_per_arcmin``, ``arcsec_per_kpc_proper`` and
+``arcsec_per_kpc_comoving`` are now all available as methods of the
+``Cosmology`` object.
 
 Finally, a new set of cosmological parameters from the 9 year WMAP
 results (``astropy.cosmology.WMAP9``) has been added from the recently
