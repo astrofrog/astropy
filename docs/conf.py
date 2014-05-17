@@ -171,7 +171,13 @@ github_issues_url = 'https://github.com/astropy/astropy/issues/'
 nitpicky = False
 nitpick_ignore = []
 
+# Numpy docstring variables
+nitpick_ignore.extend([('py:obj', six.u('dtype')),
+                       ('py:obj', six.u('a')),
+                       ('py:obj', six.u('a.size == 1')),
+                       ('py:obj', six.u('n'))])
+
 if six.PY2:
-    nitpick_ignore.append((six.u('py:class'), six.u('object')))
-    nitpick_ignore.append(('py:obj', six.u('bytes')))
-    nitpick_ignore.append(('py:obj', six.u('bases')))
+    nitpick_ignore.extend([(six.u('py:class'), six.u('object')),
+                           ('py:obj', six.u('bytes')),
+                           ('py:obj', six.u('bases'))])
