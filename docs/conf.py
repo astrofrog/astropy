@@ -177,6 +177,21 @@ nitpick_ignore.extend([('py:obj', six.u('dtype')),
                        ('py:obj', six.u('a.size == 1')),
                        ('py:obj', six.u('n'))])
 
+# VOTable base classes that aren't in the public API
+nitpick_ignore.extend([('py:class', six.u('astropy.io.votable.tree.Element')),
+                       ('py:class', six.u('astropy.io.votable.tree.SimpleElement')),
+                       ('py:class', six.u('astropy.io.votable.tree.SimpleElementWithContent')),
+                       ('py:class', six.u('astropy.io.votable.tree._DescriptionProperty')),
+                       ('py:class', six.u('astropy.io.votable.tree._IDProperty')),
+                       ('py:class', six.u('astropy.io.votable.tree._NameProperty')),
+                       ('py:class', six.u('astropy.io.votable.tree._UcdProperty')),
+                       ('py:class', six.u('astropy.io.votable.tree._UtypeProperty')),
+                       ('py:class', six.u('astropy.io.votable.tree._XtypeProperty'))])
+
+# Modeling base classes that aren't in the public API
+nitpick_ignore.extend([('py:class', six.u('astropy.modeling.projections.Zenithal')),
+                       ('py:class', six.u('astropy.modeling.projections.Cylindrical'))])
+
 if six.PY2:
     nitpick_ignore.extend([(six.u('py:class'), six.u('object')),
                            ('py:obj', six.u('bytes')),
