@@ -192,6 +192,13 @@ nitpick_ignore.extend([('py:class', six.u('astropy.io.votable.tree.Element')),
 nitpick_ignore.extend([('py:class', six.u('astropy.modeling.projections.Zenithal')),
                        ('py:class', six.u('astropy.modeling.projections.Cylindrical'))])
 
+# FITS base classes that aren't in the public API
+nitpick_ignore.extend([('py:class', six.u('astropy.io.fits.diff._BaseDiff')),
+                       ('py:class', six.u('astropy.io.fits.verify._Verify')),
+                       ('py:class', six.u('astropy.io.fits.hdu.image._ImageBaseHDU')),
+                       ('py:class', six.u('astropy.io.fits.hdu.table._TableLikeHDU')),
+                       ('py:class', six.u('astropy.io.fits.hdu.base.ExtensionHDU'))])
+
 if six.PY2:
     nitpick_ignore.extend([(six.u('py:class'), six.u('object')),
                            ('py:obj', six.u('bytes')),
