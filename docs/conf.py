@@ -175,7 +175,9 @@ nitpick_ignore = []
 nitpick_ignore.extend([('py:obj', six.u('dtype')),
                        ('py:obj', six.u('a')),
                        ('py:obj', six.u('a.size == 1')),
-                       ('py:obj', six.u('n'))])
+                       ('py:obj', six.u('n')),
+                       ('py:obj', six.u('ndarray')),
+                       ('py:obj', six.u('args'))])
 
 # VOTable base classes that aren't in the public API
 nitpick_ignore.extend([('py:class', six.u('astropy.io.votable.tree.Element')),
@@ -190,7 +192,10 @@ nitpick_ignore.extend([('py:class', six.u('astropy.io.votable.tree.Element')),
 
 # Modeling base classes that aren't in the public API
 nitpick_ignore.extend([('py:class', six.u('astropy.modeling.projections.Zenithal')),
-                       ('py:class', six.u('astropy.modeling.projections.Cylindrical'))])
+                       ('py:class', six.u('astropy.modeling.projections.Cylindrical')),
+                       ('py:class', six.u('astropy.modeling.core._CompositeModel')),
+                       ('py:class', six.u('astropy.modeling.polynomial.PolynomialBase')),
+                       ('py:class', six.u('astropy.modeling.rotations.EulerAngleRotation'))])
 
 # FITS base classes that aren't in the public API
 nitpick_ignore.extend([('py:class', six.u('astropy.io.fits.diff._BaseDiff')),
@@ -198,6 +203,14 @@ nitpick_ignore.extend([('py:class', six.u('astropy.io.fits.diff._BaseDiff')),
                        ('py:class', six.u('astropy.io.fits.hdu.image._ImageBaseHDU')),
                        ('py:class', six.u('astropy.io.fits.hdu.table._TableLikeHDU')),
                        ('py:class', six.u('astropy.io.fits.hdu.base.ExtensionHDU'))])
+
+# Table base classes that aren't in the public API
+nitpick_ignore.extend([('py:class', six.u('astropy.table.column.BaseColumn'))])
+
+# Time base classes that aren't in the public API
+nitpick_ignore.extend([('py:class', six.u('astropy.time.core.TimeUnique'))])
+
+
 
 if six.PY2:
     nitpick_ignore.extend([(six.u('py:class'), six.u('object')),
