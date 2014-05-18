@@ -24,7 +24,7 @@ Missing value support is now provided using :ref:`masked tables <astropy-table>`
 instead of NumPy masked arrays.
 
 There is an important change in way that input data are parsed in the
-:func:`~astropy.io.ascii.ui.write` function.  In version 0.1 of Astropy, a
+``write`` function.  In version 0.1 of Astropy, a
 list of lists was interpreted to be a *list of data rows*, corresponding to the
 behavior in `asciitable <https://asciitable.readthedocs.org/>`_.  Starting from
 version 0.2, a list of lists is interpreted as a *list of data columns*.  This corresponds
@@ -94,7 +94,7 @@ parameter ``w`` using the popular parameterisations by `Linder 2003
 There are two API changes:
 
   * Previously the ``Om``, ``Ol`` and ``Ok`` attributes of a
-    `~astropy.cosmology.core.Cosmology` class referred to densities at z = 0. 
+    ``Cosmology`` class referred to densities at z = 0.
     These have been renamed to ``Om0``, ``Ol0``, and ``Ok0``. ``Om``, ``Ol`` and
     ``Ok`` are now methods that give the relevant density as a
     function of redshift. This change makes their behaviour consistent
