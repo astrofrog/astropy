@@ -242,13 +242,11 @@ return Numpy arrays.
 
 As shown above, all the coordinate classes have now been renamed to drop the
 ``Coordinates`` suffix (e.g. ``ICRS`` instead of ``ICRSCoordinates``). In
-addition, ``HorizontalCoordinates`` has now been renamed to `~astropy.coordinates.builtin_systems.AltAz`.
+addition, ``HorizontalCoordinates`` has now been renamed to ``AltAz``.
 
 Coordinate objects now support matching one set of coordinates to another
-using the array coordinates functionality described above.  See
-`~astropy.coordinates.coordsystems.SphericalCoordinatesBase.match_to_catalog_sky`
-and `~astropy.coordinates.coordsystems.SphericalCoordinatesBase.match_to_catalog_3d`
-for more details.
+using the array coordinates functionality described above. See
+``match_to_catalog_sky`` and ``match_to_catalog_3d`` for more details.
 
 Finally, coordinate objects now have a ``to_string`` method that allows easy
 conversion to string representations. For example, in the case of the previous
@@ -281,13 +279,13 @@ more input tables:
      - `~astropy.table.Table.group_by`
    * - :ref:`stack-vertically`
      - Concatenate input tables along rows
-     - `~astropy.table.operations.vstack`
+     - `~astropy.table.vstack`
    * - :ref:`stack-horizontally`
      - Concatenate input tables along columns
-     - `~astropy.table.operations.hstack`
+     - `~astropy.table.hstack`
    * - :ref:`table-join`
      - Database-style join of two tables
-     - `~astropy.table.operations.join`
+     - `~astropy.table.join`
 
 Grouping is a useful concept that allows you to divide a table
 into sub-groups based on certain key values and create new tables based
@@ -333,7 +331,7 @@ ASCII Tables
 The :ref:`io-ascii` sub-package now includes functionality to write `IPAC format tables
 <http://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_.
 
-The `~astropy.io.ascii.ui.read()` and `~astropy.io.ascii.ui.write()` functions now
+The ``read`` and ``write`` functions now
 allow a ``format`` keyword argument for specifying the file format as a string.
 This replaces the deprecated ``Reader`` and ``Writer`` keywords which required
 supplying a fully-qualified class type.  To convert existing code that uses
