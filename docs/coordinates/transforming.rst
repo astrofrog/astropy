@@ -45,7 +45,7 @@ coordinate object into the frame of another::
 The table below summarizes the built-in coordinate frames.  For details of
 these frames and the transformations between them see the `astropy.coordinates`
 API documentation and the `~astropy.coordinates.BaseCoordinateFrame` class
-which forms the basis for all `astropy` coordinate frames.
+which forms the basis for all `astropy.coordinates` coordinate frames.
 
 ================================== ================
  Frame class                        Frame name
