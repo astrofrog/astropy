@@ -17,7 +17,9 @@ import operator
 
 import numpy as np
 
+from ..units import Quantity
 from ..utils import isiterable, OrderedDescriptor
+from ..utils.compat import ignored
 from ..extern import six
 
 from .utils import get_inputs_and_params
@@ -25,8 +27,16 @@ from .utils import get_inputs_and_params
 __all__ = ['Parameter', 'InputParameterError']
 
 
-class InputParameterError(ValueError):
+class ParameterError(Exception):
+    """Generic exception class for all exceptions pertaining to Parameters."""
+
+
+class InputParameterError(ValueError, ParameterError):
     """Used for incorrect input parameter values and definitions."""
+
+
+class ParameterDefinitionError(ParameterError):
+    """Exception in declaration of class-level Parameters."""
 
 
 def _tofloat(value):
@@ -34,13 +44,16 @@ def _tofloat(value):
 
     if isiterable(value):
         try:
-            value = np.array(value, dtype=np.float)
+            value = np.asanyarray(value, dtype=np.float)
         except (TypeError, ValueError):
             # catch arrays with strings or user errors like different
             # types of parameters in a parameter set
             raise InputParameterError(
                 "Parameter of {0} could not be converted to "
                 "float".format(type(value)))
+    elif isinstance(value, Quantity):
+        # Quantities are fine as is
+        pass
     elif isinstance(value, np.ndarray):
         # A scalar/dimensionless array
         value = float(value.item())
@@ -65,10 +78,15 @@ def _binary_arithmetic_operation(op, reflected=False):
         if self._model is None:
             return NotImplemented
 
-        if reflected:
-            return op(val, self.value)
+        if self.unit is not None:
+            self_value = Quantity(self.value, self.unit)
         else:
-            return op(self.value, val)
+            self_value = self.value
+
+        if right:
+            return op(val, self_value)
+        else:
+            return op(self_value, val)
 
     return wrapper
 
@@ -86,7 +104,12 @@ def _binary_comparison_operation(op):
             else:
                 return NotImplemented
 
-        return op(self.value, val)
+        if self.unit is not None:
+            self_value = Quantity(self.value, self.unit)
+        else:
+            self_value = self.value
+
+        return op(self_value, val)
 
     return wrapper
 
@@ -97,7 +120,12 @@ def _unary_arithmetic_operation(op):
         if self._model is None:
             return NotImplemented
 
-        return op(self.value)
+        if self.unit is not None:
+            self_value = Quantity(self.value, self.unit)
+        else:
+            self_value = self.value
+
+        return op(self_value)
 
     return wrapper
 
@@ -179,14 +207,23 @@ class Parameter(OrderedDescriptor):
     _class_attribute_ = '_parameters_'
     _name_attribute_ = '_name'
 
-    def __init__(self, name='', description='', default=None, getter=None,
-                 setter=None, fixed=False, tied=False, min=None, max=None,
-                 bounds=None, model=None):
+    def __init__(self, name='', description='', default=None, unit=None,
+                 getter=None, setter=None, fixed=False, tied=False, min=None,
+                 max=None, bounds=None, model=None):
         super(Parameter, self).__init__()
 
         self._name = name
         self.__doc__ = self._description = description.strip()
         self._default = default
+        self._default_unit = unit
+
+        # We only need to perform this check on unbound parameters
+        if (model is None and unit is not None and
+                isinstance(default, Quantity) and
+                not unit.is_equivalent(default.unit)):
+            raise ParameterDefinitionError(
+                "parameter default {0} does not have units equivalent to "
+                "the required unit {1}".format(default, unit))
 
         # NOTE: These are *default* constraints--on model instances constraints
         # are taken from the model if set, otherwise the defaults set here are
@@ -292,6 +329,8 @@ class Parameter(OrderedDescriptor):
                 args += ', default={0}'.format(self._default)
         else:
             args += ', value={0}'.format(self.value)
+            if self.unit is not None:
+                args += ', unit={0}'.format(self.unit)
 
         for cons in self.constraints:
             val = getattr(self, cons)
@@ -338,7 +377,7 @@ class Parameter(OrderedDescriptor):
 
     @property
     def value(self):
-        """The unadorned value proxied by this parameter"""
+        """The unadorned value proxied by this parameter."""
 
         if self._model is None:
             raise AttributeError('Parameter definition does not have a value')
@@ -360,6 +399,45 @@ class Parameter(OrderedDescriptor):
             val = self._setter(value)
 
         self._set_model_value(self._model, value)
+
+    @property
+    def unit(self):
+        """
+        The unit attached to this parameter, if any.
+
+        On unbound parameters (i.e. parameters accessed through the
+        model class, rather than a model instance) this is the required/
+        default unit for the parameter.
+        """
+
+        if self._model is None:
+            return self._default_unit
+        else:
+            return self._model._param_metrics[self.name]['orig_unit']
+
+    @unit.setter
+    def unit(self, unit):
+        if self._model is None:
+            raise AttributeError('Cannot set unit on a parameter definition')
+
+        # TODO: This isn't really the right thing to do, and is just a
+        # placeholder.
+        # Setting the unit on a bound parameter should only change the units
+        # returned to the user when they access this parameter
+        # Try converting to the existing unit; if this fails the appropriate
+        # UnitError will be raised
+        # TODO: Do we want a more specific exception message for trying to
+        # convert a *parameter* to incompatible units?
+        orig_unit = self._model._param_metrics[self.name]['orig_unit']
+
+        if orig_unit is None:
+            raise ValueError(
+                'Cannot attach units to parameters that were not initially '
+                'specified with units')
+
+        orig_unit.to(unit)
+
+        self._model._param_metrics[self.name]['orig_unit'] = unit
 
     @property
     def shape(self):
@@ -643,6 +721,9 @@ class Parameter(OrderedDescriptor):
         self._getter = self._create_value_wrapper(self._getter, model)
         self._setter = self._create_value_wrapper(self._setter, model)
 
+    # TODO: These methods should probably be moved to the Model class, since it
+    # has entirely to do with details of how the model stores parameters.
+    # Parameter should just act as a user front-end to this.
     def _get_model_value(self, model):
         """
         This method implements how to retrieve the value of this parameter from
