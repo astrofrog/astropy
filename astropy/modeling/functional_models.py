@@ -149,9 +149,6 @@ class Gaussian1D(BaseGaussian1D):
     Gaussian2D, Box1D, Moffat1D, Lorentz1D
     """
 
-    input_units = 'mean'  # Input must have same units as mean
-    output_units = 'amplitude'  # Output must have same units as amplitude
-
     @staticmethod
     def evaluate(x, amplitude, mean, stddev):
         """
@@ -214,9 +211,6 @@ class GaussianAbsorption1D(BaseGaussian1D):
     --------
     Gaussian1D
     """
-
-    input_units = 'mean'
-    output_units = 'amplitude'
 
     @staticmethod
     def evaluate(x, amplitude, mean, stddev):
@@ -320,9 +314,6 @@ class Gaussian2D(Fittable2DModel):
     x_stddev = Parameter(default=1)
     y_stddev = Parameter(default=1)
     theta = Parameter(default=0.0)
-
-    input_units = ('x_mean', 'y_mean')
-    output_units = 'amplitude'
 
     def __init__(self, amplitude=amplitude.default, x_mean=x_mean.default,
                  y_mean=y_mean.default, x_stddev=None, y_stddev=None,
@@ -474,11 +465,6 @@ class Shift(Model):
     inputs = ('x',)
     outputs = ('x',)
 
-    # Input must have compatible units with offset, but output is kept in the
-    # input units
-    input_units = 'offset'
-    output_units = 'x'
-
     offset = Parameter(default=0)
     fittable = True
 
@@ -505,8 +491,6 @@ class Scale(Model):
 
     inputs = ('x',)
     outputs = ('x',)
-
-    output_units = lambda factor, x: factor.units * x.units
 
     factor = Parameter(default=1)
     linear = True
@@ -540,8 +524,6 @@ class RedshiftScaleFactor(Fittable1DModel):
     """
 
     z = Parameter(description='redshift', default=0)
-
-    output_units = 'x'
 
     @staticmethod
     def evaluate(x, z):
@@ -708,9 +690,6 @@ class Sine1D(Fittable1DModel):
     frequency = Parameter(default=1)
     phase = Parameter(default=0)
 
-    input_units = lambda frequency: 1 / frequency.unit
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, amplitude, frequency, phase):
         """One dimensional Sine model function"""
@@ -754,9 +733,6 @@ class Linear1D(Fittable1DModel):
 
     slope = Parameter(default=1)
     intercept = Parameter(default=0)
-
-    input_units = lambda slope, intercept: intercept.unit / slope.unit
-    output_units = 'intercept'
 
     linear = True
 
@@ -878,9 +854,6 @@ class Lorentz1D(Fittable1DModel):
     amplitude = Parameter(default=1)
     x_0 = Parameter(default=0)
     fwhm = Parameter(default=1)
-
-    input_units = 'x_0'
-    output_units = 'amplitude'
 
     @staticmethod
     def evaluate(x, amplitude, x_0, fwhm):
@@ -1053,8 +1026,6 @@ class Const1D(Fittable1DModel):
 
     amplitude = Parameter(default=1)
 
-    output_units = 'amplitude'
-
     linear = True
 
     @staticmethod
@@ -1101,8 +1072,6 @@ class Const2D(Fittable2DModel):
     """
 
     amplitude = Parameter(default=1)
-
-    output_units = 'amplitude'
 
     linear = True
 
@@ -1199,9 +1168,6 @@ class Ellipse2D(Fittable2DModel):
     b = Parameter(default=1)
     theta = Parameter(default=0)
 
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, y, amplitude, x_0, y_0, a, b, theta):
         """Two dimensional Ellipse model function."""
@@ -1270,9 +1236,6 @@ class Disk2D(Fittable2DModel):
     y_0 = Parameter(default=0)
     R_0 = Parameter(default=1)
 
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, y, amplitude, x_0, y_0, R_0):
         """Two dimensional Disk model function"""
@@ -1336,9 +1299,6 @@ class Ring2D(Fittable2DModel):
     y_0 = Parameter(default=0)
     r_in = Parameter(default=1)
     width = Parameter(default=1)
-
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
 
     def __init__(self, amplitude=amplitude.default, x_0=x_0.default,
                  y_0=y_0.default, r_in=r_in.default, width=width.default,
@@ -1448,8 +1408,6 @@ class Box1D(Fittable1DModel):
     x_0 = Parameter(default=0)
     width = Parameter(default=1)
 
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, amplitude, x_0, width):
         """One dimensional Box model function"""
@@ -1523,9 +1481,6 @@ class Box2D(Fittable2DModel):
     x_width = Parameter(default=1)
     y_width = Parameter(default=1)
 
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, y, amplitude, x_0, y_0, x_width, y_width):
         """Two dimensional Box model function"""
@@ -1598,9 +1553,6 @@ class Trapezoid1D(Fittable1DModel):
     width = Parameter(default=1)
     slope = Parameter(default=1)
 
-    input_units = 'x_0'
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, amplitude, x_0, width, slope):
         """One dimensional Trapezoid model function"""
@@ -1661,9 +1613,6 @@ class TrapezoidDisk2D(Fittable2DModel):
     y_0 = Parameter(default=0)
     R_0 = Parameter(default=1)
     slope = Parameter(default=1)
-
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
 
     @staticmethod
     def evaluate(x, y, amplitude, x_0, y_0, R_0, slope):
@@ -1743,9 +1692,6 @@ class MexicanHat1D(Fittable1DModel):
     x_0 = Parameter(default=0)
     sigma = Parameter(default=1)
 
-    input_units = 'x_0'
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, amplitude, x_0, sigma):
         """One dimensional Mexican Hat model function"""
@@ -1805,9 +1751,6 @@ class MexicanHat2D(Fittable2DModel):
     y_0 = Parameter(default=0)
     sigma = Parameter(default=1)
 
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, y, amplitude, x_0, y_0, sigma):
         """Two dimensional Mexican Hat model function"""
@@ -1863,8 +1806,6 @@ class AiryDisk2D(Fittable2DModel):
     x_0 = Parameter(default=0)
     y_0 = Parameter(default=0)
     radius = Parameter(default=1)
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
     _rz = None
     _j1 = None
 
@@ -1945,9 +1886,6 @@ class Moffat1D(Fittable1DModel):
     gamma = Parameter(default=1)
     alpha = Parameter(default=1)
 
-    input_units = 'x_0'
-    output_units = 'amplitude'
-
     @staticmethod
     def evaluate(x, amplitude, x_0, gamma, alpha):
         """One dimensional Moffat model function"""
@@ -2003,9 +1941,6 @@ class Moffat2D(Fittable2DModel):
     y_0 = Parameter(default=0)
     gamma = Parameter(default=1)
     alpha = Parameter(default=1)
-
-    input_units = ('x_0', 'y_0')
-    output_units = 'amplitude'
 
     @staticmethod
     def evaluate(x, y, amplitude, x_0, y_0, gamma, alpha):
