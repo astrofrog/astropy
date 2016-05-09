@@ -13,6 +13,7 @@ from .utils import ellipse_extent
 from ..utils import deprecated
 from ..extern import six
 from .utils import get_inputs_and_params
+from ..units import dimensionless_unscaled
 from ..utils.exceptions import AstropyDeprecationWarning
 
 
@@ -141,6 +142,13 @@ class Gaussian1D(Fittable1DModel):
         dx = factor * self.stddev
 
         return (x0 - dx, x0 + dx)
+
+    @property
+    def input_units(self):
+        if self.mean.unit is None:
+            return dimensionless_unscaled
+        else:
+            return self.mean.unit
 
     @staticmethod
     def evaluate(x, amplitude, mean, stddev):
