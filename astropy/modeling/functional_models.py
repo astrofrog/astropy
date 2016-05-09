@@ -5,6 +5,8 @@
 from __future__ import (absolute_import, unicode_literals, division,
                         print_function)
 import warnings
+from collections import OrderedDict
+
 import numpy as np
 from .core import (Fittable1DModel, Fittable2DModel, Model,
                    ModelDefinitionError, custom_model)
@@ -12,9 +14,10 @@ from .parameters import Parameter, InputParameterError
 from .utils import ellipse_extent
 from ..utils import deprecated
 from ..extern import six
-from .utils import get_inputs_and_params
+from .utils import get_inputs_and_params, _parameter_with_unit, _parameter_without_unit
 from ..units import dimensionless_unscaled
 from ..utils.exceptions import AstropyDeprecationWarning
+from ..units import Quantity
 
 
 __all__ = ['AiryDisk2D', 'Moffat1D', 'Moffat2D', 'Box1D', 'Box2D', 'Const1D',
@@ -143,13 +146,6 @@ class Gaussian1D(Fittable1DModel):
 
         return (x0 - dx, x0 + dx)
 
-    @property
-    def input_units(self):
-        if self.mean.unit is None:
-            return dimensionless_unscaled
-        else:
-            return self.mean.unit
-
     @staticmethod
     def evaluate(x, amplitude, mean, stddev):
         """
@@ -167,6 +163,18 @@ class Gaussian1D(Fittable1DModel):
         d_mean = amplitude * d_amplitude * (x - mean) / stddev ** 2
         d_stddev = amplitude * d_amplitude * (x - mean) ** 2 / stddev ** 3
         return [d_amplitude, d_mean, d_stddev]
+
+    @property
+    def input_units(self):
+        if self.mean.unit is None:
+            return dimensionless_unscaled
+        else:
+            return self.mean.unit
+
+    def _parameter_units_for_data_units(self, xunit, yunit, zunit):
+        return OrderedDict([('mean', xunit),
+                            ('stddev', xunit),
+                            ('amplitude', yunit)])
 
 
 class GaussianAbsorption1D(Fittable1DModel):
