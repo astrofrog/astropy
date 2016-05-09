@@ -836,8 +836,6 @@ class Parameter(OrderedDescriptor):
 
         # TODO: Maybe handle exception on invalid input shape
         param_metrics = model._param_metrics[self._name]
-
-
         param_slice = param_metrics['slice']
         param_shape = param_metrics['shape']
         param_size = np.prod(param_shape)

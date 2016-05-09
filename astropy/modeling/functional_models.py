@@ -765,7 +765,6 @@ class Linear1D(Fittable1DModel):
 
     slope = Parameter(default=1)
     intercept = Parameter(default=0)
-
     linear = True
 
     @staticmethod
@@ -992,7 +991,6 @@ class Const1D(Fittable1DModel):
     """
 
     amplitude = Parameter(default=1)
-
     linear = True
 
     @staticmethod
@@ -1039,7 +1037,6 @@ class Const2D(Fittable2DModel):
     """
 
     amplitude = Parameter(default=1)
-
     linear = True
 
     @staticmethod
