@@ -104,7 +104,7 @@ def test_custom_model_signature():
     sig = signature(model_a.__init__)
     assert list(sig.parameters.keys()) == ['self', 'args', 'kwargs']
     sig = signature(model_a.__call__)
-    assert list(sig.parameters.keys()) == ['self', 'x', 'model_set_axis']
+    assert list(sig.parameters.keys()) == ['self', 'x', 'model_set_axis', 'equivalencies']
 
     @custom_model
     def model_b(x, a=1, b=2):
@@ -116,7 +116,7 @@ def test_custom_model_signature():
     assert list(sig.parameters.keys()) == ['self', 'a', 'b', 'kwargs']
     assert [x.default for x in sig.parameters.values()] == [sig.empty, 1, 2, sig.empty]
     sig = signature(model_b.__call__)
-    assert list(sig.parameters.keys()) == ['self', 'x', 'model_set_axis']
+    assert list(sig.parameters.keys()) == ['self', 'x', 'model_set_axis', 'equivalencies']
 
     @custom_model
     def model_c(x, y, a=1, b=2):
@@ -128,7 +128,7 @@ def test_custom_model_signature():
     assert list(sig.parameters.keys()) == ['self', 'a', 'b', 'kwargs']
     assert [x.default for x in sig.parameters.values()] == [sig.empty, 1, 2, sig.empty]
     sig = signature(model_c.__call__)
-    assert list(sig.parameters.keys()) == ['self', 'x', 'y', 'model_set_axis']
+    assert list(sig.parameters.keys()) == ['self', 'x', 'y', 'model_set_axis', 'equivalencies']
 
 
 def test_custom_model_subclass():
@@ -152,7 +152,7 @@ def test_custom_model_subclass():
     sig = signature(model_b.__init__)
     assert list(sig.parameters.keys()) == ['self', 'a', 'kwargs']
     sig = signature(model_b.__call__)
-    assert list(sig.parameters.keys()) == ['self', 'x', 'model_set_axis']
+    assert list(sig.parameters.keys()) == ['self', 'x', 'model_set_axis', 'equivalencies']
 
 
 def test_custom_model_parametrized_decorator():
