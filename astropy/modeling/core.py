@@ -46,7 +46,7 @@ from ..utils.exceptions import AstropyDeprecationWarning
 from .utils import (check_broadcast, combine_labels,
                     make_binary_operator_eval, ExpressionTree,
                     IncompatibleShapeError, AliasDict, get_inputs_and_params,
-                    _BoundingBox, format_unit_with_type)
+                    _BoundingBox)
 from ..nddata.utils import add_array, extract_array
 
 from .parameters import Parameter, InputParameterError, param_repr_oneline
