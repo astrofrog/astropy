@@ -15,17 +15,18 @@ from .utils import ellipse_extent
 from ..utils import deprecated
 from ..extern import six
 from .utils import get_inputs_and_params, _parameter_with_unit, _parameter_without_unit
+from .. import units as u
 from ..units import dimensionless_unscaled
 from ..utils.exceptions import AstropyDeprecationWarning
 from ..units import Quantity
-
 
 __all__ = ['AiryDisk2D', 'Moffat1D', 'Moffat2D', 'Box1D', 'Box2D', 'Const1D',
            'Const2D', 'Ellipse2D', 'Disk2D', 'Gaussian1D',
            'GaussianAbsorption1D', 'Gaussian2D', 'Linear1D', 'Lorentz1D',
            'MexicanHat1D', 'MexicanHat2D', 'RedshiftScaleFactor', 'Redshift',
            'Scale', 'Sersic1D', 'Sersic2D', 'Shift', 'Sine1D', 'Trapezoid1D',
-           'TrapezoidDisk2D', 'Ring2D', 'custom_model_1d', 'Voigt1D']
+           'TrapezoidDisk2D', 'Ring2D', 'custom_model_1d', 'Voigt1D',
+           'BlackBody1D']
 
 
 class Gaussian1D(Fittable1DModel):
@@ -2030,6 +2031,57 @@ class Sersic2D(Fittable2DModel):
         z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
 
         return amplitude * np.exp(-bn * (z ** (1 / n) - 1))
+
+
+class BlackBody1D(Fittable1DModel):
+    """
+    One dimensional blackbody model.
+
+    Parameters
+    ----------
+    temperature : float
+        Blackbody temperature in Kelvin.
+
+    """
+    temperature = Parameter(default=5000)
+
+    # TODO: This does not work but I wish it would work...
+    @staticmethod
+    def evaluate(x, temperature):
+        """Evaluate the model.
+
+        Parameters
+        ----------
+        x : number or ndarray
+            Wavelengths in Angstrom.
+
+        temperature : number
+            Temperature in Kelvin.
+
+        Returns
+        -------
+        y : number or ndarray
+            Blackbody radiation in FNU per steradian.
+
+        """
+        from ..analytic_functions.blackbody import blackbody_nu
+
+        # TODO: Add fancy unit handling here?
+        bbnu_flux = blackbody_nu(x, temperature)
+
+        return bbbu_flux
+
+    # TODO: How do I use this to define x and flux units?
+    @property
+    def input_units(self):
+        if self.temperature.unit is None:
+            return u.K
+        else:
+            return self.temperature.unit
+
+    # TODO: Is this correct way to define the method for blackbody?
+    def _parameter_units_for_data_units(self, xunit, *args, **kwargs):
+        return OrderedDict([('temperature', xunit)])
 
 
 @deprecated('1.0', alternative='astropy.modeling.models.custom_model',
