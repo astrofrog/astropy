@@ -18,7 +18,7 @@ from numpy.testing import (
 
 from ...tests.helper import raises, catch_warnings, pytest
 from ... import wcs
-from .. import _wcs
+from .. import _wcs  # pylint: disable=W0611
 from ...utils.data import (
     get_pkg_data_filenames, get_pkg_data_contents, get_pkg_data_filename)
 from ...utils.misc import NumpyRNGContext
@@ -384,6 +384,15 @@ def test_to_fits():
     assert isinstance(wfits, fits.HDUList)
     assert isinstance(wfits[0], fits.PrimaryHDU)
     assert header_string == wfits[0].header[-8:]
+
+
+def test_to_fits_1():
+    fits_name = get_pkg_data_filename('data/dist.fits')
+    w = wcs.WCS(fits_name)
+    wfits = w.to_fits()
+    assert isinstance(wfits, fits.HDUList)
+    assert isinstance(wfits[0], fits.PrimaryHDU)
+    assert isinstance(wfits[1], fits.ImageHDU)
 
 
 def test_to_header_warning():
@@ -962,39 +971,39 @@ def test_inconsistent_sip():
     w = wcs.WCS(hdr)
     newhdr = w.to_header(relax=None)
     # CTYPE should not include "-SIP" if relax is None
-    assert(all([ctyp[-4 :] != '-SIP' for ctyp in w.wcs.ctype]))
+    wnew = wcs.WCS(newhdr)
+    assert(all([ctyp[-4 :] != '-SIP' for ctyp in wnew.wcs.ctype]))
     newhdr = w.to_header(relax=False)
     assert('A_0_2' not in newhdr)
     # CTYPE should not include "-SIP" if relax is False
-    assert(all([ctyp[-4 :] != '-SIP' for ctyp in w.wcs.ctype]))
+    wnew = wcs.WCS(newhdr)
+    assert(all([ctyp[-4 :] != '-SIP' for ctyp in wnew.wcs.ctype]))
     newhdr = w.to_header(key="C")
     assert('A_0_2' not in newhdr)
     # Test writing header with a different key
-    assert(all([ctyp[-4 :] != '-SIP' for ctyp in w.wcs.ctype]))
+    wnew = wcs.WCS(newhdr, key='C')
+    assert(all([ctyp[-4 :] != '-SIP' for ctyp in wnew.wcs.ctype]))
     newhdr = w.to_header(key=" ")
     # Test writing a primary WCS to header
-    assert(all([ctyp[-4 :] != '-SIP' for ctyp in w.wcs.ctype]))
+    wnew = wcs.WCS(newhdr)
+    assert(all([ctyp[-4 :] != '-SIP' for ctyp in wnew.wcs.ctype]))
     # Test that "-SIP" is kept into CTYPE if relax=True and
     # "-SIP" was in the original header
     newhdr = w.to_header(relax=True)
-    assert(all([ctyp[-4 :] == '-SIP' for ctyp in w.wcs.ctype]))
+    wnew = wcs.WCS(newhdr)
+    assert(all([ctyp[-4 :] == '-SIP' for ctyp in wnew.wcs.ctype]))
     assert('A_0_2' in newhdr)
     # Test that SIP coefficients are also written out.
-    wtest = wcs.WCS(newhdr)
-    assert wtest.sip is not None
+    assert wnew.sip is not None
     ########## broken header ###########
     # Test that "-SIP" is added to CTYPE if relax=True and
-    # "-SIP" was not in the original header
+    # "-SIP" was not in the original header but SIP coefficients
+    # are present.
     w = wcs.WCS(hdr)
     w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
     newhdr = w.to_header(relax=True)
-    assert(all([ctyp[-4 :] == '-SIP' for ctyp in w.wcs.ctype]))
-    del hdr['CTYPE2']
-    newhdr = w.to_header(relax=True)
-    assert(all([ctyp[-4 :] == '-SIP' for ctyp in w.wcs.ctype]))
-    w = wcs.WCS()
-    newhdr = w.to_header()
-    assert('CTYPE1' not in newhdr)
+    wnew = wcs.WCS(newhdr)
+    assert(all([ctyp[-4 :] == '-SIP' for ctyp in wnew.wcs.ctype]))
 
 
 def test_bounds_check():
