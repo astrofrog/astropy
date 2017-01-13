@@ -1,5 +1,6 @@
+import pytest
+
 from astropy.tests.runner import TestRunner, TestRunnerBase, keyword
-from astropy.tests.helper import pytest
 
 
 def test_disable_kwarg():

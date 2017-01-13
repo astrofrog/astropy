@@ -4,9 +4,10 @@
 
 import operator
 
+import pytest
 import numpy as np
 
-from ...tests.helper import pytest, assert_follows_unicode_guidelines
+from ...tests.helper import assert_follows_unicode_guidelines
 from ... import table
 from ... import units as u
 from ...extern import six

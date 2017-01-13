@@ -4,9 +4,10 @@
 
 import sys
 
+import pytest
 import numpy as np
 
-from ...tests.helper import pytest, catch_warnings
+from ...tests.helper import catch_warnings
 from ... import table
 from ...table import Row
 from ...utils.compat import NUMPY_LT_1_8

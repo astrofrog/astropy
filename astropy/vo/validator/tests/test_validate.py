@@ -15,11 +15,13 @@ import os
 import shutil
 import tempfile
 
+import pytest
+
 # LOCAL
 from .. import conf
 from .. import validate
 from ...client.vos_catalog import VOSDatabase
-from ....tests.helper import pytest, remote_data
+from ....tests.helper import remote_data
 from ....utils.data import get_pkg_data_filename
 from ....utils import data
 

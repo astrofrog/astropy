@@ -15,11 +15,13 @@ import os
 import shutil
 import tempfile
 
+import pytest
+
 # LOCAL
 from .. import vos_catalog
 from ..exceptions import (VOSError, MissingCatalog, DuplicateCatalogName,
                           DuplicateCatalogURL)
-from ....tests.helper import pytest, remote_data, catch_warnings
+from ....tests.helper import remote_data, catch_warnings
 from ....utils.exceptions import AstropyDeprecationWarning
 from ....utils.data import get_pkg_data_filename
 
