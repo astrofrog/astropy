@@ -1556,8 +1556,6 @@ class Model(object):
                 else:
                     unit = None
 
-            equivalencies = param_descr.equivalencies
-
             param_size = np.size(value)
             param_shape = np.shape(value)
 
@@ -1573,9 +1571,7 @@ class Model(object):
                         "equivalent to {1!r} for parameter {2!r}".format(
                             self.__class__.__name__, param_descr.unit, name))
             else:
-                if (param_descr.unit is not None and
-                        not unit.is_equivalent(param_descr.unit,
-                                               equivalencies=param_descr.equivalencies)):
+                if (param_descr.unit is not None and not unit.is_equivalent(param_descr.unit)):
                     raise InputParameterError(
                         "{0}.__init__() requires parameter {1!r} to be in "
                         "units equivalent to {2!r} (got {3!r})".format(
@@ -1587,7 +1583,6 @@ class Model(object):
                 self._using_quantities = True
 
             param_metrics[name]['orig_unit'] = unit
-            param_metrics[name]['equivalencies'] = equivalencies
 
             total_size += param_size
 
