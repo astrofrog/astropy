@@ -21,6 +21,7 @@ addons:
 env:
     global:
         # Set defaults to avoid repeating in most cases
+        - ASTROPY_USE_SYSTEM_PYTEST=1
         - PYTHON_VERSION=3.5
         - NUMPY_VERSION=stable
         - MAIN_CMD='python setup.py'
@@ -32,7 +33,7 @@ env:
 
     matrix:
         - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
-        - PYTHON_VERSION=3.3 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=3.3 SETUP_CMD='egg_info' PIP_DEPENDENCIES='pytest>=3'
         - PYTHON_VERSION=3.4 SETUP_CMD='egg_info'
         - PYTHON_VERSION=3.5 SETUP_CMD='egg_info'
 
@@ -68,7 +69,7 @@ matrix:
           env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.7
                SETUP_CMD='test --open-files'
         - os: linux
-          env: PYTHON_VERSION=3.3 NUMPY_VERSION=1.8
+          env: PYTHON_VERSION=3.3 NUMPY_VERSION=1.8 PIP_DEPENDENCIES='pytest>=3'
                SETUP_CMD='test --open-files'
         - os: linux
           env: PYTHON_VERSION=3.4 NUMPY_VERSION=1.9
