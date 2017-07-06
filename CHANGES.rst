@@ -1,11 +1,8 @@
-2.0 (unreleased)
+2.0 (2017-07-06)
 ================
 
 New Features
 ------------
-
-astropy.config
-^^^^^^^^^^^^^^
 
 astropy.constants
 ^^^^^^^^^^^^^^^^^
@@ -84,10 +81,6 @@ astropy.coordinates
   although it is not as numerically stable as those that use
   ``AffineTransform``-type transformations. [#6219, #6226]
 
-
-astropy.cosmology
-^^^^^^^^^^^^^^^^^
-
 astropy.io.ascii
 ^^^^^^^^^^^^^^^^
 
@@ -124,9 +117,6 @@ astropy.io.registry
 ^^^^^^^^^^^^^^^^^^^
 
 - New functions to unregister readers, writers, and identifiers. [#6217]
-
-astropy.io.votable
-^^^^^^^^^^^^^^^^^^
 
 astropy.modeling
 ^^^^^^^^^^^^^^^^
@@ -175,9 +165,6 @@ astropy.stats
 - Added ``std_ddof`` keyword option to ``sigma_clipped_stats``.
   [#6066, #6207]
 
-astropy.sphinx
-^^^^^^^^^^^^^^
-
 astropy.table
 ^^^^^^^^^^^^^
 
@@ -211,9 +198,6 @@ astropy.tests
 
 - ``enable_deprecations_as_exceptions`` function now accepts additional
   user-defined module imports and warning messages to ignore. [#6223, #6334]
-
-astropy.time
-^^^^^^^^^^^^
 
 astropy.units
 ^^^^^^^^^^^^^
@@ -261,19 +245,11 @@ astropy.utils
 - Added a new convenience method ``get_cached_urls`` to ``astropy.utils.data``
   for getting a list of the URLs in your cache. [#6242]
 
-astropy.visualization
-^^^^^^^^^^^^^^^^^^^^^
-
-astropy.vo
-^^^^^^^^^^
-
 astropy.wcs
 ^^^^^^^^^^^
 
 - Upgraded the included wcslib to version 5.16. [#6225]
 
-astropy.extern
-^^^^^^^^^^^^^^
   The minimum required version of wcslib in is 5.14.
 
 
@@ -285,12 +261,6 @@ astropy.analytic_functions
 
 - This entire sub-package is deprecated because blackbody has been moved to
   ``astropy.modeling.blackbody``. [#6191]
-
-astropy.config
-^^^^^^^^^^^^^^
-
-astropy.constants
-^^^^^^^^^^^^^^^^^
 
 astropy.convolution
 ^^^^^^^^^^^^^^^^^^^
@@ -352,15 +322,6 @@ astropy.io.fits
 
 - Add EXTVER column to the output of ``HDUList.info()``. [#6124]
 
-astropy.io.misc
-^^^^^^^^^^^^^^^
-
-astropy.io.registry
-^^^^^^^^^^^^^^^^^^^
-
-astropy.io.votable
-^^^^^^^^^^^^^^^^^^
-
 astropy.modeling
 ^^^^^^^^^^^^^^^^
 
@@ -417,9 +378,6 @@ astropy.table
 - Added optional ``axis`` parameter to ``insert`` method for ``Column`` and
   ``MaskedColumn`` classes. [#6092]
 
-astropy.time
-^^^^^^^^^^^^
-
 astropy.units
 ^^^^^^^^^^^^^
 
@@ -470,17 +428,9 @@ astropy.wcs
 
 - Removed deprecated ``wcs.rotateCD``. [#6170]
 
-astropy.extern
-^^^^^^^^^^^^^^
 
 Bug Fixes
 ---------
-
-astropy.config
-^^^^^^^^^^^^^^
-
-astropy.constants
-^^^^^^^^^^^^^^^^^
 
 astropy.convolution
 ^^^^^^^^^^^^^^^^^^^
@@ -499,15 +449,6 @@ astropy.coordinates
 - The `~astropy.coordinates.Galactic` frame had an incorrect ording for the
   'u', 'v', and 'w' cartesian coordinates. [#6330]
 
-astropy.cosmology
-^^^^^^^^^^^^^^^^^
-
-astropy.extern
-^^^^^^^^^^^^^^
-
-astropy.io.ascii
-^^^^^^^^^^^^^^^^
-
 astropy.io.fits
 ^^^^^^^^^^^^^^^
 
@@ -519,15 +460,6 @@ astropy.io.fits
 
 - Close file on error to avoid creating a ``ResourceWarning`` warning
   about an unclosed file. [#6168, #6177]
-
-astropy.io.misc
-^^^^^^^^^^^^^^^
-
-astropy.io.registry
-^^^^^^^^^^^^^^^^^^^
-
-astropy.io.votable
-^^^^^^^^^^^^^^^^^^
 
 astropy.modeling
 ^^^^^^^^^^^^^^^^
@@ -550,9 +482,6 @@ astropy.modeling
   parameters and allow ``Shift`` and ``Scale`` to be fitted with
   ``LinearLSQFitter`` and ``LevMarLSQFitter``. [#6174]
 
-astropy.nddata
-^^^^^^^^^^^^^^
-
 astropy.stats
 ^^^^^^^^^^^^^
 
@@ -570,23 +499,11 @@ astropy.table
 
 - Fix QTable add/insert row for multidimensional Quantity. [#6092]
 
-astropy.table
-^^^^^^^^^^^^^
-
-astropy.tests
-^^^^^^^^^^^^^
-
 astropy.time
 ^^^^^^^^^^^^
 
 - Fixed the initial condition of ``TimeFITS`` to allow scale, FITS scale
   and FITS realization to be checked and equated properly. [#6202]
-
-astropy.units
-^^^^^^^^^^^^^
-
-astropy.utils
-^^^^^^^^^^^^^
 
 astropy.visualization
 ^^^^^^^^^^^^^^^^^^^^^
@@ -600,11 +517,6 @@ astropy.vo
 - Fixed a bug in vo.samp when stopping a hub for which a lockfile was
   not created. [#6211]
 
-astropy.wcs
-^^^^^^^^^^^
-
-astropy.extern
-^^^^^^^^^^^^^^
 
 Other Changes and Additions
 ---------------------------
