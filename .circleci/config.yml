@@ -1,57 +1,35 @@
 version: 2
 
 jobs:
-  32bit:
+  rtd:
     docker:
-      - image: quay.io/pypa/manylinux1_i686
+      - image: readthedocs/build:2.0
     steps:
       - checkout
       - run:
-          name: Install dependencies
-          command: /opt/python/cp36-cp36m/bin/pip install numpy scipy pytest-astropy pytest-xdist Cython jinja2
+          name: Create conda environment
+          command: conda env create --name latest --file .rtd-environment.yml
       - run:
-          name: Run tests
-          command: PYTHONHASHSEED=42 /opt/python/cp36-cp36m/bin/python setup.py test --parallel=4
-  image-tests-mpl153:
-    docker:
-      - image: astropy/image-tests-py35-mpl153:1.0
-    steps:
-      - checkout
+          name: Install standard RTD dependencies
+          command: conda install --yes --name latest mock pillow sphinx sphinx_rtd_theme
       - run:
-          name: Run tests
-          command: |
-            pip3 install coveralls
-            python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
-            coveralls || true
-  image-tests-mpl202:
-    docker:
-      - image: astropy/image-tests-py35-mpl202:1.0
-    steps:
-      - checkout
+          name: Install pip dependencies
+          command: pip install -U recommonmark readthedocs-sphinx-ext
       - run:
-          name: Run tests
-          command: |
-            pip3 install coveralls
-            python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
-            coveralls || true
-  image-tests-mpl212:
-    docker:
-      - image: astropy/image-tests-py35-mpl212:1.0
-    steps:
-      - checkout
+          name: Install package
+          command: python setup.py install --force
       - run:
-          name: Run tests
-          command: |
-            pip3 install coveralls
-            python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
-            coveralls || true
-
+          name: Show conf.py
+          command: cat docs/conf.py
+      - run:
+          name: Run HTML build
+          command: sphinx-build -T -E -b readthedocs -d _build/doctrees-readthedocs -D language=en . _build/html
+      - run:
+          name: Run JSON build
+          command: sphinx-build -T -b json -d _build/doctrees-json -D language=en . _build/json
 
 workflows:
   version: 2
   build_and_test:
     jobs:
-      - 32bit
-      - image-tests-mpl153
-      - image-tests-mpl202
-      - image-tests-mpl212
+      - rtd
