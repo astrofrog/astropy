@@ -14,10 +14,10 @@ jobs:
           command: conda install --yes --name latest mock pillow sphinx sphinx_rtd_theme
       - run:
           name: Install pip dependencies
-          command: pip install -U recommonmark readthedocs-sphinx-ext
+          command: sudo pip install -U recommonmark readthedocs-sphinx-ext
       - run:
           name: Install package
-          command: python setup.py install --force
+          command: sudo python setup.py install --force
       - run:
           name: Show conf.py
           command: cat docs/conf.py
