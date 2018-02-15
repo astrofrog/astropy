@@ -90,6 +90,7 @@ matrix:
         # dependencies. Using a more stringent locale than UTF-8.
         - os: linux
           env: SETUP_CMD='build_docs -w'
+               SPHINX_VERSION=1.7
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES='sphinx-gallery>=0.1.12 pillow --no-deps jplephem'
                LC_CTYPE=C LC_ALL=C LANG=C
