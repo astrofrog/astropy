@@ -174,6 +174,8 @@ CTYPE_TO_UCD1 = {
     'ELAT': 'pos.ecliptic.lat',
     'TLON': 'pos.bodyrc.lon',
     'TLAT': 'pos.bodyrc.lat',
+    'HPLT': 'custom:pos.helioprojective.lat',
+    'HPLN': 'custom:pos.helioprojective.lon',
 
     # Spectral coordinates (WCS paper 3)
     'FREQ': 'em.freq',  # Frequency
