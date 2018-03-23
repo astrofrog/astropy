@@ -6,7 +6,6 @@ This module contains the fundamental classes used for representing
 coordinates in astropy.
 """
 
-import math
 from collections import namedtuple
 
 import numpy as np
@@ -14,6 +13,7 @@ import numpy as np
 from . import angle_utilities as util
 from .. import units as u
 from ..utils import isiterable
+from ..utils.compat import NUMPY_LT_1_14_1, NUMPY_LT_1_14_2
 
 __all__ = ['Angle', 'Latitude', 'Longitude']
 
@@ -426,19 +426,26 @@ class Angle(u.SpecificTypeQuantity):
             ok &= np.all(self < Angle(upper))
         return bool(ok)
 
-    def __str__(self):
+    def _str_helper(self, format=None):
         if self.isscalar:
-            return str(self.to_string())
+            return self.to_string(format=format)
+
+        if NUMPY_LT_1_14_1 or not NUMPY_LT_1_14_2:
+            def formatter(x):
+                return x.to_string(format=format)
         else:
-            return np.array2string(self, formatter={'all': lambda x: x.to_string()})
+            # In numpy 1.14.1, array2print formatters get passed plain numpy scalars instead
+            # of subclass array scalars, so we need to recreate an array scalar.
+            def formatter(x):
+                return self._new_view(x).to_string(format=format)
+
+        return np.array2string(self, formatter={'all': formatter})
+
+    def __str__(self):
+        return self._str_helper()
 
     def _repr_latex_(self):
-        if self.isscalar:
-            return self.to_string(format='latex')
-        else:
-            # Need to do a magic incantation to convert to str.  Regular str
-            # or array2string causes all backslashes to get doubled.
-            return np.array2string(self, formatter={'all': lambda x: x.to_string(format='latex')})
+        return self._str_helper(format='latex')
 
 
 def _no_angle_subclass(obj):
