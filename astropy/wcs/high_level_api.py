@@ -45,13 +45,13 @@ def default_order(components):
 class HighLevelWCS(object):
 
     def __init__(self, wcs):
-        self._wcs = wcs
+        self.low_level_wcs = wcs
 
     def world_to_pixel(self, *world):
 
         # Cache the classes and components since this may be expensive
-        serialized_classes = self._wcs.world_axis_object_classes
-        components = self._wcs.world_axis_object_components
+        serialized_classes = self.low_level_wcs.world_axis_object_classes
+        components = self.low_level_wcs.world_axis_object_components
 
         # Deserialize world_axis_object_classes using the default order
         classes = OrderedDict()
@@ -120,18 +120,18 @@ class HighLevelWCS(object):
             world.append(rec_getattr(objects[key], attr))
 
         # Finally we convert to pixel coordinates
-        pixel = self._wcs.world_to_pixel_values(*world)
+        pixel = self.low_level_wcs.world_to_pixel_values(*world)
 
         return pixel
 
     def pixel_to_world(self, *pixel):
 
         # Compute the world coordinate values
-        world = self._wcs.pixel_to_world_values(*pixel)
+        world = self.low_level_wcs.pixel_to_world_values(*pixel)
 
         # Cache the classes and components since this may be expensive
-        components = self._wcs.world_axis_object_components
-        classes = self._wcs.world_axis_object_classes
+        components = self.low_level_wcs.world_axis_object_components
+        classes = self.low_level_wcs.world_axis_object_classes
 
         # Deserialize classes
         classes_new = {}
