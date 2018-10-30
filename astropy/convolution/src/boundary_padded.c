@@ -25,11 +25,11 @@ static char module_docstring[] = "Convolution with no boundary";
 static char function_docstring[] = "Convolution with no boundary";
 
 /* Declare the C functions here. */
-static PyObject *convolve_padded_boundary(PyObject *self, PyObject *args);
+static PyObject *convolve_boundary_padded(PyObject *self, PyObject *args);
 
 /* Define the methods that will be available on the module. */
 static PyMethodDef module_methods[] = {
-    {"convolve_padded_boundary", convolve_padded_boundary, METH_VARARGS, function_docstring},
+    {"convolve_boundary_padded", convolve_boundary_padded, METH_VARARGS, function_docstring},
     {NULL, NULL, 0, NULL}
 };
 
@@ -55,7 +55,7 @@ MOD_INIT(lib_convolve_padded)
 
 
 // 1D
-FORCE_INLINE void convolve1d_padded_boundary(DTYPE * const result,
+FORCE_INLINE void convolve1d_boundary_padded(DTYPE * const result,
         const DTYPE * const f, const size_t _nx,
         const DTYPE * const g, const size_t _nkx,
         const bool _nan_interpolate,
@@ -152,7 +152,7 @@ FORCE_INLINE void convolve1d_padded_boundary(DTYPE * const result,
 }
 
 //2D
-FORCE_INLINE void convolve2d_padded_boundary(DTYPE * const result,
+FORCE_INLINE void convolve2d_boundary_padded(DTYPE * const result,
         const DTYPE * const f, const size_t _nx, const size_t _ny,
         const DTYPE * const g, const size_t _nkx, const size_t _nky,
         const bool _nan_interpolate,
@@ -264,7 +264,7 @@ FORCE_INLINE void convolve2d_padded_boundary(DTYPE * const result,
 }
 
 // 3D
-FORCE_INLINE void convolve3d_padded_boundary(DTYPE * const result,
+FORCE_INLINE void convolve3d_boundary_padded(DTYPE * const result,
         const DTYPE * const f, const size_t _nx, const size_t _ny, const size_t _nz,
         const DTYPE * const g, const size_t _nkx, const size_t _nky, const size_t _nkz,
         const bool _nan_interpolate,
@@ -394,7 +394,7 @@ FORCE_INLINE void convolve3d_padded_boundary(DTYPE * const result,
 #endif
 }
 
-static PyObject *convolve_padded_boundary(PyObject *self, PyObject *args) {
+static PyObject *convolve_boundary_padded(PyObject *self, PyObject *args) {
 
   int ndim;
   PyObject *result_obj, *array_obj, *kernel_obj;
@@ -459,23 +459,23 @@ static PyObject *convolve_padded_boundary(PyObject *self, PyObject *args) {
   if (ndim == 1) {
 
     if (nan_interpolate)
-        convolve1d_padded_boundary(result, array, nx, kernel, nkx, true, n_threads);
+        convolve1d_boundary_padded(result, array, nx, kernel, nkx, true, n_threads);
     else
-        convolve1d_padded_boundary(result, array, nx, kernel, nkx, false, n_threads);
+        convolve1d_boundary_padded(result, array, nx, kernel, nkx, false, n_threads);
 
   } else if(ndim == 2) {
 
     if (nan_interpolate)
-        convolve2d_padded_boundary(result, array, nx, ny, kernel, nkx, nky, true, n_threads);
+        convolve2d_boundary_padded(result, array, nx, ny, kernel, nkx, nky, true, n_threads);
     else
-        convolve2d_padded_boundary(result, array, nx, ny, kernel, nkx, nky, false, n_threads);
+        convolve2d_boundary_padded(result, array, nx, ny, kernel, nkx, nky, false, n_threads);
 
   } else if(ndim == 3) {
 
     if (nan_interpolate)
-        convolve3d_padded_boundary(result, array, nx, ny, nz, kernel, nkx, nky, nkz, true, n_threads);
+        convolve3d_boundary_padded(result, array, nx, ny, nz, kernel, nkx, nky, nkz, true, n_threads);
     else
-        convolve3d_padded_boundary(result, array, nx, ny, nz, kernel, nkx, nky, nkz, false, n_threads);
+        convolve3d_boundary_padded(result, array, nx, ny, nz, kernel, nkx, nky, nkz, false, n_threads);
 
   }
 

@@ -19,7 +19,7 @@ from ..modeling.core import _CompoundModelMeta
 from .utils import KernelSizeError, has_even_axis, raise_even_kernel_exception
 
 from .lib_convolve_none import convolve_boundary_none
-from .lib_convolve_padded import convolve_padded_boundary
+from .lib_convolve_padded import convolve_boundary_padded
 
 # Disabling all doctests in this module until a better way of handling warnings
 # in doctests can be determined
@@ -303,7 +303,7 @@ def convolve(array, kernel, boundary='fill', fill_value=0.,
             padded_array = np.pad(array_internal, pad_width=np_pad_width,
                                   mode=np_pad_mode)
 
-        convolve_padded_boundary(result, padded_array, kernel_internal,
+        convolve_boundary_padded(result, padded_array, kernel_internal,
                                  nan_interpolate, n_threads)
 
     else:
