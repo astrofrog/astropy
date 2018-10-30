@@ -394,7 +394,7 @@ static PyObject *convolve_boundary_none(PyObject *self, PyObject *args) {
   PyObject *result_obj, *array_obj, *kernel_obj;
   bool nan_interpolate, n_threads;
   PyArrayObject *result_arr, *array_arr, *kernel_arr;
-  int nx, ny, nz, nkx, nky, nkz;
+  size_t nx, ny, nz, nkx, nky, nkz;
   DTYPE *result, *array, *kernel;
 
   /* Parse the input tuple */
