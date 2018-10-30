@@ -30,10 +30,10 @@ static PyMethodDef module_methods[] = {
           PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
         ob = PyModule_Create(&moduledef);
 
-MOD_INIT(lib_convolve_none)
+MOD_INIT(_convolve_boundary_none)
 {
     PyObject *m;
-    MOD_DEF(m, "lib_convolve_none", module_docstring, module_methods);
+    MOD_DEF(m, "_convolve_boundary_none", module_docstring, module_methods);
     if (m == NULL)
         return MOD_ERROR_VAL;
     import_array();
