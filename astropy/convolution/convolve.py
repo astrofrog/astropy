@@ -18,8 +18,9 @@ from ..modeling.core import _make_arithmetic_operator, BINARY_OPERATORS
 from ..modeling.core import _CompoundModelMeta
 from .utils import KernelSizeError, has_even_axis, raise_even_kernel_exception
 
-from .lib_convolve_none import convolve_boundary_none
-from .lib_convolve_padded import convolve_boundary_padded
+# Import C extensions
+from ._convolve_boundary_none import convolve_boundary_none
+from ._convolve_boundary_padded import convolve_boundary_padded
 
 # Disabling all doctests in this module until a better way of handling warnings
 # in doctests can be determined
