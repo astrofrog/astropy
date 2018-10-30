@@ -450,6 +450,17 @@ static PyObject *convolve_boundary_none(PyObject *self, PyObject *args) {
     nkz = PyArray_DIM(kernel_arr, 2);
   }
 
+/*-------------------------PERFORMANCE NOTES--------------------------------
+ * The if statements below are designed to take advantage of the following:
+ * The preprocessor will inline convolve<N>d_boundary_none(), effectively
+ * expanding the two logical branches, replacing nan_interpolate
+ * for their literal equivalents. The corresponding conditionals
+ * within these functions will then be optimized away, this
+ * being the goal - removing the unnecessary conditionals from
+ * the loops without duplicating code.
+ *--------------------------------------------------------------------------
+ */
+
   if (ndim == 1) {
 
     if (nan_interpolate)

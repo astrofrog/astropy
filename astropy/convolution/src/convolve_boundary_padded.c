@@ -40,6 +40,68 @@ MOD_INIT(_convolve_boundary_padded)
     return MOD_SUCCESS_VAL(m);
 }
 
+/*-------------------------PERFORMANCE NOTES--------------------------------
+ * Only 2 scenarios exist for boundary='fill':
+ * (image dims: nx, ny, nz; kernel dims: nkx, nky, nkz).
+ * (ii, jj, kk, refer to image locations but have iteration length of kernel dims).
+ * 1) kernel over-steps image.
+ *   I.e. (ii < 0 || ii >= nx) || (jj < 0 || jj >= ny) || (kk < 0 || kk >= nz) == true
+ * 2) kernel completely within image.
+ *  I.e. (ii < 0 || ii >= nx) || (jj < 0 || jj >= ny) || (kk < 0 || kk >= nz) == false
+ * Given that the kernel is normally much smaller than the image, (2)
+ * occupies the majority of the iteration space.
+ * For (2) the check is exhaustive (no short-circuit), all conditions MUST be checked.
+ * It is not possible to completely optimize for both (1) & (2). Better to make
+ * majority case more efficient.
+ * For (2) that's, at most, 6*nkx*nky*nkz checks. 3*nkx*nky (2D case).
+ * 1st tier optimization is to split these out, to un-nest them, i.e. hoist
+ * ii condition to ii, kk to kk etc. Worse case -> c*(nkx + nky + nkz), c = 2.
+ * For (2) `val` (c.f. code) can only be assigned a value within the inner
+ * most loop as all indices are needed. Therefore, with the condition hoisted
+ * the result must now be propagated to the next nest level. Use a bool flag
+ * for this.
+ * I.e. (2D case)
+ * ```
+ * ...
+ *  for (int ii = i_minus_wkx; ii < (int)i_plus_wkx_plus_1; ++ii)
+    {
+        ...
+        bool fill_value_used = false;
+        if (ii < 0 || ii >= (int)nx)
+        {
+            val = fill_value;
+            fill_value_used = true;
+        }
+        ...
+        for (int jj = j_minus_wky; jj < (int)j_plus_wky_plus_1; ++jj)
+        {
+            ...
+            if (!fill_value_used)
+            {
+                if (jj < 0 || jj >= (int)ny)
+                    val = fill_value;
+                else
+                    val = f[(unsigned)ii*ny + jj];
+            }
+            ...
+        }
+    ...
+    }
+    ...
+````
+ * This yields a perf boost for (1) when a true condition in an outer loop
+ * short-circuiting the next loop checks, bar the introduced gateway condition
+ * on `fill_value_used`. For (2) it makes the worse case 2*nkx + 3*(nky + nkz)
+ * which is still significantly better than 6*nkx*nky*nkz.
+ *
+ * Further opt:
+ * 1) The default fill_value = 0. => sub-nested loops can be
+ * skipped entirely. val = fill_value = 0 => val*ker = 0, top += val*ker = top.
+ * This is NOT possible for nan interpolation.
+ * 2) Scrap all of the above and just pad the image array by, e.g. wkx = nkx/2,
+ * with fill_value and remove all conditions. (mem issues for large kernels).
+ *--------------------------------------------------------------------------
+ */
 
 // 1D
 FORCE_INLINE void convolve1d_boundary_padded(DTYPE * const result,
@@ -442,6 +504,17 @@ static PyObject *convolve_boundary_padded(PyObject *self, PyObject *args) {
     nz = PyArray_DIM(result_arr, 2);
     nkz = PyArray_DIM(kernel_arr, 2);
   }
+
+  /*-------------------------PERFORMANCE NOTES--------------------------------
+  * The if statements below are designed to take advantage of the following:
+  * The preprocessor will inline convolve<N>d_boundary_none(), effectively
+  * expanding the two logical branches, replacing nan_interpolate
+  * for their literal equivalents. The corresponding conditionals
+  * within these functions will then be optimized away, this
+  * being the goal - removing the unnecessary conditionals from
+  * the loops without duplicating code.
+  *--------------------------------------------------------------------------
+  */
 
   if (ndim == 1) {
 
