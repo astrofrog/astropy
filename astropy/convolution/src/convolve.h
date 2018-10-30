@@ -26,19 +26,6 @@ typedef signed omp_iter_var;
 typedef size_t omp_iter_var;
 #endif
 
-// MSVC exports
-#if defined(_MSC_VER)
-#define LIB_CONVOLVE_EXPORT __declspec(dllexport)
-#else
-#define LIB_CONVOLVE_EXPORT // nothing
-#endif
-
-// Distutils on Windows will automatically exports ``PyInit_lib_convolve``,
-// create dummy to prevent linker complaining about missing symbol.
-#if defined(_MSC_VER)
-void PyInit_lib_convolve(void);
-#endif
-
 #include "numpy/ndarrayobject.h"
 #define DTYPE npy_float64
 
