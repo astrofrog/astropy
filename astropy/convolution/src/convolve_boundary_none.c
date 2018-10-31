@@ -387,12 +387,12 @@ FORCE_INLINE void convolve3d_boundary_none(DTYPE * const result,
 #endif
 }
 
-
 static PyObject *convolve_boundary_none(PyObject *self, PyObject *args) {
 
   int ndim;
   PyObject *result_obj, *array_obj, *kernel_obj;
-  bool nan_interpolate, n_threads;
+  bool nan_interpolate;
+  int n_threads;
   PyArrayObject *result_arr, *array_arr, *kernel_arr;
   size_t nx=0, ny=0, nz=0, nkx=0, nky=0, nkz=0;
   DTYPE *result, *array, *kernel;
@@ -434,19 +434,20 @@ static PyObject *convolve_boundary_none(PyObject *self, PyObject *args) {
   array = (DTYPE*)PyArray_DATA(array_arr);
   kernel = (DTYPE*)PyArray_DATA(kernel_arr);
 
-  /* How many data points are there? */
-  ndim = PyArray_NDIM(array_arr);
 
-  nx = PyArray_DIM(array_arr, 0);
+  /* How many data points are there? */
+  ndim = PyArray_NDIM(result_arr);
+
+  nx = PyArray_DIM(result_arr, 0);
   nkx = PyArray_DIM(kernel_arr, 0);
 
   if (ndim > 1) {
-    ny = PyArray_DIM(array_arr, 1);
+    ny = PyArray_DIM(result_arr, 1);
     nky = PyArray_DIM(kernel_arr, 1);
   }
 
   if (ndim > 2) {
-    nz = PyArray_DIM(array_arr, 2);
+    nz = PyArray_DIM(result_arr, 2);
     nkz = PyArray_DIM(kernel_arr, 2);
   }
 
@@ -484,5 +485,5 @@ static PyObject *convolve_boundary_none(PyObject *self, PyObject *args) {
 
   }
 
-  return result_obj;
+  return Py_None;
 }

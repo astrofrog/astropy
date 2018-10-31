@@ -447,7 +447,8 @@ static PyObject *convolve_boundary_padded(PyObject *self, PyObject *args) {
 
   int ndim;
   PyObject *result_obj, *array_obj, *kernel_obj;
-  bool nan_interpolate, n_threads;
+  bool nan_interpolate;
+  int n_threads;
   PyArrayObject *result_arr, *array_arr, *kernel_arr;
   size_t nx=0, ny=0, nz=0, nkx=0, nky=0, nkz=0;
   DTYPE *result, *array, *kernel;
@@ -539,5 +540,6 @@ static PyObject *convolve_boundary_padded(PyObject *self, PyObject *args) {
 
   }
 
-  return result_obj;
+  return Py_None;
+
 }
