@@ -13,11 +13,9 @@ try:
 except ImportError:
     PYTEST_HEADER_MODULES = {}
 
-import astropy
-
 if find_spec('asdf') is not None:
     from asdf import __version__ as asdf_version
-    if asdf_version >= astropy.__minimum_asdf_version__:
+    if asdf_version >= '2.3.0':
         entry_points = []
         for entry_point in pkg_resources.iter_entry_points('pytest11'):
             entry_points.append(entry_point.name)

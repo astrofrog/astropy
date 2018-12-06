@@ -10,6 +10,7 @@ import numpy
 
 from extension_helpers import setup_helpers
 
+
 def _get_compression_extension():
 
     cfg = defaultdict(list)

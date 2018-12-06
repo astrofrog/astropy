@@ -1,12 +1,6 @@
 version: 2
 
 jobs:
-  egg-info-37:
-    docker:
-      - image: circleci/python:3.7
-    steps:
-      - checkout
-      - run: python setup.py egg_info
 
   32bit:
     docker:
@@ -20,22 +14,22 @@ jobs:
               printf "unicode_output = True\nmax_width = 500" > $HOME/.astropy/config/astropy.cfg
       - run:
           name: Install dependencies for Python 3.6
-          command: /opt/python/cp36-cp36m/bin/pip install "numpy<1.17" scipy pytest pytest-astropy pytest-xdist Cython jinja2
+          command: /opt/python/cp36-cp36m/bin/pip install tox
       - run:
           name: Run tests for Python 3.6
-          command: PYTHONHASHSEED=42 /opt/python/cp36-cp36m/bin/python setup.py test --parallel=4 -a "--durations=50"
+          command: PYTHONHASHSEED=42 /opt/python/cp36-cp36m/bin/python -m tox -e py36-test -- -n=4 --durations=50
       - run:
           name: Install dependencies for Python 3.7
-          command: /opt/python/cp37-cp37m/bin/pip install "numpy<1.17" scipy pytest pytest-astropy pytest-xdist Cython jinja2 pandas
+          command: /opt/python/cp37-cp37m/bin/pip install tox
       - run:
           name: Run tests for Python 3.7
-          command: PYTHONHASHSEED=42 /opt/python/cp37-cp37m/bin/python setup.py test --parallel=4 -a "--durations=50"
+          command: PYTHONHASHSEED=42 /opt/python/cp37-cp37m/bin/python  -m tox -e py37-test -- -n=4 --durations=50
       - run:
           name: Install dependencies for Python 3.8
-          command: /opt/python/cp38-cp38/bin/pip install numpy pytest pytest-astropy pytest-xdist Cython jinja2
+          command: /opt/python/cp38-cp38/bin/pip install tox
       - run:
           name: Run tests for Python 3.8
-          command: PYTHONHASHSEED=42 /opt/python/cp38-cp38/bin/python setup.py test --parallel=4 -a "--durations=50"
+          command: PYTHONHASHSEED=42 /opt/python/cp38-cp38/bin/python -m tox -e py38-test -- -n=4 --durations=50
 
   image-tests-mpl212:
     docker:
@@ -44,7 +38,9 @@ jobs:
       - checkout
       - run:
           name: Run tests
-          command: python3 setup.py test -P visualization --remote-data=astropy --open-files -a "--mpl --mpl-results-path=$PWD/results -W ignore:np.asscalar"
+          command: |
+            pip install -e .[test] pytest-mpl
+            pytest astropy/visualization --remote-data=astropy --open-files --mpl --mpl-results-path=$PWD/results -W ignore:np.asscalar
       - store_artifacts:
           path: results
 
@@ -55,7 +51,9 @@ jobs:
       - checkout
       - run:
           name: Run tests
-          command: python3 setup.py test -P visualization --remote-data=astropy --open-files -a "--mpl --mpl-results-path=$PWD/results -W ignore:np.asscalar"
+          command: |
+            pip install -e .[test] pytest-mpl
+            pytest astropy/visualization --remote-data=astropy --open-files --mpl --mpl-results-path=$PWD/results -W ignore:np.asscalar
       - store_artifacts:
           path: results
 
@@ -66,7 +64,9 @@ jobs:
       - checkout
       - run:
           name: Run tests
-          command: python3 setup.py test -P visualization --remote-data=astropy --open-files -a "--mpl --mpl-results-path=$PWD/results"
+          command: |
+            pip install -e .[test] pytest-mpl
+            pytest astropy/visualization --remote-data=astropy --open-files --mpl --mpl-results-path=$PWD/results -W ignore:np.asscalar
       - store_artifacts:
           path: results
 
@@ -77,7 +77,9 @@ jobs:
       - checkout
       - run:
           name: Run tests
-          command: python3 setup.py test -P visualization --remote-data=astropy --open-files -a "--mpl --mpl-results-path=$PWD/results"
+          command: |
+            pip install -e .[test] pytest-mpl
+            pytest astropy/visualization --remote-data=astropy --open-files --mpl --mpl-results-path=$PWD/results -W ignore:np.asscalar
       - store_artifacts:
           path: results
 
@@ -93,10 +95,12 @@ jobs:
             apt install -y g++
       - run:
           name: Install Python dependencies, including developer version of Matplotlib
-          command: pip3 install pytest pytest-mpl pytest-astropy numpy scipy git+https://github.com/matplotlib/matplotlib.git
+          command: |
+            pip3 install git+https://github.com/matplotlib/matplotlib.git
+            pip3 install -e .[test] pytest-mpl
       - run:
           name: Run tests
-          command: python3 setup.py test -P visualization --remote-data=astropy --open-files -a "--mpl --mpl-results-path=$PWD/results"
+          command: pytest astropy/visualization --remote-data=astropy --open-files --mpl --mpl-results-path=$PWD/results
       - store_artifacts:
           path: results
 
@@ -112,22 +116,13 @@ jobs:
             sudo apt install -y graphviz
       - run:
           name: Install Python dependencies
-          command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install numpydoc matplotlib sphinx --progress-bar off
-            pip install .[docs,all] --progress-bar off
+          command: pip install tox --user
       - run:
           name: Make sure flake8 passes
-          command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install flake8 --progress-bar off
-            # select options should be the same as in the travis config
-            flake8 astropy --count --select=E101,W191,W291,W292,W293,W391,E111,E112,E113,E30,E502,E722,E901,E902,E999,F822,F823
+          command: tox -e flake8
       - run:
           name: Build Docs
-          command: venv/bin/python setup.py build_docs -w --parallel=4
+          command: tox -e docs -- -j=4
           environment:
             LC_CTYPE: C
             LC_ALL: C
@@ -158,7 +153,6 @@ workflows:
   version: 2
   tests_and_docs:
     jobs:
-      - egg-info-37
       - html-docs
       - 32bit
       - image-tests-mpl212

@@ -18,63 +18,24 @@ stage: Comprehensive tests
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
-# The apt packages below are needed for sphinx builds, which can no longer
-# be installed with sudo apt-get.
 # tzdata is included to ensure system leap seconds are up to date.
 addons:
     apt:
         packages:
-            - graphviz
             - language-pack-de
             - tzdata
 
 env:
     global:
         # Set defaults to avoid repeating in most cases
-        - PYTHON_VERSION=3.6
-        - NUMPY_VERSION=stable
-        - MAIN_CMD='python setup.py'
-        - CONDA_DEPENDENCIES='Cython jinja2'
-        - CONDA_ALL_DEPENDENCIES='Cython jinja2 scipy h5py matplotlib pyyaml pandas pytz html5lib beautifulsoup4 ipython mpmath bleach bottleneck'
-        - DEV_PIP_DEP='asdf>=2.3 Cython jinja2 scipy h5py matplotlib pyyaml scikit-image pandas pytz html5lib beautifulsoup4 ipython mpmath bleach bottleneck'
-        - ASDF_PIP_DEP='asdf>=2.3'
+        - USE_CI_HELPERS=False
         - SETUP_XVFB=True
-        - EVENT_TYPE='push pull_request'
-        - SETUP_CMD='test'
-        - INSTALL_WITH_PIP=False
-        - PIP_FLAGS=""
-        - EXTRAS_INSTALL=""
+        - TOXENV='test'
+        - TOXARGS=''
+        - TOXPOSARGS=''
+        # - EVENT_TYPE='push pull_request'
         # Run test suite twice in a row without cleaning
-        - DOUBLE_PLAY=False
-        - USE_CI_HELPERS=True
-        # Use this for the dependencies when not using ci-helpers
-        - OTHER_DEPENDENCY_PREFERENCES=''
-
-        # PEP8 errors/warnings:
-        # E101 - mix of tabs and spaces
-        # W191 - use of tabs
-        # W291 - trailing whitespace
-        # W292 - no newline at end of file
-        # W293 - trailing whitespace
-        # W391 - blank line at end of file
-        # E111 - 4 spaces per indentation level
-        # E112 - 4 spaces per indentation level
-        # E113 - 4 spaces per indentation level
-        # E301 - expected 1 blank line, found 0
-        # E302 - expected 2 blank lines, found 0
-        # E303 - too many blank lines (3)
-        # E304 - blank lines found after function decorator
-        # E305 - expected 2 blank lines after class or function definition
-        # E306 - expected 1 blank line before a nested definition
-        # E502 - the backslash is redundant between brackets
-        # E722 - do not use bare except
-        # E901 - SyntaxError or IndentationError
-        # E902 - IOError
-        # E999: SyntaxError -- failed to compile a file into an Abstract Syntax Tree
-        # # F821: undefined name  # Note: Removed for now because of heavy use of units.si
-        # F822: undefined name in __all__
-        # F823: local variable name referenced before assignment
-        - FLAKE8_OPT="--select=E101,W191,W291,W292,W293,W391,E111,E112,E113,E30,E502,E722,E901,E902,E999,F822,F823"
+        # - DOUBLE_PLAY=False
 
 stages:
    # Do the style check and a single test job, don't proceed if it fails
@@ -94,119 +55,117 @@ matrix:
         # Try MacOS X.
         - os: osx
           stage: Cron tests
-          env: SETUP_CMD='test --remote-data=astropy'
-               CONDA_DEPENDENCIES="$CONDA_ALL_DEPENDENCIES clang"
-               PIP_DEPENDENCIES="scikit-image jplephem $ASDF_PIP_DEP"
+          env: PYTHON_VERSION=3.7
+               TOXPOSARGS="--remote-data=astropy"
+               CONDA_DEPENDENCIES="clang"
                CCOMPILER=clang
-               EVENT_TYPE='cron'
-               DOUBLE_PLAY=True
+               USE_CI_HELPERS=True
+               # EVENT_TYPE='cron'
+               # DOUBLE_PLAY=True
 
         # Try all python versions and Numpy versions. Since we can assume that
         # the Numpy developers have taken care of testing Numpy with different
         # versions of Python, we can vary Python and Numpy versions at the same
         # time.
-        - os: linux
-          env: PYTHON_VERSION=3.6 NUMPY_VERSION=1.16
-               INSTALL_CMD='python setup.py build_ext --inplace'
-               PIP_DEPENDENCIES='pytest-astropy'
-               TEST_CMD='pytest --open-files --doctest-rst'
-          script:
-            - $INSTALL_CMD
-            - $TEST_CMD
+        - language: python
+          python: 3.6
+          env: TOXARGS="--pypi-filter=numpy<1.17"
+               TOXPOSARGS="--open-files"
 
-        # Now try with all optional dependencies. We also include the --readonly
-        # flag to make sure no files are being written to the temporary install
-        # location during testing. We also use this build to make sure that the
-        # dependencies get correctly installed with pip.
-        - os: linux
-          env: SETUP_CMD='test --remote-data=astropy --readonly'
-               LC_CTYPE=C.ascii LC_ALL=C
-               PIP_DEPENDENCIES="" CONDA_DEPENDENCIES=""
-               INSTALL_WITH_PIP=True
-               EXTRAS_INSTALL="test,all"
+        # Now try with all optional dependencies.
 
-        - os: linux
+        - language: python
+          python: 3.7
+          env: TOXENV="test-all"
+               TOXPOSARGS="--remote-data=astropy"
+               LC_CTYPE=C.ascii
+               LC_ALL=C
+
+        - language: python
+          python: 3.6
           stage: Initial tests
-          env: PYTHON_VERSION=3.7 CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES="scikit-image $ASDF_PIP_DEP"
-               SETUP_CMD='test -a "--durations=50"'
+          env: TOXENV="test-all"
+               TOXPOSARGS="--durations=50""
           compiler: clang
 
         # Full tests with coverage checks.
-        - os: linux
-          env: SETUP_CMD='test --coverage --remote-data=astropy --readonly'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES="scikit-image codecov objgraph jplephem bintrees sortedcontainers $ASDF_PIP_DEP"
-               LC_CTYPE=C.ascii LC_ALL=C
+        # TODO: add coverage part
+        - language: python
+          python: 3.7
+          env: TOXARGS=--pypi-filter=matplotlib==2.1.2
+               TOXPOSARGS="--remote-data=astropy"
+               LC_CTYPE=C.ascii
+               LC_ALL=C
                CFLAGS='--coverage -fno-inline-functions -O0'
-               MATPLOTLIB_VERSION=2.1
-               EVENT_TYPE='push pull_request cron'
+               # EVENT_TYPE='push pull_request cron'
 
         # Try on Windows
         - os: windows
           stage: Final tests
-          env: PYTHON_VERSION=3.7 SETUP_CMD='test --readonly'
-               CONDA_DEPENDENCIES=""
-               PIP_DEPENDENCIES="Cython scipy h5py beautifulsoup4 html5lib jinja2 pyyaml matplotlib scikit-image pytz pandas objgraph asdf"
+          env: PYTHON_VERSION=3.7
+               USE_CI_HELPERS=True
+               TOXENV='test-all'
 
         # Do a PEP8/pyflakes test with flake8
-        - os: linux
+        - language: python
+          python: 3.7
           stage: Initial tests
-          env: MAIN_CMD="flake8 astropy --count $FLAKE8_OPT" SETUP_CMD=''
+          env: TOXENV=flake8
 
         # Try developer version of Numpy with optional dependencies and also
         # run all remote tests. Since both cases will be potentially
         # unstable, we combine them into a single unstable build that we can
         # mark as an allowed failure below.
-        - os: linux
+        - language: python
+          python: 3.7
           stage: Final tests
-          env: PYTHON_VERSION=3.7 NUMPY_VERSION=dev SETUP_CMD='test --remote-data'
-               CONDA_DEPENDENCIES=''
-               PIP_DEPENDENCIES=$DEV_PIP_DEP
-               MATPLOTLIB_VERSION=dev
+          env: TOXENV="test-dev"
+               TOXPOSARGS="--remote-data"
 
         # We check numpy-dev also in a job that only runs from cron, so that
         # we can spot issues sooner. We do not use remote data here, since
         # that gives too many false positives due to URL timeouts.
         # We also install all dependencies via pip here so we pick up the latest
         # releases.
-        - os: linux
-          stage: Cron tests
-          env: NUMPY_VERSION=dev MATPLOTLIB_VERSION=dev EVENT_TYPE='cron'
-               CONDA_DEPENDENCIES=''
-               PIP_DEPENDENCIES=$DEV_PIP_DEP
+        - language: python
+          python: 3.7
+          stage: Final tests
+          env: TOXENV="test-dev"
+               # EVENT_TYPE='cron'
 
         # Run documentation link check in a cron job.
         # Was originally in CircleCI doc build but links are too flaky, so
         # we moved it here instead.
         # NOTE: matplotlib pinning should be consistent with CircleCI HTML job.
-        - os: linux
+        - language: python
+          python: 3.7
           stage: Cron tests
-          env: SETUP_CMD='build_docs -b linkcheck' EVENT_TYPE='cron'
-               MATPLOTLIB_VERSION="<3.1"
-               PIP_DEPENDENCIES="" CONDA_DEPENDENCIES=""
-               INSTALL_WITH_PIP=True
-               EXTRAS_INSTALL="docs"
+          env: TOXENV='linkcheck'
+          # EVENT_TYPE='cron'
+          addons:
+              apt:
+                  packages:
+                      - graphviz
 
         # Testing with Travis provided Python3.8. Change this job to a regular
-        # one once conda supports python3.8. Make sure we use released numpy rather
-        # than some kind of dev coming natively from the Travis environment
+        # one once conda supports python3.8.
         - language: python
           stage: Final tests
           dist: xenial
-          python: 3.8-dev
-          env: INSTALL_WITH_PIP=True EXTRAS_INSTALL="test" USE_CI_HELPERS=False
-               OTHER_DEPENDENCY_PREFERENCES='numpy==1.17.3' PIP_FLAGS="--pre"
+          python: 3.8
 
     allow_failures:
-      - os: linux
-        stage: Final tests
-        env: PYTHON_VERSION=3.7 NUMPY_VERSION=dev SETUP_CMD='test --remote-data'
-             CONDA_DEPENDENCIES=''
-             PIP_DEPENDENCIES=$DEV_PIP_DEP
-             MATPLOTLIB_VERSION=dev
+        - language: python
+          python: 3.7
+          stage: Final tests
+          env: TOXENV="test-dev"
+               TOXPOSARGS="--remote-data"
 
 before_install:
+
+    # We need a full clone to make sure setuptools_scm works properly
+    - git fetch --unshallow .
+    - git fetch --depth=1000000
 
     # We need to use CCOMPILER otherwise Travis overwrites CC if we define it
     # in env: above.
@@ -228,23 +187,11 @@ install:
         git clone git://github.com/astropy/ci-helpers.git;
         source ci-helpers/travis/setup_conda.sh;
       fi
-    - if [[ $INSTALL_WITH_PIP == True ]]; then
-        if [ -z $EXTRAS_INSTALL ]; then
-          pip install -e . ${OTHER_DEPENDENCY_PREFERENCES} ${PIP_FLAGS};
-        else
-          pip install -e .[$EXTRAS_INSTALL] ${OTHER_DEPENDENCY_PREFERENCES} ${PIP_FLAGS};
-        fi
-      fi
 
 script:
-    - if [[ $DOUBLE_PLAY == True ]]; then
-          $MAIN_CMD $SETUP_CMD;
-          $MAIN_CMD $SETUP_CMD;
-      else
-          $MAIN_CMD $SETUP_CMD;
-      fi
+    - pip install tox tox-pypi-filter --upgrade
+    - tox -e $TOXENV $TOXARGS -- $TOXPOSARGS
 
 after_success:
-    - if [[ $SETUP_CMD == *--coverage* ]]; then
-        codecov --gcov-glob "*cextern*";
-      fi
+    - pip install codecov
+    - codecov --gcov-glob "*cextern*";
