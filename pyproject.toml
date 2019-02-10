@@ -1,0 +1,6 @@
+[build-system]
+requires = ["setuptools",
+            "wheel",
+            "numpy==1.13.1; python_version<'3.7'",
+            "numpy==1.14.5; python_version>='3.7'",
+            "astropy-helpers @ git+https://github.com/astropy/astropy-helpers@5605ff4f781839254a49a8c86afd2b3eb7eb28e4#egg=astropy-helpers"]

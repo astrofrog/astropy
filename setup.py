@@ -9,8 +9,6 @@
 import os
 import builtins
 
-import ah_bootstrap  # noqa
-
 from astropy_helpers.distutils_helpers import is_distutils_display_option
 from astropy_helpers.setup_helpers import setup
 
