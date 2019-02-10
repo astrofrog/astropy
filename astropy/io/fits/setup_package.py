@@ -1,19 +1,20 @@
 # Licensed under a 3-clause BSD style license - see PYFITS.rst
 
 import os
+from collections import defaultdict
 
 from distutils.core import Extension
 from glob import glob
 
-from astropy_helpers import setup_helpers
+import numpy
 
+from extension_helpers import setup_helpers
 
 def _get_compression_extension():
-    # 'numpy' will be replaced with the proper path to the numpy includes
-    cfg = setup_helpers.DistutilsExtensionArgs()
-    cfg['include_dirs'].append('numpy')
-    cfg['sources'].append(os.path.join(os.path.dirname(__file__), 'src',
-                                       'compressionmodule.c'))
+
+    cfg = defaultdict(list)
+    cfg['include_dirs'].append(numpy.get_include())
+    cfg['sources'].append(os.path.join(os.path.dirname(__file__), 'src', 'compressionmodule.c'))
 
     if int(os.environ.get('ASTROPY_USE_SYSTEM_CFITSIO', 0)) or int(os.environ.get('ASTROPY_USE_SYSTEM_ALL', 0)):
         cfg.update(setup_helpers.pkg_config(['cfitsio'], ['cfitsio']))
