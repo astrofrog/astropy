@@ -7,9 +7,6 @@ jobs:
     os: linux
     name: LinuxMinDependencies
     displayName: Linux with minimal dependencies
-    python: 3.6
-    pip_args: .[test]
-    command: test
 
 # Now try with all optional dependencies. We also include the --readonly
 # flag to make sure no files are being written to the temporary install
@@ -19,24 +16,30 @@ jobs:
     os: linux
     name: LinuxAllDependencies
     displayName: Linux with all dependencies
-    python: 3.6
     pip_args: .[test,all]
     command: test --remote-data=astropy --readonly --coverage
 
+# Run with the oldest supported version of Python and Numpy
 - template: azure-template.yml
   parameters:
-    os: macosx
+    os: linux
+    name: LinuxMinDependencies
+    displayName: Linux with oldest version of dependencies
+    python: 3.5
+    pinned_dependencies: numpy==1.13.3
+
+# Include a MacOS X build
+- template: azure-template.yml
+  parameters:
+    os: osx
     name: MacOSXAllDependencies
     displayName: MacOS X with all dependencies
-    python: 3.6
     pip_args: .[test,all]
-    command: test
 
+# And a Windows build
 - template: azure-template.yml
   parameters:
     os: windows
     name: WindowsAllDependencies
     displayName: Windows with all dependencies
-    python: 3.6
     pip_args: .[test,all]
-    command: test

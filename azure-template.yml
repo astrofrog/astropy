@@ -1,8 +1,16 @@
+# Define defaults
+parameters:
+  python: '3.7'
+  command: test
+  pip_args: .[test]
+  pinned_dependencies: 'numpy'
+
 jobs:
+
 - job: ${{ format(parameters.name) }}
   displayName: ${{ format(parameters.display_name) }}
   pool:
-    ${{ if eq(parameters.os, 'macosx') }}:
+    ${{ if eq(parameters.os, 'osx') }}:
       vmImage: macOS 10.13
     ${{ if eq(parameters.os, 'linux') }}:
       vmImage: Ubuntu 16.04
@@ -11,16 +19,16 @@ jobs:
 
   steps:
 
-  - task: CondaEnvironment@1
-    displayName: 'Creating conda environment'
+  - task: UsePythonVersion@0
     inputs:
-      createCustomEnvironment: True
-      environmentName: "wheels"
-      packageSpecs: "python=${{ format(parameters.python) }}"
-      cleanEnvironment: True
+      versionSpec: '${{ format(parameters.python) }}'
+      architecture: 'x64'
+
+  - script: pip install ${{ format(parameters.pinned_dependencies) }}
+    displayName: Installing pinned dependencies
 
   - script: pip install -e ${{ format(parameters.pip_args) }}
     displayName: Installing dependencies
 
   - script: python setup.py ${{ format(parameters.command) }}
-    displayName: Making wheelhouse directory
+    displayName: Running tests
