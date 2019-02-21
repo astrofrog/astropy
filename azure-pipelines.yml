@@ -23,7 +23,7 @@ jobs:
 - template: azure-template.yml
   parameters:
     os: linux
-    name: LinuxMinDependencies
+    name: LinuxOldDependencies
     displayName: Linux with oldest version of dependencies
     python: 3.5
     pinned_dependencies: numpy==1.13.3
