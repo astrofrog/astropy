@@ -1,0 +1,26 @@
+jobs:
+- job: ${{ format(parameters.name) }}
+  displayName: ${{ format(parameters.display_name) }}
+  pool:
+    ${{ if eq(parameters.os, 'macosx') }}:
+      vmImage: macOS 10.13
+    ${{ if eq(parameters.os, 'linux') }}:
+      vmImage: Ubuntu 16.04
+    ${{ if eq(parameters.os, 'windows') }}:
+      vmImage: vs2017-win2016
+
+  steps:
+
+  - task: CondaEnvironment@1
+    displayName: 'Creating conda environment'
+    inputs:
+      createCustomEnvironment: True
+      environmentName: "wheels"
+      packageSpecs: "python=${{ format(parameters.python) }}"
+      cleanEnvironment: True
+
+  - script: pip install -e ${{ format(parameters.pip_args) }}
+    displayName: Installing dependencies
+
+  - script: python setup.py ${{ format(parameters.command) }}
+    displayName: Making wheelhouse directory

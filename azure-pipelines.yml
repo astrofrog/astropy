@@ -1,0 +1,42 @@
+jobs:
+
+# Job with minimal dependencies, to make sure that tests relying on
+# optional dependencies get skipped.
+- template: azure-template.yml
+  parameters:
+    os: linux
+    name: LinuxMinDependencies
+    displayName: Linux with minimal dependencies
+    python: 3.6
+    pip_args: .[test]
+    command: test
+
+# Now try with all optional dependencies. We also include the --readonly
+# flag to make sure no files are being written to the temporary install
+# location during testing.
+- template: azure-template.yml
+  parameters:
+    os: linux
+    name: LinuxAllDependencies
+    displayName: Linux with all dependencies
+    python: 3.6
+    pip_args: .[test,all]
+    command: test --remote-data=astropy --readonly --coverage
+
+- template: azure-template.yml
+  parameters:
+    os: macosx
+    name: MacOSXAllDependencies
+    displayName: MacOS X with all dependencies
+    python: 3.6
+    pip_args: .[test,all]
+    command: test
+
+- template: azure-template.yml
+  parameters:
+    os: windows
+    name: WindowsAllDependencies
+    displayName: Windows with all dependencies
+    python: 3.6
+    pip_args: .[test,all]
+    command: test
