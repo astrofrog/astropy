@@ -23,11 +23,10 @@ jobs:
 
   steps:
 
-  ${{ if eq(parameters.container, '') }}:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '${{ format(parameters.python) }}'
-        architecture: 'x64'
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '${{ format(parameters.python) }}'
+      architecture: 'x64'
 
   - script: pip install setuptools --upgrade
     displayName: Upgrading setuptools

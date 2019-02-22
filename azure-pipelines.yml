@@ -45,11 +45,10 @@ jobs:
     pip_args: .[test,all]
 
 # Image visualization tests
-- template: azure-template.yml
-  parameters:
-    os: linux
-    name: VisualizationMatplotlib202
-    displayName: Visualization tests with Matplotlib 2.0
-    pip_args: .[test,all]
-    container: astropy/image-tests-py35-mpl202:1.4
-    command: test -P visualization --remote-data=astropy -a "--mpl"
+
+- job: VisualizationMatplotlib202
+  displayName: Visualization tests with Matplotlib 2.0
+  pool:
+    vmImage: Ubuntu 16.04
+  container: astropy/image-tests-py35-mpl202:1.4
+  - script: python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
