@@ -4,6 +4,7 @@ parameters:
   command: test
   pip_args: .[test]
   pinned_dependencies: 'numpy'
+  container: ''
 
 jobs:
 
@@ -16,6 +17,9 @@ jobs:
       vmImage: Ubuntu 16.04
     ${{ if eq(parameters.os, 'windows') }}:
       vmImage: vs2017-win2016
+
+  ${{ if ne(parameters.container, '') }}:
+    container: '${{ format(parameters.container) }}'
 
   steps:
 
