@@ -84,7 +84,7 @@ jobs:
     vmImage: Ubuntu 16.04
   container: astropy/image-tests-py36-base:1.1
   steps:
-  - script: apt-get install -y libfreetype6-dev libpng12-dev pkg-config
+  - script: sudo apt-get install -y libfreetype6-dev libpng12-dev pkg-config
     displayName: Install apt dependencies
   - script: pip3 install "pytest<3.7" pytest-mpl pytest-astropy numpy scipy git+https://github.com/matplotlib/matplotlib.git
     displayName: Install Python dependencies, including developer version of Matplotlib
