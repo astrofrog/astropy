@@ -50,7 +50,7 @@ jobs:
     os: linux
     name: LinuxDocumentation
     displayName: Documentation build
-    pip_args: .[test,docs]
+    pip_args: .[docs,all]
     command: build_docs -w
 
 # Visualization tests with pixel-by-pixel image comparisons
