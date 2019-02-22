@@ -44,13 +44,27 @@ jobs:
     displayName: Windows with all dependencies
     pip_args: .[test,all]
 
-# Image visualization tests
+# Visualization tests with pixel-by-pixel image comparisons
 
-- job: VisualizationMatplotlib202
-  displayName: Visualization tests with Matplotlib 2.0
+- job: VisualizationMatplotlib
+  displayName: Visualization tests with Matplotlib $[ variables['version'] ]
+  strategy:
+    matrix:
+      mpl202:
+        version: 2.0.2
+        image: astropy/image-tests-py35-mpl202:1.4
+      mpl212:
+        version: 2.1.2
+        image: astropy/image-tests-py35-mpl212:1.4
+      mpl222:
+        version: 2.2.2
+        image: astropy/image-tests-py35-mpl222:1.4
+      mpl300:
+        version: 3.0.0
+        image: astropy/image-tests-py35-mpl300:1.4
   pool:
     vmImage: Ubuntu 16.04
-  container: astropy/image-tests-py35-mpl202:1.4
+  container: $[ variables['image'] ]
   steps:
   - script: python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
     displayName: Running tests
