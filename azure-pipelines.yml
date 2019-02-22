@@ -51,4 +51,6 @@ jobs:
   pool:
     vmImage: Ubuntu 16.04
   container: astropy/image-tests-py35-mpl202:1.4
+  steps:
   - script: python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
+    displayName: Running tests
