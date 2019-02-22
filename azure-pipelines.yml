@@ -44,10 +44,19 @@ jobs:
     displayName: Windows with all dependencies
     pip_args: .[test,all]
 
+# Documentation build
+- template: azure-template.yml
+  parameters:
+    os: linux
+    name: LinuxDocumentation
+    displayName: Documentation build
+    pip_args: .[test,docs]
+    command: build_docs -w
+
 # Visualization tests with pixel-by-pixel image comparisons
 
 - job: VisualizationMatplotlib
-  displayName: Visualization tests with Matplotlib $[ variables['version'] ]
+  displayName: Visualization tests
   strategy:
     matrix:
       mpl202:
@@ -68,3 +77,37 @@ jobs:
   steps:
   - script: python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
     displayName: Running tests
+
+- job: VisualizationMatplotlibDev
+  displayName: Visualization tests (Developer Matplotlib)
+  pool:
+    vmImage: Ubuntu 16.04
+  container: astropy/image-tests-py36-base:1.1
+  steps:
+  - script: apt-get install -y libfreetype6-dev libpng12-dev pkg-config
+    displayName: Install apt dependencies
+  - script: pip3 install "pytest<3.7" pytest-mpl pytest-astropy numpy scipy git+https://github.com/matplotlib/matplotlib.git
+    displayName: Install Python dependencies, including developer version of Matplotlib
+  - script: python3 setup.py test -P visualization --remote-data=astropy -a "--mpl"
+    displayName: Running tests
+
+# 32-bit Linux tests
+
+- job: Linux32
+  displayName: 32-bit Linux tests
+  pool:
+    vmImage: Ubuntu 16.04
+  container: quay.io/pypa/manylinux1_i686
+  steps:
+  - script: /opt/python/cp35-cp35m/bin/pip install numpy scipy pytest pytest-astropy pytest-xdist Cython jinja2
+    displayName: Install dependencies for Python 3.5
+  - script: PYTHONHASHSEED=42 /opt/python/cp35-cp35m/bin/python setup.py test --parallel=4 -a "--durations=50"
+    displayName: Run tests for Python 3.5
+  - script: /opt/python/cp36-cp36m/bin/pip install numpy scipy pytest pytest-astropy pytest-xdist Cython jinja2
+    displayName: Install dependencies for Python 3.6
+  - script: PYTHONHASHSEED=42 /opt/python/cp36-cp36m/bin/python setup.py test --parallel=4 -a "--durations=50"
+    displayName: Run tests for Python 3.6
+  - script: /opt/python/cp37-cp37m/bin/pip install numpy scipy pytest pytest-astropy pytest-xdist Cython jinja2
+    displayName: Install dependencies for Python 3.7
+  - script: PYTHONHASHSEED=42 /opt/python/cp37-cp37m/bin/python setup.py test --parallel=4 -a "--durations=50"
+    displayName: Run tests for Python 3.7
