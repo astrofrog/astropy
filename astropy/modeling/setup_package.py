@@ -54,20 +54,7 @@ projections = {
 }
 
 
-def pre_build_py_hook(cmd_obj):
-    preprocess_source()
-
-
-def pre_build_ext_hook(cmd_obj):
-    preprocess_source()
-
-
-def pre_sdist_hook(cmd_obj):
-    preprocess_source()
-
-
-def preprocess_source():
-    # TODO: Move this to setup_helpers
+def get_extensions():
 
     from jinja2 import Environment, FileSystemLoader
 
@@ -80,8 +67,6 @@ def preprocess_source():
     with open(join(MODELING_SRC, 'projections.c'), 'w') as fd:
         fd.write(c_out)
 
-
-def get_extensions():
     wcslib_files = [  # List of wcslib files to compile
         'prj.c',
         'wcserr.c',

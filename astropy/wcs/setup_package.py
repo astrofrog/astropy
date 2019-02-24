@@ -177,7 +177,8 @@ def get_wcslib_cfg(cfg, wcslib_files, include_paths):
 
     debug = int(os.environ.get('ASTROPY_DEBUG', 0)) == 1
 
-    cfg['include_dirs'].append('numpy')
+    import numpy
+    cfg['include_dirs'].append(numpy.get_include())
     cfg['define_macros'].extend([
         ('ECHO', None),
         ('WCSTRIG_MACRO', None),

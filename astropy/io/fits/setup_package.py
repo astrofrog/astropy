@@ -10,9 +10,9 @@ from extension_helpers.distutils_helpers import get_distutils_build_option
 
 
 def _get_compression_extension():
-    # 'numpy' will be replaced with the proper path to the numpy includes
+    import numpy
     cfg = setup_helpers.DistutilsExtensionArgs()
-    cfg['include_dirs'].append('numpy')
+    cfg['include_dirs'].append(numpy.get_include())
     cfg['sources'].append(os.path.join(os.path.dirname(__file__), 'src',
                                        'compressionmodule.c'))
 

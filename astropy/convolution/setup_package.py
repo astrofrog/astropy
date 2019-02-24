@@ -17,9 +17,10 @@ if not sys.platform.startswith('win'):
 def get_extensions():
     # Add '-Rpass-missed=.*' to ``extra_compile_args`` when compiling with clang
     # to report missed optimizations
+    import numpy
     _convolve_ext = Extension(name='astropy.convolution._convolve', sources=SRC_FILES,
                               extra_compile_args=extra_compile_args,
-                              include_dirs=["numpy"],
+                              include_dirs=[numpy.get_include()],
                               language='c')
 
     return [_convolve_ext]

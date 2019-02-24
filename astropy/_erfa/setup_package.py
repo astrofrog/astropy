@@ -31,7 +31,10 @@ def get_extensions():
 
     sources = [os.path.join(ERFAPKGDIR, fn)
                for fn in ("ufunc.c", "pav2pv.c", "pv2pav.c")]
-    include_dirs = ['numpy']
+
+    import numpy
+    include_dirs = [numpy.get_include()]
+
     libraries = []
 
     if setup_helpers.use_system_library('erfa'):
