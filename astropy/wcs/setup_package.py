@@ -175,7 +175,7 @@ MSVC, do not support string literals greater than 256 characters.
 
 def get_wcslib_cfg(cfg, wcslib_files, include_paths):
 
-    debug = import_file(os.path.join(WCSROOT, '..', 'version.py')).debug
+    debug = int(os.environ.get('ASTROPY_DEBUG', 0)) == 1
 
     cfg['include_dirs'].append('numpy')
     cfg['define_macros'].extend([
