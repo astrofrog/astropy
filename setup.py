@@ -2,7 +2,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 import builtins
-from astropy_helpers.setup_helpers import setup
+from setuptools import setup
 
 # We set up the following variable because we then use this in astropy/__init__.py
 # to make sure that we aren't importing astropy during the setup process (we used

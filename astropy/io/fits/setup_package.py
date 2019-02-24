@@ -5,8 +5,8 @@ import os
 from distutils.core import Extension
 from glob import glob
 
-from astropy_helpers import setup_helpers
-from astropy_helpers.distutils_helpers import get_distutils_build_option
+from extension_helpers import setup_helpers
+from extension_helpers.distutils_helpers import get_distutils_build_option
 
 
 def _get_compression_extension():

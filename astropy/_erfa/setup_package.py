@@ -6,9 +6,9 @@ import glob
 from distutils import log
 from distutils.extension import Extension
 
-from astropy_helpers import setup_helpers
-from astropy_helpers.utils import import_file
-from astropy_helpers.version_helpers import get_pkg_version_module
+from extension_helpers import setup_helpers
+from extension_helpers.utils import import_file
+from extension_helpers.version_helpers import get_pkg_version_module
 
 ERFAPKGDIR = os.path.relpath(os.path.dirname(__file__))
 

@@ -10,9 +10,9 @@ from distutils.core import Extension
 from distutils.dep_util import newer_group
 
 
-from astropy_helpers.utils import import_file
-from astropy_helpers import setup_helpers
-from astropy_helpers.distutils_helpers import get_distutils_build_option
+from extension_helpers.utils import import_file
+from extension_helpers import setup_helpers
+from extension_helpers.distutils_helpers import get_distutils_build_option
 
 WCSROOT = os.path.relpath(os.path.dirname(__file__))
 WCSVERSION = "6.4.0"
