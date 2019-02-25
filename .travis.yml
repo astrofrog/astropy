@@ -4,6 +4,9 @@ python:
   - "3.5"
   - "3.6"
 
+install:
+  - pip install tox
+
 script:
   - tox -e test -v
   - tox -e build_docs -v
