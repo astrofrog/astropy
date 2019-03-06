@@ -8,5 +8,5 @@ install:
   - pip install tox
 
 script:
-  - tox -e test -v
-  - tox -e build_docs -v
+  - tox -e test -vv
+  - tox -e build_docs -vv
