@@ -7,6 +7,10 @@ python:
 install:
   - pip install tox
 
+env:
+  - TOXENV=test
+  - TOXENV=build_docs
+
+
 script:
-  - tox -e test -vv
-  - tox -e build_docs -vv
+  - tox -e $TOXENV -vv
