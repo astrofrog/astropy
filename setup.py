@@ -17,6 +17,6 @@ builtins._ASTROPY_CORE_SETUP_ = True
 try:
     import numpy  # noqa
     from extension_helpers.setup_helpers import get_package_info
-    setup(**get_package_info())
+    setup(use_scm_version=True, **get_package_info())
 except ImportError:
-    setup()
+    setup(use_scm_version=True)
