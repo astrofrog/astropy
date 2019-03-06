@@ -15,4 +15,4 @@ builtins._ASTROPY_CORE_SETUP_ = True
 # programmatically.
 
 from extension_helpers.setup_helpers import get_extensions
-setup(ext_modules=get_extensions())
+setup(use_scm_version=True, ext_modules=get_extensions())

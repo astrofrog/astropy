@@ -106,11 +106,14 @@ copyright = u'2011–{0}, '.format(datetime.utcnow().year) + author
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 
-# The short X.Y version.
-version = astropy.__version__.split('-', 1)[0]
-# The full version, including alpha/beta/rc tags.
-release = astropy.__version__
+from pkg_resources import get_distribution, DistributionNotFound
+try:
+    __version__ = get_distribution(__name__).version
+except DistributionNotFound:
+    __version__ = 'unknown'
 
+version = __version__
+release = __version__
 
 # -- Options for the module index ---------------------------------------------
 

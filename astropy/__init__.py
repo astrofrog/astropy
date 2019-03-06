@@ -75,17 +75,11 @@ def _is_astropy_setup():
             _is_astropy_source(main_mod.__file__))
 
 
+from pkg_resources import get_distribution, DistributionNotFound
 try:
-    from .version import version as __version__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __version__ = ''
-try:
-    from .version import githash as __githash__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __githash__ = ''
-
+    __version__ = get_distribution(__name__).version
+except DistributionNotFound:
+    __version__ = 'unknown'
 
 # The location of the online documentation for astropy
 # This location will normally point to the current released version of astropy
