@@ -10,7 +10,7 @@ from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from astropy import units as u
 
-from ..sampled import TimeSeries
+from astropy.timeseries.sampled import TimeSeries
 
 INPUT_TIME = Time(['2016-03-22T12:30:31',
                    '2015-01-21T12:30:32',
