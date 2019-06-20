@@ -201,7 +201,7 @@ class RectangularFrame(BaseFrame):
     A classic rectangular frame.
     """
 
-    spine_names = 'bltr'
+    spine_names = 'brtl'
 
     def update_spines(self):
 
@@ -219,7 +219,7 @@ class EllipticalFrame(BaseFrame):
     An elliptical frame.
     """
 
-    spine_names = 'hcv'
+    spine_names = 'chv'
 
     def update_spines(self):
 
