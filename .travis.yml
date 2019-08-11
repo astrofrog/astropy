@@ -30,6 +30,7 @@ env:
     global:
         # Set defaults to avoid repeating in most cases
         - PYTHON_VERSION=3.6
+        - DEBUG=true
         - NUMPY_VERSION=stable
         - MAIN_CMD='python setup.py'
         - CONDA_DEPENDENCIES='Cython jinja2'
@@ -87,7 +88,7 @@ matrix:
         # all supported numpy versions.
         - os: osx
           stage: Cron tests
-          env: SETUP_CMD='test --remote-data=astropy'
+          env: SETUP_CMD='test --remote-data=astropy --verbose-install'
                CONDA_DEPENDENCIES="$CONDA_ALL_DEPENDENCIES clang"
                PIP_DEPENDENCIES="scikit-image jplephem $ASDF_PIP_DEP"
                CCOMPILER=clang
@@ -121,7 +122,7 @@ matrix:
           stage: Initial tests
           env: PYTHON_VERSION=3.7 CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES="scikit-image $ASDF_PIP_DEP"
-               SETUP_CMD='test -a "--durations=50"'
+               SETUP_CMD='test -a "--durations=50" --verbose-install'
           compiler: clang
 
         # Full tests with coverage checks.
