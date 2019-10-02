@@ -584,8 +584,23 @@ class CoordinateHelper:
         # Find the range of coordinates in all directions
         coord_range = self.parent_map.get_coord_range()
 
+        if self.coord_type == 'longitude':
+            print(coord_range)
+
         # First find the ticks we want to show
         tick_world_coordinates, self._fl_spacing = self.locator(*coord_range[self.coord_index])
+
+        # For longitudes, we need to check ticks as well as ticks + 360,
+        # since the above can produce pairs such as 359 to 361 or 0.5 to
+        # 1.5, both of which would match a tick at 0.75. Otherwise we just
+        # check the ticks determined above.
+        if self.coord_type == 'longitude':
+            tick_world_coordinates_m, _ = self.locator(coord_range[self.coord_index][0] - 360, coord_range[self.coord_index][1] - 360)
+            tick_world_coordinates_p, _ = self.locator(coord_range[self.coord_index][0] + 360, coord_range[self.coord_index][1] + 360)
+            tick_world_coordinates = np.hstack([tick_world_coordinates_m.value, tick_world_coordinates.value, tick_world_coordinates_p.value]) << tick_world_coordinates.unit
+
+        if self.coord_type == 'longitude':
+            print(tick_world_coordinates)
 
         if self.ticks.get_display_minor_ticks():
             minor_ticks_w_coordinates = self._formatter_locator.minor_locator(self._fl_spacing, self.get_minor_frequency(), *coord_range[self.coord_index])
@@ -678,10 +693,6 @@ class CoordinateHelper:
                     w1 = w1 / self._coord_scale_to_deg
                     w2 = w2 / self._coord_scale_to_deg
 
-            # For longitudes, we need to check ticks as well as ticks + 360,
-            # since the above can produce pairs such as 359 to 361 or 0.5 to
-            # 1.5, both of which would match a tick at 0.75. Otherwise we just
-            # check the ticks determined above.
             self._compute_ticks(tick_world_coordinates, spine, axis, w1, w2, tick_angle)
 
             if self.ticks.get_display_minor_ticks():
@@ -698,8 +709,6 @@ class CoordinateHelper:
 
         if self.coord_type == 'longitude':
             tick_world_coordinates_values = tick_world_coordinates.to_value(u.deg)
-            tick_world_coordinates_values = np.hstack([tick_world_coordinates_values,
-                                                       tick_world_coordinates_values + 360])
             tick_world_coordinates_values *= u.deg.to(self.coord_unit)
         else:
             tick_world_coordinates_values = tick_world_coordinates.to_value(self.coord_unit)
