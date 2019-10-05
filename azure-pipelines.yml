@@ -9,6 +9,7 @@ resources:
 jobs:
 - template: publish.yml@OpenAstronomy
   parameters:
+    submodules: false
     pypi_connection_name: 'pypi_endpoint'
     test_extras: 'all,test'
     test_command: 'pytest --pyargs astropy'
