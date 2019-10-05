@@ -1,0 +1,19 @@
+resources:
+  repositories:
+  - repository: OpenAstronomy
+    type: github
+    endpoint: astrofrog
+    name: OpenAstronomy/azure-pipelines-templates
+    ref: master
+
+jobs:
+- template: publish.yml@OpenAstronomy
+  parameters:
+    pypi_connection_name: 'pypi_endpoint'
+    test_extras: 'all,test'
+    test_command: 'pytest --pyargs astropy'
+    targets:
+    - sdist
+    - wheels_linux
+    - wheels_macos
+    - wheels_windows
