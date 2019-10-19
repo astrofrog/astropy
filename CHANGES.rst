@@ -520,6 +520,9 @@ astropy.utils
 astropy.visualization
 ^^^^^^^^^^^^^^^^^^^^^
 
+- Calling ``WCSAxes.set_axis_off()`` now correctly turns off drawing the Axes.
+  [#9411]
+
 astropy.wcs
 ^^^^^^^^^^^
 
