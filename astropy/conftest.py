@@ -27,7 +27,7 @@ enable_deprecations_as_exceptions(
     # This is a workaround for the OpenSSL deprecation warning that comes from
     # the `requests` module. It only appears when both asdf and sphinx are
     # installed. This can be removed once pyopenssl 1.7.20+ is released.
-    modules_to_ignore_on_import=['requests'],
+    modules_to_ignore_on_import=['requests', 'html5lib'],
     warnings_to_ignore_by_pyver={
         # This warning shows up in mpl <3.1.2 on python 3.8,
         # remove once 3.1.2 is released

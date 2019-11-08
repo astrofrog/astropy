@@ -8,21 +8,15 @@ import numpy as np
 
 
 __all__ = ['raises', 'assert_equal', 'assert_almost_equal',
-           'assert_true', 'setup_function', 'teardown_function',
-           'has_isnan']
+           'assert_true', 'setup_function', 'teardown_function']
 
 CWD = os.getcwd()
 TEST_DIR = os.path.dirname(__file__)
 
-has_isnan = True
 try:
     from math import isnan  # pylint: disable=W0611
 except ImportError:
-    try:
-        from numpy import isnan  # pylint: disable=W0611
-    except ImportError:
-        has_isnan = False
-        print('Tests requiring isnan will fail')
+    from numpy import isnan  # pylint: disable=W0611
 
 
 def setup_function(function):
