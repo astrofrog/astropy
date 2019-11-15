@@ -25,9 +25,7 @@ Fitters support constrained fitting.
       >>> y = p1(x, model_set_axis=False)
       >>> p1.c0.fixed = True
       >>> pfit = fitting.LinearLSQFitter()
-      >>> with warnings.catch_warnings():
-      ...     warnings.simplefilter('ignore')  # Ignore fit warning
-      ...     new_model = pfit(p1, x, y)
+      >>> new_model = pfit(p1, x, y)  # doctest: +IGNORE_WARNINGS
       >>> print(new_model)  # doctest: +SKIP
       Model: Polynomial1D
       Inputs: ('x',)
