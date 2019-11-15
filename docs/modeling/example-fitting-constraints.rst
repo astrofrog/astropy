@@ -14,7 +14,6 @@ Fitters support constrained fitting.
   to the data minus that constant. However, the fixed coefficient value is
   restored when evaluating the model, to fit the original data values::
 
-      >>> import warnings
       >>> import numpy as np
       >>> from astropy.modeling import models, fitting
       >>> x = np.arange(1, 10, .1)
