@@ -7,7 +7,7 @@ import sys
 
 from distutils.core import Extension
 
-from extension_helpers.utils import import_file
+from extension_helpers.utils import import_file, write_if_different
 from extension_helpers import setup_helpers
 
 WCSROOT = os.path.relpath(os.path.dirname(__file__))
@@ -99,7 +99,7 @@ def write_wcsconfig_h(paths):
     """.format(WCSVERSION, determine_64_bit_int()))
     content = h_file.getvalue().encode('ascii')
     for path in paths:
-        setup_helpers.write_if_different(path, content)
+        write_if_different(path, content)
 
 
 ######################################################################
@@ -134,7 +134,7 @@ its contents, edit astropy/wcs/docstrings.py
         h_file.write('extern char doc_{}[{}];\n'.format(key, len(val)))
     h_file.write("\n#endif\n\n")
 
-    setup_helpers.write_if_different(
+    write_if_different(
         join(WCSROOT, 'include', 'astropy_wcs', 'docstrings.h'),
         h_file.getvalue().encode('utf-8'))
 
@@ -164,7 +164,7 @@ MSVC, do not support string literals greater than 256 characters.
 
         c_file.write("    };\n\n")
 
-    setup_helpers.write_if_different(
+    write_if_different(
         join(WCSROOT, 'src', 'docstrings.c'),
         c_file.getvalue().encode('utf-8'))
 
