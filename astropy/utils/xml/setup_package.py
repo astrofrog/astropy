@@ -2,6 +2,8 @@
 
 from distutils.core import Extension
 from os.path import join
+
+import os
 import sys
 
 from extension_helpers import setup_helpers
