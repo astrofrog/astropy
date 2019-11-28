@@ -5,6 +5,6 @@ requires = ["setuptools",
             "cython",
             "jinja2",
             "oldest-supported-numpy",
-            "git+https://github.com/astropy/astropy-helpers@extension-helpers"]
+            "extension-helpers @ git+https://github.com/astropy/astropy-helpers@extension-helpers"]
 build-backend = 'setuptools.build_meta'
 
