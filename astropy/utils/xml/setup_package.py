@@ -7,10 +7,6 @@ import sys
 from extension_helpers import setup_helpers
 
 
-def get_external_libraries():
-    return ['expat']
-
-
 def get_extensions(build_type='release'):
     XML_DIR = 'astropy/utils/xml/src'
 
@@ -18,7 +14,7 @@ def get_extensions(build_type='release'):
         'sources': [join(XML_DIR, "iterparse.c")]
         })
 
-    if setup_helpers.use_system_library('expat'):
+    if int(os.environ.get('ASTROPY_USE_SYSTEM_EXPAT', 0)) == 1:
         cfg.update(setup_helpers.pkg_config(['expat'], ['expat']))
     else:
         EXPAT_DIR = 'cextern/expat/lib'

@@ -3,10 +3,8 @@
 import os
 import glob
 
-from distutils import log
 from distutils.extension import Extension
 
-from extension_helpers import setup_helpers
 from extension_helpers.utils import import_file
 
 ERFAPKGDIR = os.path.relpath(os.path.dirname(__file__))
@@ -37,7 +35,7 @@ def get_extensions():
 
     libraries = []
 
-    if setup_helpers.use_system_library('erfa'):
+    if int(os.environ.get('ASTROPY_USE_SYSTEM_ERFA', 0)) == 1:
         libraries.append('erfa')
     else:
         # get all of the .c files in the cextern/erfa directory
@@ -55,7 +53,3 @@ def get_extensions():
         language="c",)
 
     return [erfa_ext]
-
-
-def get_external_libraries():
-    return ['erfa']

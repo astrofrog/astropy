@@ -3,16 +3,12 @@
 import io
 from os.path import join
 import os.path
-import shutil
 import sys
 
 from distutils.core import Extension
-from distutils.dep_util import newer_group
-
 
 from extension_helpers.utils import import_file
 from extension_helpers import setup_helpers
-from extension_helpers.distutils_helpers import get_distutils_build_option
 
 WCSROOT = os.path.relpath(os.path.dirname(__file__))
 WCSVERSION = "6.4.0"
@@ -185,7 +181,7 @@ def get_wcslib_cfg(cfg, wcslib_files, include_paths):
         ('ASTROPY_WCS_BUILD', None),
         ('_GNU_SOURCE', None)])
 
-    if (not setup_helpers.use_system_library('wcslib') or
+    if (int(os.environ.get('ASTROPY_USE_SYSTEM_WCSLIB', 0)) == 0 or
             sys.platform == 'win32'):
         write_wcsconfig_h(include_paths)
 
@@ -227,7 +223,7 @@ def get_wcslib_cfg(cfg, wcslib_files, include_paths):
 
     # Squelch a few compilation warnings in WCSLIB
     if setup_helpers.get_compiler_option() in ('unix', 'mingw32'):
-        if not get_distutils_build_option('debug'):
+        if not int(os.environ.get('ASTROPY_DEBUG', 0)) == 1:
             cfg['extra_compile_args'].extend([
                 '-Wno-strict-prototypes',
                 '-Wno-unused-function',
@@ -295,7 +291,3 @@ def get_extensions():
     cfg = dict((str(key), val) for key, val in cfg.items())
 
     return [Extension('astropy.wcs._wcs', **cfg)]
-
-
-def get_external_libraries():
-    return ['wcslib']

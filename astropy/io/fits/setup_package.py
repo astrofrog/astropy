@@ -6,17 +6,17 @@ from distutils.core import Extension
 from glob import glob
 
 from extension_helpers import setup_helpers
-from extension_helpers.distutils_helpers import get_distutils_build_option
 
 
 def _get_compression_extension():
-    import numpy
-    cfg = setup_helpers.DistutilsExtensionArgs()
-    cfg['include_dirs'].append(numpy.get_include())
-    cfg['sources'].append(os.path.join(os.path.dirname(__file__), 'src',
-                                       'compressionmodule.c'))
 
-    if not setup_helpers.use_system_library('cfitsio'):
+    import numpy
+
+    cfg = {}
+    cfg['include_dirs'] = [numpy.get_include()]
+    cfg['sources'] = [os.path.join(os.path.dirname(__file__), 'src', 'compressionmodule.c')]
+
+    if int(os.environ.get('ASTROPY_USE_SYSTEM_CFITSIO', 0)) == 0:
         if setup_helpers.get_compiler_option() == 'msvc':
             # These come from the CFITSIO vcc makefile, except the last
             # which ensures on windows we do not include unistd.h (in regular
@@ -33,7 +33,7 @@ def _get_compression_extension():
                 '-Wno-declaration-after-statement'
             ])
 
-            if not get_distutils_build_option('debug'):
+            if not int(os.environ.get('ASTROPY_DEBUG', 0)) == 1:
                 # these switches are to silence warnings from compiling CFITSIO
                 # For full silencing, some are added that only are used in
                 # later versions of gcc (versions approximate; see #6474)
@@ -62,7 +62,3 @@ def _get_compression_extension():
 
 def get_extensions():
     return [_get_compression_extension()]
-
-
-def get_external_libraries():
-    return ['cfitsio']
