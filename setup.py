@@ -14,9 +14,5 @@ builtins._ASTROPY_CORE_SETUP_ = True
 # setup_requires and install_requires since these are determined
 # programmatically.
 
-try:
-    import numpy  # noqa
-    from extension_helpers.setup_helpers import get_package_info
-    setup(use_scm_version=True, **get_package_info())
-except ImportError:
-    setup(use_scm_version=True)
+from extension_helpers.setup_helpers import get_extensions
+setup(use_scm_version=True, ext_modules=get_extensions())
