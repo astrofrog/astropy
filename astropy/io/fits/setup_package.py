@@ -1,18 +1,18 @@
 # Licensed under a 3-clause BSD style license - see PYFITS.rst
 
 import os
+from collections import defaultdict
 
 from distutils.core import Extension
 from glob import glob
 
 from extension_helpers import setup_helpers
 
-
 def _get_compression_extension():
 
     import numpy
 
-    cfg = {}
+    cfg = defaultdict(list)
     cfg['include_dirs'] = [numpy.get_include()]
     cfg['sources'] = [os.path.join(os.path.dirname(__file__), 'src', 'compressionmodule.c')]
 
