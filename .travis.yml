@@ -5,18 +5,24 @@ addons:
     packages:
       - graphviz
 
-python:
-  - "3.6"
-  - "3.7"
+matrix:
+  include:
+    - python: 3.6  
+      env: TOXENV=py36-test
+    - python: 3.7
+      env: TOXENV=py37-test
+    - python: 3.8
+      env: TOXENV=py38-test
+    - python: 3.6
+      env: TOXENV=py36-build_docs
+    - python: 3.7
+      env: TOXENV=py37-build_docs
+    - python: 3.8
+      env: TOXENV=py38-build_docs
 
 install:
   - pip install pip --upgrade
   - pip install tox
-
-env:
-  - TOXENV=test
-  - TOXENV=build_docs
-
 
 script:
   - tox -e $TOXENV -vv
