@@ -44,7 +44,7 @@ stages:
    - name: Comprehensive tests
    - name: Final tests
    - name: Cron tests
-     if: type = cron
+    #  if: type = cron
 
 matrix:
 
