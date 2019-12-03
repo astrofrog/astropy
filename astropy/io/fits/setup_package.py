@@ -6,7 +6,6 @@ from distutils.core import Extension
 from glob import glob
 
 from astropy_helpers import setup_helpers
-from astropy_helpers.distutils_helpers import get_distutils_build_option
 
 
 def _get_compression_extension():
@@ -35,7 +34,7 @@ def _get_compression_extension():
                 '-Wno-declaration-after-statement'
             ])
 
-            if not get_distutils_build_option('debug'):
+            if not int(os.environ.get('ASTROPY_DEBUG', 0)):
                 # these switches are to silence warnings from compiling CFITSIO
                 # For full silencing, some are added that only are used in
                 # later versions of gcc (versions approximate; see #6474)
