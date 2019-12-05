@@ -52,34 +52,6 @@ matrix:
     fast_finish: true
 
     include:
-        # Try MacOS X.
-        - os: osx
-          stage: Cron tests
-          env: PYTHON_VERSION=3.7
-               TOXPOSARGS="--remote-data=astropy"
-               CONDA_DEPENDENCIES="clang"
-               CCOMPILER=clang
-               USE_CI_HELPERS=True
-               # EVENT_TYPE='cron'
-               # DOUBLE_PLAY=True
-
-        # Try all python versions and Numpy versions. Since we can assume that
-        # the Numpy developers have taken care of testing Numpy with different
-        # versions of Python, we can vary Python and Numpy versions at the same
-        # time.
-        - language: python
-          python: 3.6
-          env: TOXARGS="--pypi-filter=numpy<1.17"
-               TOXPOSARGS="--open-files"
-
-        # Now try with all optional dependencies.
-
-        - language: python
-          python: 3.7
-          env: TOXENV="test-all"
-               TOXPOSARGS="--remote-data=astropy"
-               LC_CTYPE=C.ascii
-               LC_ALL=C
 
         - language: python
           python: 3.6
@@ -87,79 +59,6 @@ matrix:
           env: TOXENV="test-all"
                TOXPOSARGS="--durations=50""
           compiler: clang
-
-        # Full tests with coverage checks.
-        # TODO: add coverage part
-        - language: python
-          python: 3.7
-          env: TOXARGS=--pypi-filter=matplotlib==2.1.2
-               TOXPOSARGS="--remote-data=astropy"
-               LC_CTYPE=C.ascii
-               LC_ALL=C
-               CFLAGS='--coverage -fno-inline-functions -O0'
-               # EVENT_TYPE='push pull_request cron'
-
-        # Try on Windows
-        - os: windows
-          stage: Final tests
-          env: PYTHON_VERSION=3.7
-               USE_CI_HELPERS=True
-               TOXENV='test-all'
-
-        # Do a PEP8/pyflakes test with flake8
-        - language: python
-          python: 3.7
-          stage: Initial tests
-          env: TOXENV=flake8
-
-        # Try developer version of Numpy with optional dependencies and also
-        # run all remote tests. Since both cases will be potentially
-        # unstable, we combine them into a single unstable build that we can
-        # mark as an allowed failure below.
-        - language: python
-          python: 3.7
-          stage: Final tests
-          env: TOXENV="test-dev"
-               TOXPOSARGS="--remote-data"
-
-        # We check numpy-dev also in a job that only runs from cron, so that
-        # we can spot issues sooner. We do not use remote data here, since
-        # that gives too many false positives due to URL timeouts.
-        # We also install all dependencies via pip here so we pick up the latest
-        # releases.
-        - language: python
-          python: 3.7
-          stage: Final tests
-          env: TOXENV="test-dev"
-               # EVENT_TYPE='cron'
-
-        # Run documentation link check in a cron job.
-        # Was originally in CircleCI doc build but links are too flaky, so
-        # we moved it here instead.
-        # NOTE: matplotlib pinning should be consistent with CircleCI HTML job.
-        - language: python
-          python: 3.7
-          stage: Cron tests
-          env: TOXENV='linkcheck'
-          # EVENT_TYPE='cron'
-          addons:
-              apt:
-                  packages:
-                      - graphviz
-
-        # Testing with Travis provided Python3.8. Change this job to a regular
-        # one once conda supports python3.8.
-        - language: python
-          stage: Final tests
-          dist: xenial
-          python: 3.8
-
-    allow_failures:
-        - language: python
-          python: 3.7
-          stage: Final tests
-          env: TOXENV="test-dev"
-               TOXPOSARGS="--remote-data"
 
 before_install:
 
