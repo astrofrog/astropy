@@ -95,7 +95,7 @@ matrix:
         - os: linux
           env: PYTHON_VERSION=3.6 NUMPY_VERSION=1.16
                INSTALL_CMD='python setup.py build_ext --inplace'
-               PIP_DEPENDENCIES='pytest-astropy $ASDF_PIP_DEP'
+               PIP_DEPENDENCIES='pytest-astropy asdf'
                TEST_CMD='pytest --open-files --doctest-rst'
           script:
             - $INSTALL_CMD
