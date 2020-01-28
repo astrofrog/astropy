@@ -96,6 +96,10 @@ astropy.wcs
 
 - Implemented support for the ``-TAB`` algorithm (WCS Paper III). [#9641]
 
+- Added wrappers in ``astropy.wcs.wcsapi`` for combining
+  (``CompoundLowLevelWCS``), reordering (``ReorderedLowLevelWCS``), and
+  resampling (``ResampledLowLevelWCS``) APE 14-compliant WCS classes. [#9736]
+
 API Changes
 -----------
 
