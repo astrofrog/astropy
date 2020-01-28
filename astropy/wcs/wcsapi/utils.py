@@ -47,18 +47,16 @@ def wcs_info_str(wcs):
     pixel_nam_width = max(9, max(len(x) for x in wcs.pixel_axis_names))
     pixel_siz_width = max(9, len(str(max(array_shape))))
 
-    print(pixel_nam_width)
-
     s += (('{0:' + str(pixel_dim_width) + 's}').format('Pixel Dim') + '  ' +
             ('{0:' + str(pixel_nam_width) + 's}').format('Axis Name') + '  ' +
             ('{0:' + str(pixel_siz_width) + 's}').format('Data size') + '  ' +
             'Bounds\n')
 
     for ipix in range(wcs.pixel_n_dim):
-        s += (('{0:' + str(pixel_dim_width) + 'd}').format(ipix) + '  ' +
+        s += (('{0:' + str(pixel_dim_width) + 'g}').format(ipix) + '  ' +
                 ('{0:' + str(pixel_nam_width) + 's}').format(wcs.pixel_axis_names[ipix] or 'None') + '  ' +
                 (" " * 5 + str(None) if pixel_shape[ipix] is None else
-                ('{0:' + str(pixel_siz_width) + 'd}').format(pixel_shape[ipix])) + '  ' +
+                ('{0:' + str(pixel_siz_width) + 'g}').format(pixel_shape[ipix])) + '  ' +
                 '{:s}'.format(str(None if wcs.pixel_bounds is None else wcs.pixel_bounds[ipix]) + '\n'))
 
     s += '\n'
