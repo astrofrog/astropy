@@ -1505,3 +1505,9 @@ def test_dtype_preservation_in_indexing():
     cr0 = cr[0]
     # This used to fail.
     assert cr0.xyz.dtype == xyz.dtype
+
+
+def test_mismatched_reprdiffs():
+    usr = UnitSphericalRepresentation(lat=1*u.deg, lon=2*u.deg)
+    diff = CartesianDifferential(4*u.km/u.s, 5*u.km/u.s, 6*u.km/u.s)
+    wdiff = usr.with_differentials(diff)
