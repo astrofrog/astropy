@@ -29,7 +29,7 @@ VELOCITY_FRAMES = {
     'LSRD': 'lsrd'
 }
 
-# The spectra velocity frames below are needed for FITS spectral WCS 
+# The spectra velocity frames below are needed for FITS spectral WCS
 #  (see Greisen 06 table 12) but aren't yet defined as real
 # astropy.coordinates frames, so we instead define them here as instances
 # of existing coordinate frames with offset velocities. In future we should
@@ -443,8 +443,9 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                 target = SkyCoord(self.wcs.crval[self.wcs.lng] * self.wcs.cunit[self.wcs.lng],
                                   self.wcs.crval[self.wcs.lat] * self.wcs.cunit[self.wcs.lat],
                                   frame=celestial_frame,
-                                  radial_velocity=0 * u.km / u.s,
                                   distance=1000 * u.kpc)
+
+                attach_zero_velocities(target)
 
                 # FIXME: for now this target won't work without radial velocity
                 # and distance due to https://github.com/astropy/specutils/issues/658
