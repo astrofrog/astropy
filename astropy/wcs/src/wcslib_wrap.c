@@ -4002,11 +4002,15 @@ PyWcsprm_get_auxprm(
 
   PyObject* result;
 
+  printf("here1\n");
+
   result = (PyObject *)PyAuxprm_cnew((PyObject *)self, self->x.aux);
+  printf("here2\n");
   if (result == NULL) {
     Py_DECREF(result);
     return NULL;
   }
+  printf("here3\n");
 
   return result;
 }

@@ -49,10 +49,15 @@ static void PyAuxprm_dealloc(PyAuxprm* self) {
 
 PyAuxprm* PyAuxprm_cnew(PyObject* wcsprm, struct auxprm* x) {
   PyAuxprm* self;
+  printf("ici1\n");
   self = (PyAuxprm*)(&PyAuxprmType)->tp_alloc(&PyAuxprmType, 0);
+  printf("ici2\n");
   if (self == NULL) return NULL;
+  printf("ici3\n");
   self->x = x;
+  printf("ici4\n");
   Py_INCREF(wcsprm);
+  printf("ici5\n");
   self->owner = wcsprm;
   return self;
 }
@@ -157,8 +162,8 @@ PyTypeObject PyAuxprmType = {
   0,                            /*tp_as_buffer*/
   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
   0,                            /* tp_doc */
-  0,                            /* tp_traverse */
-  0,                            /* tp_clear */
+  (traverseproc)PyAuxprm_traverse, /* tp_traverse */
+  (inquiry)PyAuxprm_clear,         /* tp_clear */
   0,                            /* tp_richcompare */
   0,                            /* tp_weaklistoffset */
   0,                            /* tp_iter */
