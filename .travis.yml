@@ -363,7 +363,7 @@ script:
         mkdir wheelhouse;
         touch "wheelhouse/"$TRAVIS_OS_NAME".whl";
       elif [ $SETUP_METHOD == 'twine' ]; then
-        find . -name "wheelhouse*" -type d;
+        find / -name "wheelhouse*" -type d;
       fi
 
 after_success:
