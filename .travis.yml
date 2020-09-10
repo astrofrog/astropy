@@ -65,7 +65,7 @@ env:
         - CIBW_TEST_EXTRAS=test
         - CIBW_TEST_COMMAND='python -m pytest --astropy-header -p no:warnings -k "not test_data_out_of_range" --pyargs astropy'
 
-# stages:
+stages:
 #    # Do the style check and a single test job, don't proceed if it fails
 #    - name: Initial tests
 #    # Do the rest of the tests
@@ -73,6 +73,8 @@ env:
 #    - name: Final tests
 #    - name: Cron tests
 #      if: type = cron
+  - name: Wheels building
+  - name: Wheels upload
 
 matrix:
 
@@ -232,24 +234,48 @@ matrix:
       # Linux wheels (32-bit)
       - language: python
         services: docker
+        stage: Wheels building
+        workspaces:
+          create:
+            name: linux32-wheels
+            paths:
+              - wheelhouse
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-manylinux_i686"
 
       # Linux wheels (64-bit)
       - language: python
         services: docker
+        stage: Wheels building
+        workspaces:
+          create:
+            name: linux64-wheels
+            paths:
+              - wheelhouse
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-manylinux_x86_64"
 
       # Mac wheels
       - os: osx
         language: shell
+        stage: Wheels building
+        workspaces:
+          create:
+            name: macosx-wheels
+            paths:
+              - wheelhouse
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-macosx_x86_64"
 
       # Windows wheels (32-bit)
       - os: windows
         language: shell
+        stage: Wheels building
+        workspaces:
+          create:
+            name: win32-wheels
+            paths:
+              - wheelhouse
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-win32"
         before_install:
@@ -260,12 +286,29 @@ matrix:
       # Windows wheels (64-bit)
       - os: windows
         language: shell
+        stage: Wheels building
+        workspaces:
+          create:
+            name: win64-wheels
+            paths:
+              - wheelhouse
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-win_amd64"
         before_install:
           - choco install python --version 3.8.0
           - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
           - ln -s /c/Python38/python.exe /c/Python38/python3.exe
+
+      - os: linux
+        env: SETUP_METHOD='twine'
+        stage: Wheels upload
+        workspaces:
+          use:
+            - linux32-wheels
+            - linux64-wheels
+            - macosx-wheels
+            - win32-wheels
+            - win64-wheels
 
 before_install:
 
@@ -303,9 +346,9 @@ install:
         sudo apt-get install -t testing -y --no-install-recommends ${APT_DEPENDENCIES};
       fi
 
-    - if [ $SETUP_METHOD == cibuildwheel ]; then
-        python3 -m pip install cibuildwheel==1.6.0;
-      fi
+    # - if [ $SETUP_METHOD == cibuildwheel ]; then
+    #     python3 -m pip install cibuildwheel==1.6.0;
+    #   fi
 
 script:
     - if [ $SETUP_METHOD == 'tox' ]; then
@@ -316,8 +359,10 @@ script:
         source tests/bin/activate;
         pip3 install -e .[test];
         python3 -m pytest;
-      else
-        python3 -m cibuildwheel --output-dir wheelhouse;
+      elif [ $SETUP_METHOD == 'cibuildwheel' ]; then
+        touch "wheelhouse/"$TRAVIS_OS_NAME".whl";
+      elif [ $SETUP_METHOD == 'twine' ]; then
+        find .;
       fi
 
 after_success:
