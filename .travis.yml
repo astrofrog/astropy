@@ -363,9 +363,9 @@ script:
         mkdir wheelhouse;
         touch "wheelhouse/"$TRAVIS_OS_NAME".whl";
       elif [ $SETUP_METHOD == 'twine' ]; then
-        ls /Users/travis/build/astrofrog/astropy/wheelhouse;
+        ls ~/Users/travis/build/astrofrog/astropy/wheelhouse;
         ls /home/travis/build/astrofrog/astropy/wheelhouse;
-        ls /C:/Users/travis/build/astrofrog/astropy/wheelhouse;
+        ls ~/C:/Users/travis/build/astrofrog/astropy/wheelhouse;
       fi
 
 after_success:
