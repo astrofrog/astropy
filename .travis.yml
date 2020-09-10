@@ -360,6 +360,7 @@ script:
         pip3 install -e .[test];
         python3 -m pytest;
       elif [ $SETUP_METHOD == 'cibuildwheel' ]; then
+        mkdir wheelhouse;
         touch "wheelhouse/"$TRAVIS_OS_NAME".whl";
       elif [ $SETUP_METHOD == 'twine' ]; then
         find .;
