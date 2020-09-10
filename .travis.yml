@@ -239,7 +239,7 @@ matrix:
           create:
             name: linux32-wheels
             paths:
-              - wheelhouse
+              - /wheelhouse-linux32
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-manylinux_i686"
 
@@ -251,7 +251,7 @@ matrix:
           create:
             name: linux64-wheels
             paths:
-              - wheelhouse
+              - /wheelhouse-linux64
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-manylinux_x86_64"
 
@@ -263,7 +263,7 @@ matrix:
           create:
             name: macosx-wheels
             paths:
-              - wheelhouse
+              - /wheelhouse-macosx
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-macosx_x86_64"
 
@@ -275,7 +275,7 @@ matrix:
           create:
             name: win32-wheels
             paths:
-              - wheelhouse
+              - /wheelhouse-win32
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-win32"
         before_install:
@@ -291,7 +291,7 @@ matrix:
           create:
             name: win64-wheels
             paths:
-              - wheelhouse
+              - /wheelhouse-win64
         env: SETUP_METHOD='cibuildwheel'
              CIBW_BUILD="cp3[678]-win_amd64"
         before_install:
@@ -363,9 +363,7 @@ script:
         mkdir wheelhouse;
         touch "wheelhouse/"$TRAVIS_OS_NAME".whl";
       elif [ $SETUP_METHOD == 'twine' ]; then
-        ls ~/Users/travis/build/astrofrog/astropy/wheelhouse;
-        ls /home/travis/build/astrofrog/astropy/wheelhouse;
-        ls ~/C:/Users/travis/build/astrofrog/astropy/wheelhouse;
+        find . -name "wheelhouse*" -type d;
       fi
 
 after_success:
