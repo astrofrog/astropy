@@ -33,6 +33,9 @@ addons:
             - language-pack-de
             # tzdata is included to ensure system leap seconds are up to date.
             - tzdata
+    homebrew:
+        packages:
+            - python@3.8
 
 env:
     global:
@@ -85,12 +88,6 @@ before_install:
     - if [[ $TRAVIS_OS_NAME == windows ]]; then
         choco install --no-progress python --version 3.8;
         python -m pip install --upgrade pip;
-      fi
-
-    - if [[ $TRAVIS_OS_NAME == osx ]]; then
-        export python=/usr/local/bin/python3;
-        python --version;
-        pip3 install -U pip;
       fi
 
     # We need to use CCOMPILER otherwise Travis overwrites CC if we define it
