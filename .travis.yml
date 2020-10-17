@@ -90,6 +90,10 @@ before_install:
         python -m pip install --upgrade pip;
       fi
 
+    - if [[ $TRAVIS_OS_NAME == osx ]]; then
+        brew link --overwrite python
+      fi
+
     # We need to use CCOMPILER otherwise Travis overwrites CC if we define it
     # in env: above.
     - if [ ! -z $CCOMPILER ]; then
