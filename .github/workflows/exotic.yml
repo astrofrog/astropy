@@ -1,0 +1,37 @@
+name: Run tests
+
+on: [push]
+
+jobs:
+
+  run_tests:
+
+    runs-on: ubuntu18.04
+    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
+
+    strategy:
+      matrix:
+        include:
+          - arch: armv6
+          - arch: armv7
+          - arch: aarch64
+          - arch: ppc64le
+          - arch: s390x
+
+    steps:
+      - uses: actions/checkout@v2.1.0
+      - uses: uraimo/run-on-arch-action@v2.0.5
+        name: Run tests
+        id: build
+        with:
+          arch: ${{ matrix.arch }}
+          distro: buster
+
+          shell: /bin/sh
+
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y git python3 tox
+
+          run: |
+            python3 -m tox -e py37-test
