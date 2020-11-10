@@ -39,3 +39,4 @@ jobs:
 
           run: |
             python3 -m execute_517 "setup.py --version"
+            python3 -c "print('is this thing on')"
