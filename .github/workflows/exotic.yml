@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Fetch all tags
-        run: git fetch origin --all
+        run: git fetch --tags --all
       - uses: uraimo/run-on-arch-action@v2.0.5
         name: Run tests
         id: build
