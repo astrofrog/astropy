@@ -38,4 +38,4 @@ jobs:
             python3 -m pip install execute-517
 
           run: |
-            python3 -m execute-517 "setup.py --version"
+            python3 -m execute_517 "setup.py --version"
