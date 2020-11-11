@@ -20,7 +20,7 @@ jobs:
           - arch: s390x
 
     steps:
-      - uses: actions/checkout@v2.1.0
+      - uses: actions/checkout@v2
         with:
           fetch-depth: 0
       - name: Fetch all tags
@@ -42,4 +42,4 @@ jobs:
           run: |
             python3 -m execute_517 "setup.py --version"
             python3 -c "print('is this thing on')"
-            python3 -m tox py37-test
+            python3 -m tox -e py37-test
