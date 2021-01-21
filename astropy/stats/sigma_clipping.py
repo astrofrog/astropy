@@ -6,8 +6,7 @@ import numpy as np
 
 from astropy.utils import isiterable
 from astropy.utils.exceptions import AstropyUserWarning
-from astropy.stats._sigma_clipping import sigma_clip_fast
-from astropy.stats._fast_sigma_clipping import _sigma_clip_fast
+from astropy.stats._fast_sigma_clip import _sigma_clip_fast
 try:
     import bottleneck  # pylint: disable=W0611
     HAS_BOTTLENECK = True
