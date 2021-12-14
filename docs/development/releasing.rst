@@ -131,7 +131,7 @@ packages that use the full bugfix/maintenance branch approach.)
 
 #. (Optional) Create the source distribution by doing::
 
-     $ python -m pep517.build --source .
+     $ python -m build <options> .
 
 #. (Optional) Run the tests in an environment that mocks up a "typical user" scenario.
    This is not strictly necessary because you ran the tests above, but
