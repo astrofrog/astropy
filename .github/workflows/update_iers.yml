@@ -2,7 +2,7 @@ name: Auto-update IERS tables
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '* * * * *'
 
 jobs:
   tests:
@@ -16,9 +16,23 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.x
-    - name: Install batchpr
-      run: python -m pip install git+https://github.com/astrofrog/batchpr
-    - name: Run batchpr
-      run: python .github/workflows/update_iers.py
-      env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    - name: Checkout new branch
+      run: git checkout -b `date --iso-8601=seconds`
+    - name: Download latest IERS files
+      run: ./update_builtin_iers.sh
+      working-directory: astropy/utils/iers/data
+    - name: Commit changes
+      run: |
+        git config user.name 'Astropy Bot'
+        git config user.email 'bot@astropy.org'
+        git add astropy/utils/iers/data/Leap_Second.dat
+        git add astropy/utils/iers/data/eopc04_IAU2000.62-now
+        git commit -m "Update IERS Earth rotation and leap second tables"
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v3
+      with:
+        branch: update-iers-
+        branch-suffix: timestamp
+        labels: backport-v5.0.x
+        title: Update IERS Earth rotation and leap second tables
+        body: This is an automated update of the IERS Earth rotation and leap second tables. Feel free to merge if the CI passes!
