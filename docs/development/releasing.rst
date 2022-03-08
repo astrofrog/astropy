@@ -125,20 +125,6 @@ branch while you are in the middle of following release steps. If you wish to do
 you can go to the core package repository settings, and under 'Branches' and 'Branch
 protection rules' you can then add a rule which restricts who can push to the branch.
 
-.. _release-procedure-update-iers:
-
-Updating the IERS parameter and leap second tables
---------------------------------------------------
-
-Ensure the built-in IERS earth rotation parameter and leap second tables are up
-to date by changing directory to ``astropy/utils/iers/data`` and executing
-``update_builtin_iers.sh``. Check the result with ``git diff`` (do not be
-surprised to find many lines in the ``eopc04_IAU2000.62-now`` file change; those
-data are reanalyzed periodically) and committing. This update should be done via a
-pull request to the ``main`` branch, and then backported to the release branch,
-as it is important for the ``main`` branch to have up-to-date values, and donig it
-via a pull request allows us to check for any failures the update introduces.
-
 .. _release-procedure-update-whatsnew:
 
 Updating the What's new and contributors
@@ -344,7 +330,6 @@ fixes is described in :ref:`release-procedure-bug-fix-backport`.
 Once you have backported any required fixes, repeat the following steps
 you did for the first release candidate:
 
-* :ref:`release-procedure-update-iers` (optional, only do this if it has been a while since it was done before the first release candidate)
 * :ref:`release-procedure-update-whatsnew` (this should only involve updating the numbers of issues and so on, as well as potentially adding a few new contributors)
 * :ref:`release-procedure-check-ci`
 
@@ -550,7 +535,6 @@ in :ref:`release-procedure-bug-fix-backport`.
 Once you have backported any required fixes, go through the following steps
 in a similar way to the initial major release:
 
-* :ref:`release-procedure-update-iers` (this should be done in ``main`` and backport it)
 * :ref:`release-procedure-check-ci`
 * :ref:`release-procedure-render-changelog`
 * :ref:`release-procedure-checking-changelog`
