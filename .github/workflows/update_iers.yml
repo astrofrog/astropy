@@ -2,22 +2,15 @@ name: Auto-update IERS tables
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 0 * * 0'
 
 jobs:
-  tests:
+  update-iers:
+    name: Auto-update IERS tables
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.x
-    - name: Checkout new branch
-      run: git checkout -b `date --iso-8601=seconds`
     - name: Download latest IERS files
       run: ./update_builtin_iers.sh
       working-directory: astropy/utils/iers/data
