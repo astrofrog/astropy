@@ -213,34 +213,6 @@ and commit this and the ``.mailmap`` changes::
 Open a pull request to merge this into ``main`` and mark it as requiring backporting to
 the release branch.
 
-
-.. _release-procedure-update-ci:
-
-Update continuous integration configuration
--------------------------------------------
-
-Update the continuous integration configuration in the release branch
-to run on all commits rather than use cron jobs. For example, for GitHub actions,
-you should edit the ``ci_cron*.yml`` files and replace the existing ``on`` section
-with e.g.::
-
-   on:
-   push:
-      branches:
-      - v5.0.x
-   pull_request:
-      branches:
-      - v5.0.x
-
-(with the branch name replaced by the appropriate one), and remove any lines that
-look like e.g.::
-
-        if: (github.repository == 'astropy/astropy' && (github.event_name == 'schedule' ...
-
-This is important because once you are on a release branch, it is necessary to make sure
-we are much more careful about not introducing regressions and we cannot always wait for the
-cron jobs to run to carry out the release.
-
 .. _release-procedure-check-ci:
 
 Ensure continuous integration and intensive tests pass
@@ -250,6 +222,10 @@ Make sure that the continuous integration services (e.g., GitHub Actions or Circ
 for the `astropy core repository`_ branch you are going to release. Also check that
 the `Azure core package pipeline`_ which builds wheels on the ``v*`` branches is passing.
 Also make sure that the ReadTheDocs build is passing for the release branch.
+
+One of the continuous integration tasks that should be run periodically is the updates to the
+IERS tables in ``astropy.utils.iers``, so check that the last run from this has been
+successfully run and that related pull requests have been merged (and back-ported if needed).
 
 You may also want to locally run the tests (with remote data on to ensure all
 of the tests actually run), using tox to do a thorough test in an isolated
@@ -424,7 +400,7 @@ Post-Release procedures
 
 #. If this is an LTS release (whether or not it is being supported alongside
    a more recent version), update the "LTS" branch to ponit to the new LTS
-   release:
+   release::
 
       $ git checkout LTS
       $ git reset --hard v<version>
