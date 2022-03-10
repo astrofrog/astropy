@@ -26,6 +26,9 @@ jobs:
       with:
         branch: update-iers
         branch-suffix: timestamp
-        labels: backport-v5.0.x, merge-when-ci-passes, no-changelog-entry-needed, utils.iers
+        labels: no-changelog-entry-needed, utils.iers
         title: Update IERS Earth rotation and leap second tables
-        body: This is an automated update of the IERS Earth rotation and leap second tables. Feel free to merge if the CI passes!
+        body: |
+          This is an automated update of the IERS Earth rotation and leap second tables.
+
+          **Note to maintainers:** please label this to be backported to all current release branches!
