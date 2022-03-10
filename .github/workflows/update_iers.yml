@@ -26,6 +26,7 @@ jobs:
       with:
         branch: update-iers
         branch-suffix: timestamp
+        delete-branch: true
         labels: no-changelog-entry-needed, utils.iers
         title: Update IERS Earth rotation and leap second tables
         body: |
