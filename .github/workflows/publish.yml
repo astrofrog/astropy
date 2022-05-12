@@ -13,7 +13,9 @@ jobs:
       test_extras: test
       # FIXME: we exclude the test_data_out_of_range test since it
       # currently fails, see https://github.com/astropy/astropy/issues/10409
-      test_command: pytest -p no:warnings --astropy-header -m "not hypothesis" -k "not test_data_out_of_range and not test_wcsapi_extension" --pyargs astropy
+      # We also exclude test_set_locale as it sometimes relies on the correct locale
+      # packages being installed, which it isn't always.
+      test_command: pytest -p no:warnings --astropy-header -m "not hypothesis" -k "not test_data_out_of_range and not test_wcsapi_extension and not test_set_locale" --pyargs astropy
       targets: |
         # Linux wheels
         - cp38-manylinux_i686
