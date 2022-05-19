@@ -41,7 +41,7 @@ jobs:
       # ever upload to PyPI. Once the Azure pipelines configuration is removed,
       # we can enable PyPI uploads here.
       upload_to_pypi: false
-      upload_to_anaconda: ${{ (github.event_name == 'schedule' || github.event.inputs.upload_to_anaconda) }}
+      upload_to_anaconda: ${{ (github.event_name == 'schedule' || github.event.inputs.upload_to_anaconda == 'true') }}
       anaconda_user: astrofrog
 
       test_extras: test
