@@ -18,8 +18,17 @@ jobs:
       upload_to_pypi: false
       upload_to_anaconda: false
       test_extras: test
-      test_command: pytest -v -p no:warnings --astropy-header -m "not hypothesis" -k "not test_data_out_of_range and not test_wcsapi_extension and not test_set_locale and not TestQuantityTyping" --pyargs astropy
+      test_command: pytest -v -p no:warnings --astropy-header -m "not hypothesis" -k "not test_data_out_of_range and not test_wcsapi_extension and not test_set_locale" --pyargs astropy
       targets: |
+        - cp38-musllinux_x86_64
+        - cp39-musllinux_x86_64
+        - cp310-musllinux_x86_64
+        - cp38-musllinux_x86_64
+        - cp39-musllinux_x86_64
+        - cp310-musllinux_x86_64
+        - cp38-musllinux_x86_64
+        - cp39-musllinux_x86_64
+        - cp310-musllinux_x86_64
         - cp38-musllinux_x86_64
         - cp39-musllinux_x86_64
         - cp310-musllinux_x86_64
