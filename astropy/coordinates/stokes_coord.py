@@ -8,6 +8,9 @@ import numpy as np
 import astropy.units as u
 from astropy.units.quantity import Quantity
 
+__all__ = ['StokesCoord', 'custom_stokes_symbol_mapping']
+
+
 StokesSymbol = namedtuple("StokesSymbol", ["symbol", "description"], defaults=[""])
 
 # This is table 29 in the FITS 4.0 paper
@@ -49,7 +52,9 @@ def custom_stokes_symbol_mapping(mapping: Dict[int, StokesSymbol], replace: bool
         STOKES_VALUE_SYMBOL_MAP = {**original_mapping, **mapping}
     else:
         STOKES_VALUE_SYMBOL_MAP = mapping
+
     yield
+
     STOKES_VALUE_SYMBOL_MAP = original_mapping
 
 
