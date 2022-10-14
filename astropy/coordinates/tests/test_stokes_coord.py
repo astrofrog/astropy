@@ -24,8 +24,17 @@ def test_vector():
 
 
 def test_unit():
-    # The unit should not be set explicitly and will always be dimensionless
-    # and unscaled
+    StokesCoord(1, unit=u.one)
     for unit in [u.radian, u.deg, u.Hz]:
         with pytest.raises(u.UnitsError, match='unit should not be specified explicitly'):
             StokesCoord(1, unit=unit)
+
+
+def test_undefined():
+    sk = StokesCoord(np.arange(-10, 7))
+    assert_equal(sk.symbol,
+                 np.array(['?', '?',
+                           'YX', 'XY', 'YY', 'XX',
+                           'LR', 'RL', 'LL', 'RR',
+                           '?', 'I', 'Q', 'U', 'V',
+                           '?', '?']))
