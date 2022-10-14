@@ -7,7 +7,7 @@ from astropy.coordinates.stokes_coord import StokesCoord, StokesSymbol, custom_s
 
 
 def test_scalar():
-    sk = StokesCoord(1)
+    sk = StokesCoord(2)
     assert repr(sk) == '<StokesCoord Q>'
     assert sk.value == 1.
     assert sk.symbol == 'Q'
@@ -16,10 +16,16 @@ def test_scalar():
 def test_vector():
     # This also checks that floats are rounded when converting
     # to strings
-    values = [0.2, 0.8, 1., 1.2, 1.8, 2.4]
+    values = [1.2, 1.8, 2., 2.2, 2.8, 3.4]
     sk = StokesCoord(values)
     assert repr(sk) == '<StokesCoord [I, Q, Q, U, U]>'
     assert_equal(sk.value, values)
+    assert_equal(sk.symbol, np.array(['I', 'Q', 'Q', 'U', 'U']))
+
+
+def test_vector_list_init():
+    sk = StokesCoord(['I', 'Q', 'Q', 'U', 'U'])
+    assert repr(sk) == '<StokesCoord [I, Q, Q, U, U]>'
     assert_equal(sk.symbol, np.array(['I', 'Q', 'Q', 'U', 'U']))
 
 
@@ -38,6 +44,11 @@ def test_undefined():
                            'LR', 'RL', 'LL', 'RR',
                            '?', 'I', 'Q', 'U', 'V',
                            '?', '?']))
+
+
+def test_undefined_init():
+    with pytest.raises(Exception, match='Invalid Stokes symbol: Spam'):
+        StokesCoord('Spam')
 
 
 def test_custom_symbol_mapping():
@@ -70,14 +81,14 @@ def test_custom_symbol_mapping_overlap():
     # Make a custom mapping that overlaps with some of the existing values
 
     custom_mapping = {
-        2: StokesSymbol('A'),
-        3: StokesSymbol('B'),
-        4: StokesSymbol('C'),
-        5: StokesSymbol('D'),
+        3: StokesSymbol('A'),
+        4: StokesSymbol('B'),
+        5: StokesSymbol('C'),
+        6: StokesSymbol('D'),
     }
 
     with custom_stokes_symbol_mapping(custom_mapping):
-        sk = StokesCoord(np.arange(6))
+        sk = StokesCoord(np.arange(1, 7))
         assert_equal(sk.symbol, np.array(['I', 'Q', 'A', 'B', 'C', 'D']))
 
 
@@ -86,12 +97,33 @@ def test_custom_symbol_mapping_replace():
     # Check that we can replace the mapping completely
 
     custom_mapping = {
-        2: StokesSymbol('A'),
-        3: StokesSymbol('B'),
-        4: StokesSymbol('C'),
-        5: StokesSymbol('D'),
+        3: StokesSymbol('A'),
+        4: StokesSymbol('B'),
+        5: StokesSymbol('C'),
+        6: StokesSymbol('D'),
     }
 
     with custom_stokes_symbol_mapping(custom_mapping, replace=True):
-        sk = StokesCoord(np.arange(6))
+        sk = StokesCoord(np.arange(1, 7))
         assert_equal(sk.symbol, np.array(['?', '?', 'A', 'B', 'C', 'D']))
+
+
+def test_comparison_scalar():
+    sk = StokesCoord(np.arange(1, 6))
+    assert_equal(sk == 0, [True, False, False, False, False])
+    assert_equal(sk == 'Q', [False, True, False, False, False])
+    assert_equal(sk == '?', [False, False, False, False, True])
+
+
+def test_comparison_vector():
+    sk = StokesCoord(np.arange(1, 6))
+    assert_equal(sk == np.array(['I', 'Q', 'I', 'I', 'Q']),
+                 [True, True, False, False, False])
+
+
+def test_comparison_other_coord():
+    sk1 = StokesCoord(np.arange(1, 6))
+    sk2 = StokesCoord('I')
+    assert_equal(sk1 == sk2, [True, False, False, False, False])
+    sk3 = StokesCoord(np.repeat(2, 5))
+    assert_equal(sk1 == sk3, [False, True, False, False, False])
