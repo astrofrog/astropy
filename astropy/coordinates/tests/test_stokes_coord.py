@@ -5,6 +5,7 @@ from numpy.testing import assert_equal
 from astropy import units as u
 from astropy.coordinates.stokes_coord import (  # , custom_stokes_symbol_mapping
     StokesCoord, StokesSymbol)
+from astropy.utils.shape import unbroadcast
 
 
 def test_scalar():
@@ -128,3 +129,17 @@ def test_comparison_other_coord():
     assert_equal(sk1 == sk2, [True, False, False, False, False])
     sk3 = StokesCoord(np.repeat(2, 5))
     assert_equal(sk1 == sk3, [False, True, False, False, False])
+
+
+def test_efficient():
+
+    # Make sure that if we pass a broadcasted array in we get a broadcasted
+    # arrayt of symbols.
+
+    values = np.broadcast_to(np.arange(1, 5), (512, 256, 4))
+    sk = StokesCoord(values)
+    assert sk.symbol.shape == (512, 256, 4)
+    assert unbroadcast(sk.value).shape == (1, 1, 4)
+    assert unbroadcast(sk.symbol).shape == (1, 1, 4)
+    assert_equal(unbroadcast(sk.symbol)[0, 0],
+                 np.array(['I', 'Q', 'U', 'V']))
