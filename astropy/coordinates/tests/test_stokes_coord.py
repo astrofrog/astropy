@@ -3,29 +3,30 @@ import pytest
 from numpy.testing import assert_equal
 
 from astropy import units as u
-from astropy.coordinates.stokes_coord import StokesCoord, StokesSymbol, custom_stokes_symbol_mapping
+from astropy.coordinates.stokes_coord import (  # , custom_stokes_symbol_mapping
+    StokesCoord, StokesSymbol)
 
 
 def test_scalar():
     sk = StokesCoord(2)
-    assert repr(sk) == '<StokesCoord Q>'
-    assert sk.value == 1.
+    assert repr(sk) == "<StokesCoord 'Q'>"
+    assert sk.value == 2.
     assert sk.symbol == 'Q'
 
 
 def test_vector():
     # This also checks that floats are rounded when converting
     # to strings
-    values = [1.2, 1.8, 2., 2.2, 2.8, 3.4]
+    values = [1.2, 1.8, 2., 2.2, 2.8]
     sk = StokesCoord(values)
-    assert repr(sk) == '<StokesCoord [I, Q, Q, U, U]>'
     assert_equal(sk.value, values)
-    assert_equal(sk.symbol, np.array(['I', 'Q', 'Q', 'U', 'U']))
+    assert_equal(sk.symbol, np.array(['I', 'Q', 'Q', 'Q', 'U']))
+    assert repr(sk) == "<StokesCoord ['I', 'Q', 'Q', 'Q', 'U']>"
 
 
 def test_vector_list_init():
     sk = StokesCoord(['I', 'Q', 'Q', 'U', 'U'])
-    assert repr(sk) == '<StokesCoord [I, Q, Q, U, U]>'
+    assert repr(sk) == "<StokesCoord ['I', 'Q', 'Q', 'U', 'U']>"
     assert_equal(sk.symbol, np.array(['I', 'Q', 'Q', 'U', 'U']))
 
 
