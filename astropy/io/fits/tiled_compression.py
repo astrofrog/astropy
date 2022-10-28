@@ -1,16 +1,20 @@
 """
-This module contains low level helper functions for compressing and decompressing bytes for the Tiled Table Compression algorithms as specified in the FITS 4 standard.
+This module contains low level helper functions for compressing and decompressing buffer for the Tiled Table Compression algorithms as specified in the FITS 4 standard.
 """
 from collections import namedtuple
 from gzip import compress as gzip_compress
 from gzip import decompress as gzip_decompress
+from typing import Union
 
 import numpy as np
+import numpy.typing as npt
+
+buffer = Union[bytes, memoryview, npt.ArrayLike]
 
 
-def decompress_gzip_1(cbytes: bytes) -> bytes:
+def decompress_gzip_1(buf: buffer) -> buffer:
     """
-    Decompress bytes using the GZIP_1 algorithm.
+    Decompress buffer using the GZIP_1 algorithm.
 
     The Gzip algorithm is used in the free GNU software compression utility of
     the same name. It was created by J. L. Gailly and M. Adler, based on the
@@ -19,22 +23,22 @@ def decompress_gzip_1(cbytes: bytes) -> bytes:
 
     Parameters
     ----------
-    cbytes
-        The bytes to decompress.
+    buf
+        The buffer to decompress.
 
     Returns
     -------
-    dbytes
-        The decompressed bytes.
+    buf
+        The decompressed buffer.
     """
-    return gzip_decompress(cbytes)
+    return gzip_decompress(bytes(buf))
 
 
-def decompress_gzip_2(cbytes: bytes, itemsize: int) -> bytes:
+def decompress_gzip_2(buf: buffer, itemsize: int) -> buffer:
     """
-    Decompress bytes using the GZIP_2 algorithm.
+    Decompress buffer using the GZIP_2 algorithm.
 
-    The gzip2 algorithm is a variation on ’GZIP 1’. In this case the bytes in
+    The gzip2 algorithm is a variation on ’GZIP 1’. In this case the buffer in
     the array of data values are shuffled so that they are arranged in order of
     decreasing significance before being compressed.
 
@@ -49,7 +53,7 @@ def decompress_gzip_2(cbytes: bytes, itemsize: int) -> bytes:
     .. math::
         A1 B1 C1 D1 E1 A2 B2 C2 D2 E2,
 
-    where A1, B1, C1, D1, and E1 are the most-significant bytes from
+    where A1, B1, C1, D1, and E1 are the most-significant buffer from
     each of the integer values.
 
     Byte shuffling shall only be performed for integer or floating-point
@@ -57,25 +61,25 @@ def decompress_gzip_2(cbytes: bytes, itemsize: int) -> bytes:
 
     Parameters
     ----------
-    cbytes
-        The bytes to decompress.
+    buf
+        The buffer to decompress.
     itemsize
-        The number of bytes per value (e.g. 2 for a 16-bit integer)
+        The number of buffer per value (e.g. 2 for a 16-bit integer)
 
     Returns
     -------
-    dbytes
-        The decompressed bytes.
+    buf
+        The decompressed buffer.
     """
-    # Start off by unshuffling bytes
-    shuffled_bytes = gzip_decompress(cbytes)
-    array = np.frombuffer(shuffled_bytes, dtype=np.uint8)
+    # Start off by unshuffling buffer
+    shuffled_buffer = gzip_decompress(bytes(buf))
+    array = np.frombuffer(shuffled_buffer, dtype=np.uint8)
     return array.reshape((itemsize, -1)).T.ravel().tobytes()
 
 
-def decompress_rice_1(cbytes: bytes, blocksize: int, bytepix: int) -> bytes:
+def decompress_rice_1(buf: buffer, blocksize: int, bytepix: int) -> buffer:
     """
-    Decompress bytes using the RICE_1 algorithm.
+    Decompress buffer using the RICE_1 algorithm.
 
     The Rice algorithm [1]_ is simple and very fast It requires only enough
     memory to hold a single block of 16 or 32 pixels at a time. It codes the
@@ -91,27 +95,27 @@ def decompress_rice_1(cbytes: bytes, blocksize: int, bytepix: int) -> bytes:
 
     Parameters
     ----------
-    cbytes
-        The bytes to decompress.
+    buf
+        The buffer to decompress.
 
     blocksize
         The blocksize to use, each tile is coded into blocks a number of pixels
         wide. The default value in FITS headers is 32 pixels per block.
 
     bytepix
-        The number of 8-bit bytes in each original integer pixel value.
+        The number of 8-bit buffer in each original integer pixel value.
 
     Returns
     -------
-    dbytes
-        The decompressed bytes.
+    buf
+        The decompressed buffer.
     """
     raise NotImplementedError
 
 
-def decompress_plio_1(cbytes: bytes) -> bytes:
+def decompress_plio_1(buf: buffer) -> buffer:
     """
-    Decompress bytes using the PLIO_1 algorithm.
+    Decompress buffer using the PLIO_1 algorithm.
 
     The IRAF PLIO (pixel list) algorithm was developed to store integer-valued
     image masks in a compressed form. Such masks often have large regions of
@@ -122,20 +126,20 @@ def decompress_plio_1(cbytes: bytes) -> bytes:
 
     Parameters
     ----------
-    cbytes
-        The bytes to decompress.
+    buf
+        The buffer to decompress.
 
     Returns
     -------
-    dbytes
-        The decompressed bytes.
+    buf
+        The decompressed buffer.
     """
     raise NotImplementedError
 
 
-def decompress_hcompress_1(cbytes: bytes, scale: float, smooth: bool) -> bytes:
+def decompress_hcompress_1(buf: buffer, scale: float, smooth: bool) -> buffer:
     """
-    Decompress bytes using the HCOMPRESS_1 algorithm.
+    Decompress buffer using the HCOMPRESS_1 algorithm.
 
     Hcompress is an the image compression package written by Richard L. White
     for use at the Space Telescope Science Institute. Hcompress was used to
@@ -150,8 +154,8 @@ def decompress_hcompress_1(cbytes: bytes, scale: float, smooth: bool) -> bytes:
 
     Parameters
     ----------
-    cbytes
-        The bytes to decompress.
+    buf
+        The buffer to decompress.
 
     scale
         The integer scale parameter determines the amount of compression. Scale
@@ -168,40 +172,40 @@ def decompress_hcompress_1(cbytes: bytes, scale: float, smooth: bool) -> bytes:
 
     Returns
     -------
-    dbytes
-        The decompressed bytes.
+    buf
+        The decompressed buffer.
     """
     raise NotImplementedError
 
 
-def compress_gzip_1(dbytes: bytes) -> bytes:
+def compress_gzip_1(buf: buffer) -> buffer:
     """
     """
-    return gzip_compress(dbytes)
+    return gzip_compress(buf)
 
 
-def compress_gzip_2(dbytes: bytes, itemsize: int) -> bytes:
+def compress_gzip_2(buf: buffer, itemsize: int) -> buffer:
     """
     """
-    # Start off by shuffling bytes
-    array = np.frombuffer(dbytes, dtype=np.uint8)
-    shuffled_bytes = array.reshape((-1, itemsize)).T.ravel().tobytes()
-    return gzip_compress(shuffled_bytes)
+    # Start off by shuffling buffer
+    array = np.frombuffer(buf, dtype=np.uint8)
+    shuffled_buffer = array.reshape((-1, itemsize)).T.ravel().tobuffer()
+    return gzip_compress(shuffled_buffer)
 
 
-def compress_rice_1(dbytes: bytes, blocksize: int, bytepix: int) -> bytes:
-    """
-    """
-    raise NotImplementedError
-
-
-def compress_plio_1(dbytes: bytes) -> bytes:
+def compress_rice_1(buf: buffer, blocksize: int, bytepix: int) -> buffer:
     """
     """
     raise NotImplementedError
 
 
-def compress_hcompress_1(dbytes: bytes, scale: float) -> bytes:
+def compress_plio_1(buf: buffer) -> buffer:
+    """
+    """
+    raise NotImplementedError
+
+
+def compress_hcompress_1(buf: buffer, scale: float) -> buffer:
     """
     """
     raise NotImplementedError
@@ -219,33 +223,33 @@ ALGORITHMS = {
 }
 
 
-def decompress_tile(cbytes: bytes, *, algorithm: str, **kwargs):
+def decompress_tile(buf: buffer, *, algorithm: str, **kwargs):
     """
-    Decompress the bytes of a tile using the given compression algorithm.
+    Decompress the buffer of a tile using the given compression algorithm.
 
     Parameters
     ----------
-    cbytes
-        The compressed bytes to be decompressed.
+    buf
+        The compressed buffer to be decompressed.
     algorithm
         A supported decompression algorithm.
     kwargs
         Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].decompression(cbytes, **kwargs)
+    return ALGORITHMS[algorithm].decompression(buf, **kwargs)
 
 
-def compress_tile(dbytes: bytes, *, algorithm: str, **kwargs):
+def compress_tile(buf: buffer, *, algorithm: str, **kwargs):
     """
-    Compress the bytes of a tile using the given compression algorithm.
+    Compress the buffer of a tile using the given compression algorithm.
 
     Parameters
     ----------
-    dbytes
-        The decompressed bytes to be compressed.
+    buf
+        The decompressed buffer to be compressed.
     algorithm
         A supported compression algorithm.
     kwargs
         Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].compression(dbytes, **kwargs)
+    return ALGORITHMS[algorithm].compression(buf, **kwargs)
