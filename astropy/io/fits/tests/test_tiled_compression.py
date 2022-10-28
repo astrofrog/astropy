@@ -15,12 +15,12 @@ def test_basic(tmp_path, compression_type):
     # Generate compressed file dynamically
 
     with NumpyRNGContext(42):
-        original_data = np.random.uniform(0, 100, 1000).reshape((100, 100))
+        original_data = np.random.randint(0, 100, 10000).reshape((100, 100)).astype('>i2')
 
     header = fits.Header()
 
     hdu = fits.CompImageHDU(
-        hdu.data, header, compression_type=compression_type, tile_size=(25, 25)
+        original_data, header, compression_type=compression_type, tile_size=(25, 25)
     )
 
     hdu.writeto(tmp_path / 'test.fits')
@@ -34,8 +34,8 @@ def test_basic(tmp_path, compression_type):
 
     compressed_tile_bytes = hdulist[1].data['COMPRESSED_DATA'][0].tobytes()
 
-    tile_data_bytes = decompress_tile(compressed_tile_bytes, compression_type)
+    tile_data_bytes = decompress_tile(compressed_tile_bytes, algorithm=compression_type)
 
-    tile_data = np.frombuffer(tile_data_bytes, dtype='>f4').reshape(tile_shape)
+    tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
 
     assert_equal(tile_data, original_data[:25, :25])
