@@ -10,7 +10,7 @@ def decompress_gzip_1(cbytes: bytes) -> bytes:
     Decompress bytes using the GZIP_1 algorithm.
 
     The Gzip algorithm is used in the free GNU software compression utility of
-    the same name. It was created by J.- L. Gailly and M. Adler, based on the
+    the same name. It was created by J. L. Gailly and M. Adler, based on the
     DEFLATE algorithm (Deutsch 1996), which is a combination of LZ77 (Ziv &
     Lempel 1977) and Huffman coding.
 
