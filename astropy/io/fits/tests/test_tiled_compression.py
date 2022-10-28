@@ -6,7 +6,14 @@ from astropy.io import fits
 from astropy.io.fits.tiled_compression import compress_tile, decompress_tile
 from astropy.utils.misc import NumpyRNGContext
 
-COMPRESSION_TYPES = ["RICE_1", "PLIO_1", "GZIP_1", "GZIP_2", "HCOMPRESS_1"]
+COMPRESSION_TYPES = [
+    "GZIP_1",
+    "GZIP_2",
+    # Not implemented yet
+    # "RICE_1",
+    # "PLIO_1",
+    # "HCOMPRESS_1",
+]
 
 
 @pytest.mark.parametrize('compression_type', COMPRESSION_TYPES)
