@@ -12,10 +12,16 @@ COMPRESSION_TYPES = ["RICE_1", "PLIO_1", "GZIP_1", "GZIP_2", "HCOMPRESS_1"]
 @pytest.mark.parametrize('compression_type', COMPRESSION_TYPES)
 def test_basic(tmp_path, compression_type):
 
+    # In future can pass in settings as part of the parameterization
+    settings = {}
+
     # Generate compressed file dynamically
 
     with NumpyRNGContext(42):
         original_data = np.random.randint(0, 100, 10000).reshape((100, 100)).astype('>i2')
+
+    if compression_type == 'GZIP_2':
+        settings['itemsize'] = original_data.dtype.itemsize
 
     header = fits.Header()
 
@@ -34,7 +40,7 @@ def test_basic(tmp_path, compression_type):
 
     compressed_tile_bytes = hdulist[1].data['COMPRESSED_DATA'][0].tobytes()
 
-    tile_data_bytes = decompress_tile(compressed_tile_bytes, algorithm=compression_type)
+    tile_data_bytes = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
 
     tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
 
@@ -46,7 +52,7 @@ def test_basic(tmp_path, compression_type):
     # original BinTableHDU, then read it in as a normal compressed HDU and make
     # sure the final data match.
 
-    compressed_tile_bytes = compress_tile(original_data[:25, :25].tobytes(), algorithm=compression_type)
+    compressed_tile_bytes = compress_tile(original_data[:25, :25].tobytes(), algorithm=compression_type, **settings)
 
     hdulist[1].data['COMPRESSED_DATA'][0] = np.frombuffer(compressed_tile_bytes, dtype=np.uint8)
     hdulist[1].writeto(tmp_path / 'updated.fits')
