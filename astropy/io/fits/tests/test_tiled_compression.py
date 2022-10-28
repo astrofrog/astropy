@@ -3,7 +3,7 @@ import pytest
 from numpy.testing import assert_equal
 
 from astropy.io import fits
-from astropy.io.fits.tiled_compression import decompress_tile
+from astropy.io.fits.tiled_compression import compress_tile, decompress_tile
 from astropy.utils.misc import NumpyRNGContext
 
 COMPRESSION_TYPES = ["RICE_1", "PLIO_1", "GZIP_1", "GZIP_2", "HCOMPRESS_1"]
@@ -30,7 +30,7 @@ def test_basic(tmp_path, compression_type):
 
     tile_shape = (hdulist[1].header['ZTILE2'], hdulist[1].header['ZTILE1'])
 
-    # Test the first tile
+    # Test decompression of the first tile
 
     compressed_tile_bytes = hdulist[1].data['COMPRESSED_DATA'][0].tobytes()
 
@@ -39,3 +39,19 @@ def test_basic(tmp_path, compression_type):
     tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
 
     assert_equal(tile_data, original_data[:25, :25])
+
+    # Now compress the original data and compare to compressed bytes. Since
+    # the exact compressed bytes might not match (e.g. for GZIP it will depend
+    # on the compression level) we instead put the compressed bytes into the
+    # original BinTableHDU, then read it in as a normal compressed HDU and make
+    # sure the final data match.
+
+    compressed_tile_bytes = compress_tile(original_data[:25, :25].tobytes(), algorithm=compression_type)
+
+    hdulist[1].data['COMPRESSED_DATA'][0] = np.frombuffer(compressed_tile_bytes, dtype=np.uint8)
+    hdulist[1].writeto(tmp_path / 'updated.fits')
+    hdulist.close()
+
+    hdulist_new = fits.open(tmp_path / 'updated.fits')
+    assert_equal(hdulist_new[1].data, original_data)
+    hdulist_new.close()
