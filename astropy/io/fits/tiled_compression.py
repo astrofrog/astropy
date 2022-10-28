@@ -56,7 +56,7 @@ ALGORITHMS = {
 }
 
 
-def decompress_tile(cbytes: bytes, *args, algorithm: str):
+def decompress_tile(cbytes: bytes, *, algorithm: str, **kwargs):
     """
     Decompress the bytes of a tile using the given compression algorithm.
 
@@ -64,15 +64,15 @@ def decompress_tile(cbytes: bytes, *args, algorithm: str):
     ----------
     cbytes
         The compressed bytes to be decompressed.
-    args
-        Any parameters for the given compression algorithm
     algorithm
         A supported decompression algorithm.
+    kwargs
+        Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].decompression(cbytes, *args)
+    return ALGORITHMS[algorithm].decompression(cbytes, **kwargs)
 
 
-def compress_tile(dbytes: bytes, *args, algorithm: str):
+def compress_tile(dbytes: bytes, *, algorithm: str, **kwargs):
     """
     Compress the bytes of a tile using the given compression algorithm.
 
@@ -80,9 +80,9 @@ def compress_tile(dbytes: bytes, *args, algorithm: str):
     ----------
     dbytes
         The decompressed bytes to be compressed.
-    args
-        Any parameters for the given compression algorithm
     algorithm
         A supported compression algorithm.
+    kwargs
+        Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].compression(dbytes, *args)
+    return ALGORITHMS[algorithm].compression(dbytes, **kwargs)
