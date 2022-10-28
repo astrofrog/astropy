@@ -2,6 +2,7 @@
 This module contains low level helper functions for compressing and decompressing bytes for the Tiled Table Compression algorithms as specified in the FITS 4 standard.
 """
 from collections import namedtuple
+from gzip import compress as gzip_compress
 from gzip import decompress as gzip_decompress
 
 
@@ -169,7 +170,7 @@ def decompress_hcompress_1(cbytes: bytes, scale: float, smooth: bool) -> bytes:
 def compress_gzip_1(dbytes: bytes) -> bytes:
     """
     """
-    raise NotImplementedError
+    return gzip_compress(dbytes)
 
 
 def compress_gzip_2(dbytes: bytes) -> bytes:
