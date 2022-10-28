@@ -5,6 +5,8 @@ from collections import namedtuple
 from gzip import compress as gzip_compress
 from gzip import decompress as gzip_decompress
 
+import numpy as np
+
 
 def decompress_gzip_1(cbytes: bytes) -> bytes:
     """
@@ -28,7 +30,7 @@ def decompress_gzip_1(cbytes: bytes) -> bytes:
     return gzip_decompress(cbytes)
 
 
-def decompress_gzip_2(cbytes: bytes) -> bytes:
+def decompress_gzip_2(cbytes: bytes, itemsize: int) -> bytes:
     """
     Decompress bytes using the GZIP_2 algorithm.
 
@@ -57,13 +59,18 @@ def decompress_gzip_2(cbytes: bytes) -> bytes:
     ----------
     cbytes
         The bytes to decompress.
+    itemsize
+        The number of bytes per value (e.g. 2 for a 16-bit integer)
 
     Returns
     -------
     dbytes
         The decompressed bytes.
     """
-    raise NotImplementedError
+    # Start off by unshuffling bytes
+    shuffled_bytes = gzip_decompress(cbytes)
+    array = np.frombuffer(shuffled_bytes, dtype=np.uint8)
+    return array.reshape((itemsize, -1)).T.ravel().tobytes()
 
 
 def decompress_rice_1(cbytes: bytes, blocksize: int, bytepix: int) -> bytes:
@@ -173,10 +180,13 @@ def compress_gzip_1(dbytes: bytes) -> bytes:
     return gzip_compress(dbytes)
 
 
-def compress_gzip_2(dbytes: bytes) -> bytes:
+def compress_gzip_2(dbytes: bytes, itemsize: int) -> bytes:
     """
     """
-    raise NotImplementedError
+    # Start off by shuffling bytes
+    array = np.frombuffer(dbytes, dtype=np.uint8)
+    shuffled_bytes = array.reshape((-1, itemsize)).T.ravel().tobytes()
+    return gzip_compress(shuffled_bytes)
 
 
 def compress_rice_1(dbytes: bytes, blocksize: int, bytepix: int) -> bytes:
