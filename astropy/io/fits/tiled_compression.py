@@ -181,7 +181,7 @@ def decompress_hcompress_1(buf: buffer, scale: float, smooth: bool) -> buffer:
 def compress_gzip_1(buf: buffer) -> buffer:
     """
     """
-    return gzip_compress(buf)
+    return gzip_compress(bytes(buf))
 
 
 def compress_gzip_2(buf: buffer, itemsize: int) -> buffer:
@@ -189,7 +189,7 @@ def compress_gzip_2(buf: buffer, itemsize: int) -> buffer:
     """
     # Start off by shuffling buffer
     array = np.frombuffer(buf, dtype=np.uint8)
-    shuffled_buffer = array.reshape((-1, itemsize)).T.ravel().tobuffer()
+    shuffled_buffer = array.reshape((-1, itemsize)).T.ravel().tobytes()
     return gzip_compress(shuffled_buffer)
 
 
