@@ -20,14 +20,25 @@ Lempel 1977) and Huffman coding.
 """
 
 
-__all__ = ['compress_hcompress_1', 'compress_plio_1', 'compress_rice_1', 'compress_gzip_2', 'compress_gzip_1', 'decompress_hcompress_1', 'decompress_plio_1', 'decompress_rice_1', 'decompress_gzip_2', 'decompress_gzip_1']
+__all__ = [
+    "compress_hcompress_1",
+    "compress_plio_1",
+    "compress_rice_1",
+    "compress_gzip_2",
+    "compress_gzip_1",
+    "decompress_hcompress_1",
+    "decompress_plio_1",
+    "decompress_rice_1",
+    "decompress_gzip_2",
+    "decompress_gzip_1",
+]
 
 
 def decompress_gzip_1(buf: buffer) -> buffer:
     f"""
     Decompress buffer using the GZIP_1 algorithm.
 
-    {GZIP_1_DESCRIPTION}
+    {_GZIP_1_DESCRIPTION}
 
     Parameters
     ----------
@@ -65,6 +76,7 @@ Byte shuffling shall only be performed for integer or floating-point
 numeric data types; logical, bit, and character types must not be shuffled.
 """
 
+
 def decompress_gzip_2(buf: buffer, itemsize: int) -> buffer:
     f"""
     Decompress buffer using the GZIP_2 algorithm.
@@ -88,6 +100,7 @@ def decompress_gzip_2(buf: buffer, itemsize: int) -> buffer:
     array = np.frombuffer(shuffled_buffer, dtype=np.uint8)
     return array.reshape((itemsize, -1)).T.ravel().tobytes()
 
+
 _RICE_1_DESCRIPTION = """\
 The Rice algorithm [1]_ is simple and very fast It requires only enough
 memory to hold a single block of 16 or 32 pixels at a time. It codes the
@@ -110,6 +123,8 @@ blocksize
 bytepix
     The number of 8-bit buffer in each original integer pixel value.
 """
+
+
 def decompress_rice_1(buf: buffer, blocksize: int, bytepix: int) -> buffer:
     f"""
     Decompress buffer using the RICE_1 algorithm.
@@ -188,6 +203,7 @@ smooth
     is smoothed slightly during decompression.
 """
 
+
 def decompress_hcompress_1(buf: buffer, scale: float, smooth: bool) -> buffer:
     f"""
     Decompress buffer using the HCOMPRESS_1 algorithm.
@@ -229,7 +245,7 @@ def compress_gzip_1(buf: buffer) -> buffer:
 
 
 def compress_gzip_2(buf: buffer, itemsize: int) -> buffer:
-    f"""
+    """
     Compress the data in the buffer using the GZIP_2 algorithm.
     """
     # Start off by shuffling buffer
@@ -239,21 +255,21 @@ def compress_gzip_2(buf: buffer, itemsize: int) -> buffer:
 
 
 def compress_rice_1(buf: buffer, blocksize: int, bytepix: int) -> buffer:
-    f"""
+    """
     Compress the data in the buffer using the RICE_1 algorithm.
     """
     raise NotImplementedError
 
 
 def compress_plio_1(buf: buffer) -> buffer:
-    f"""
+    """
     Compress the data in the buffer using the PLIO_1 algorithm.
     """
     raise NotImplementedError
 
 
 def compress_hcompress_1(buf: buffer, scale: float) -> buffer:
-    f"""
+    """
     Compress the data in the buffer using the HCOMPRESS_1 algorithm.
     """
     raise NotImplementedError
