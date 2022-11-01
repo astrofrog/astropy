@@ -4,14 +4,13 @@ from numpy.testing import assert_equal
 
 from astropy.io import fits
 from astropy.io.fits.tiled_compression import compress_tile, decompress_tile
-from astropy.utils.misc import NumpyRNGContext
 
 COMPRESSION_TYPES = [
     "GZIP_1",
     "GZIP_2",
+    "PLIO_1",
     # Not implemented yet
     # "RICE_1",
-    # "PLIO_1",
     # "HCOMPRESS_1",
 ]
 
@@ -24,8 +23,7 @@ def test_basic(tmp_path, compression_type):
 
     # Generate compressed file dynamically
 
-    with NumpyRNGContext(42):
-        original_data = np.random.randint(0, 100, 10000).reshape((100, 100)).astype('>i2')
+    original_data = np.arange(81).reshape((9, 9)).astype('>i2')
 
     if compression_type == 'GZIP_2':
         settings['itemsize'] = original_data.dtype.itemsize
@@ -33,7 +31,7 @@ def test_basic(tmp_path, compression_type):
     header = fits.Header()
 
     hdu = fits.CompImageHDU(
-        original_data, header, compression_type=compression_type, tile_size=(25, 25)
+        original_data, header, compression_type=compression_type, tile_size=(3, 3)
     )
 
     hdu.writeto(tmp_path / 'test.fits')
@@ -49,9 +47,15 @@ def test_basic(tmp_path, compression_type):
 
     tile_data_bytes = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
 
-    tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
+    if compression_type == 'PLIO_1':
+        # In the case of PLIO_1, the bytes are always returned as 32-bit
+        # native endian bits, which might differ from ZBITPIX.
+        tile_data_bytes = tile_data_bytes[:np.product(tile_shape) * 4]
+        tile_data = np.frombuffer(tile_data_bytes, dtype='i4').astype('>i2').reshape(tile_shape)
+    else:
+        tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
 
-    assert_equal(tile_data, original_data[:25, :25])
+    assert_equal(tile_data, original_data[:3, :3])
 
     # Now compress the original data and compare to compressed bytes. Since
     # the exact compressed bytes might not match (e.g. for GZIP it will depend
@@ -59,12 +63,19 @@ def test_basic(tmp_path, compression_type):
     # original BinTableHDU, then read it in as a normal compressed HDU and make
     # sure the final data match.
 
-    compressed_tile_bytes = compress_tile(original_data[:25, :25].tobytes(), algorithm=compression_type, **settings)
+    if compression_type == 'PLIO_1':
+        # PLIO expects specifically 32-bit ints as input - again need to find
+        # a way to not special case this here.
+        tile_data_bytes = original_data[:3, :3].astype('i4').tobytes()
+    else:
+        tile_data_bytes = original_data[:3, :3].tobytes()
 
+    compressed_tile_bytes = compress_tile(tile_data_bytes, algorithm=compression_type, **settings)
+
+    # Then check that it also round-trips if we go through fits.open
     hdulist[1].data['COMPRESSED_DATA'][0] = np.frombuffer(compressed_tile_bytes, dtype=np.uint8)
     hdulist[1].writeto(tmp_path / 'updated.fits')
     hdulist.close()
-
     hdulist_new = fits.open(tmp_path / 'updated.fits')
     assert_equal(hdulist_new[1].data, original_data)
     hdulist_new.close()
