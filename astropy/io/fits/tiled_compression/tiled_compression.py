@@ -7,7 +7,9 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
-__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress']
+from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c
+
+__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress', 'compress_tile', 'decompress_tile']
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -104,7 +106,7 @@ class Gzip2(Codec):
     """
     The FTIS GZIP2 compression and decompression algorithm.
 
-    The gzip2 algorithm is a variation on ’GZIP 1’. In this case the buffer in
+    The gzip2 algorithm is a variation on 'GZIP 1'. In this case the buffer in
     the array of data values are shuffled so that they are arranged in order of
     decreasing significance before being compressed.
 
@@ -267,13 +269,15 @@ class PLIO1(Codec):
         buf
             The decompressed buffer.
         """
-        raise NotImplementedError
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return decompress_plio_1_c(cbytes)
 
     def encode(self, buf):
         """
         Compress the data in the buffer using the PLIO_1 algorithm.
         """
-        raise NotImplementedError
+        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return compress_plio_1_c(dbytes)
 
 
 class HCompress(Codec):
@@ -367,7 +371,7 @@ def decompress_tile(buf, *, algorithm: str, **kwargs):
     kwargs
         Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].decode(buf, **kwargs)
+    return ALGORITHMS[algorithm](**kwargs).decode(buf)
 
 
 def compress_tile(buf, *, algorithm: str, **kwargs):
@@ -383,4 +387,4 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
     kwargs
         Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].encode(buf, **kwargs)
+    return ALGORITHMS[algorithm](**kwargs).encode(buf)
