@@ -4,12 +4,10 @@ This module contains low level helper functions for compressing and decompressin
 from abc import abstractmethod
 from gzip import compress as gzip_compress
 from gzip import decompress as gzip_decompress
-from typing import Union
 
 import numpy as np
-import numpy.typing as npt
 
-buffer = Union[bytes, memoryview, npt.NDArray]
+__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress']
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -67,7 +65,7 @@ class Gzip1(Codec):
     """
     codec_id = "FITS_GZIP1"
 
-    def decode(self, buf: buffer) -> buffer:
+    def decode(self, buf):
         """
         Decompress buffer using the GZIP_1 algorithm.
 
@@ -85,7 +83,7 @@ class Gzip1(Codec):
         """
         return gzip_decompress(bytes(buf))
 
-    def encode(self, buf: buffer) -> buffer:
+    def encode(self, buf):
         """
         Compress the data in the buffer using the GZIP_1 algorithm.
 
@@ -139,7 +137,7 @@ class Gzip2(Codec):
         super().__init__()
         self.itemsize = itemsize
 
-    def decode(self, buf: buffer) -> buffer:
+    def decode(self, buf):
         """
         Decompress buffer using the GZIP_2 algorithm.
 
@@ -158,7 +156,7 @@ class Gzip2(Codec):
         array = np.frombuffer(shuffled_buffer, dtype=np.uint8)
         return array.reshape((self.itemsize, -1)).T.ravel().tobytes()
 
-    def encode(self, buf: buffer) -> buffer:
+    def encode(self, buf):
         """
         Compress the data in the buffer using the GZIP_2 algorithm.
 
@@ -209,7 +207,7 @@ class Rice1(Codec):
         self.blocksize = blocksize
         self.bytepix = bytepix
 
-    def decode(self, buf: buffer) -> buffer:
+    def decode(self, buf):
         """
         Decompress buffer using the RICE_1 algorithm.
 
@@ -225,7 +223,7 @@ class Rice1(Codec):
         """
         raise NotImplementedError
 
-    def encode(self, buf: buffer) -> buffer:
+    def encode(self, buf):
         """
         Compress the data in the buffer using the RICE_1 algorithm.
 
@@ -255,7 +253,7 @@ class PLIO1(Codec):
     """
     codec_id = "FITS_PLIO1"
 
-    def decode(self, buf: buffer) -> buffer:
+    def decode(self, buf):
         """
         Decompress buffer using the PLIO_1 algorithm.
 
@@ -271,7 +269,7 @@ class PLIO1(Codec):
         """
         raise NotImplementedError
 
-    def encode(self, buf: buffer) -> buffer:
+    def encode(self, buf):
         """
         Compress the data in the buffer using the PLIO_1 algorithm.
         """
@@ -314,7 +312,7 @@ class HCompress(Codec):
         self.scale = scale
         self.smooth = smooth
 
-    def decode(self, buf: buffer) -> buffer:
+    def decode(self, buf):
         """
         Decompress buffer using the HCOMPRESS_1 algorithm.
 
@@ -330,7 +328,7 @@ class HCompress(Codec):
         """
         raise NotImplementedError
 
-    def encode(self, buf: buffer) -> buffer:
+    def encode(self, buf):
         """
         Compress the data in the buffer using the HCOMPRESS_1 algorithm.
 
@@ -356,7 +354,7 @@ ALGORITHMS = {
 }
 
 
-def decompress_tile(buf: buffer, *, algorithm: str, **kwargs):
+def decompress_tile(buf, *, algorithm: str, **kwargs):
     """
     Decompress the buffer of a tile using the given compression algorithm.
 
@@ -372,7 +370,7 @@ def decompress_tile(buf: buffer, *, algorithm: str, **kwargs):
     return ALGORITHMS[algorithm].decode(buf, **kwargs)
 
 
-def compress_tile(buf: buffer, *, algorithm: str, **kwargs):
+def compress_tile(buf, *, algorithm: str, **kwargs):
     """
     Compress the buffer of a tile using the given compression algorithm.
 
