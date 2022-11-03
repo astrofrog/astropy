@@ -8,9 +8,9 @@ from astropy.io.fits.tiled_compression import compress_tile, decompress_tile
 COMPRESSION_TYPES = [
     "GZIP_1",
     "GZIP_2",
+    "RICE_1",
     "PLIO_1",
     # Not implemented yet
-    # "RICE_1",
     # "HCOMPRESS_1",
 ]
 
@@ -41,6 +41,11 @@ def test_basic(tmp_path, compression_type):
 
     tile_shape = (hdulist[1].header['ZTILE2'], hdulist[1].header['ZTILE1'])
 
+    if compression_type == 'RICE_1':
+        settings['blocksize'] = hdulist[1].header['ZVAL1']
+        settings['bytepix'] = hdulist[1].header['ZVAL2']
+        settings['tilesize'] = np.product(tile_shape)
+
     # Test decompression of the first tile
 
     compressed_tile_bytes = hdulist[1].data['COMPRESSED_DATA'][0].tobytes()
@@ -52,6 +57,8 @@ def test_basic(tmp_path, compression_type):
         # native endian bits, which might differ from ZBITPIX.
         tile_data_bytes = tile_data_bytes[:np.product(tile_shape) * 4]
         tile_data = np.frombuffer(tile_data_bytes, dtype='i4').astype('>i2').reshape(tile_shape)
+    elif compression_type == 'RICE_1':
+        tile_data = np.frombuffer(tile_data_bytes, dtype=f'i{settings["bytepix"]}').astype('>i2').reshape(tile_shape)
     else:
         tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
 
@@ -67,6 +74,10 @@ def test_basic(tmp_path, compression_type):
         # PLIO expects specifically 32-bit ints as input - again need to find
         # a way to not special case this here.
         tile_data_bytes = original_data[:3, :3].astype('i4').tobytes()
+    elif compression_type == 'RICE_1':
+        # PLIO expects specifically little endian ints as input - again need to find
+        # a way to not special case this here.
+        tile_data_bytes = original_data[:3, :3].astype(f'i{settings["bytepix"]}').tobytes()
     else:
         tile_data_bytes = original_data[:3, :3].tobytes()
 
