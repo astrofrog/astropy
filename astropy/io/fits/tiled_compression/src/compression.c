@@ -5,6 +5,9 @@
 #include <pliocomp.h>
 #include <ricecomp.h>
 
+void ffpmsg(const char *err_message) {
+}
+
 /* Define docstrings */
 static char module_docstring[] = "Core compression/decompression functions";
 static char compress_plio_1_c_docstring[] = "Compress data using PLIO_1";
