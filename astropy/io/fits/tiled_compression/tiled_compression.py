@@ -7,7 +7,7 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
-from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c
+from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c
 
 __all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress', 'compress_tile', 'decompress_tile']
 
@@ -205,9 +205,10 @@ class Rice1(Codec):
     """
     codec_id = "FITS_RICE1"
 
-    def __init__(self, blocksize: int, bytepix: int):
+    def __init__(self, blocksize: int, bytepix: int, tilesize: int):
         self.blocksize = blocksize
         self.bytepix = bytepix
+        self.tilesize = tilesize
 
     def decode(self, buf):
         """
@@ -223,7 +224,8 @@ class Rice1(Codec):
         buf
             The decompressed buffer.
         """
-        raise NotImplementedError
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return decompress_rice_1_c(cbytes, self.blocksize, self.bytepix, self.tilesize)
 
     def encode(self, buf):
         """
@@ -239,7 +241,8 @@ class Rice1(Codec):
         buf
             A buffer with decompressed data.
         """
-        raise NotImplementedError
+        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return compress_rice_1_c(dbytes, self.blocksize, self.bytepix)
 
 
 class PLIO1(Codec):
