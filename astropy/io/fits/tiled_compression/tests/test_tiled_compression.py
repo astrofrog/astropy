@@ -9,9 +9,8 @@ COMPRESSION_TYPES = [
     "GZIP_1",
     "GZIP_2",
     "RICE_1",
+    "HCOMPRESS_1",
     "PLIO_1",
-    # Not implemented yet
-    # "HCOMPRESS_1",
 ]
 
 
@@ -23,15 +22,12 @@ def test_basic(tmp_path, compression_type):
 
     # Generate compressed file dynamically
 
-    original_data = np.arange(81).reshape((9, 9)).astype('>i2')
-
-    if compression_type == 'GZIP_2':
-        settings['itemsize'] = original_data.dtype.itemsize
+    original_data = np.arange(144).reshape((12, 12)).astype('>i2')
 
     header = fits.Header()
 
     hdu = fits.CompImageHDU(
-        original_data, header, compression_type=compression_type, tile_size=(3, 3)
+        original_data, header, compression_type=compression_type, tile_size=(4, 4)
     )
 
     hdu.writeto(tmp_path / 'test.fits')
@@ -41,10 +37,20 @@ def test_basic(tmp_path, compression_type):
 
     tile_shape = (hdulist[1].header['ZTILE2'], hdulist[1].header['ZTILE1'])
 
-    if compression_type == 'RICE_1':
+    if compression_type == 'GZIP_2':
+        settings['itemsize'] = original_data.dtype.itemsize
+    elif compression_type == 'RICE_1':
         settings['blocksize'] = hdulist[1].header['ZVAL1']
         settings['bytepix'] = hdulist[1].header['ZVAL2']
         settings['tilesize'] = np.product(tile_shape)
+    elif compression_type == 'HCOMPRESS_1':
+        # TODO: generalize bytepix, we need to pick 4 or 8 and then cast down
+        # later to smaller ints if needed.
+        settings['bytepix'] = 4
+        settings['scale'] = hdulist[1].header['ZVAL1']
+        settings['smooth'] = hdulist[1].header['ZVAL2']
+        settings['nx'] = hdulist[1].header['ZTILE2']
+        settings['ny'] = hdulist[1].header['ZTILE1']
 
     # Test decompression of the first tile
 
@@ -59,10 +65,12 @@ def test_basic(tmp_path, compression_type):
         tile_data = np.frombuffer(tile_data_bytes, dtype='i4').astype('>i2').reshape(tile_shape)
     elif compression_type == 'RICE_1':
         tile_data = np.frombuffer(tile_data_bytes, dtype=f'i{settings["bytepix"]}').astype('>i2').reshape(tile_shape)
+    elif compression_type == 'HCOMPRESS_1':
+        tile_data = np.frombuffer(tile_data_bytes, dtype='i4').astype('>i2').reshape(tile_shape)
     else:
         tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
 
-    assert_equal(tile_data, original_data[:3, :3])
+    assert_equal(tile_data, original_data[:4, :4])
 
     # Now compress the original data and compare to compressed bytes. Since
     # the exact compressed bytes might not match (e.g. for GZIP it will depend
@@ -73,18 +81,30 @@ def test_basic(tmp_path, compression_type):
     if compression_type == 'PLIO_1':
         # PLIO expects specifically 32-bit ints as input - again need to find
         # a way to not special case this here.
-        tile_data_bytes = original_data[:3, :3].astype('i4').tobytes()
+        tile_data_bytes = original_data[:4, :4].astype('i4').tobytes()
     elif compression_type == 'RICE_1':
         # PLIO expects specifically little endian ints as input - again need to find
         # a way to not special case this here.
-        tile_data_bytes = original_data[:3, :3].astype(f'i{settings["bytepix"]}').tobytes()
+        tile_data_bytes = original_data[:4, :4].astype(f'i{settings["bytepix"]}').tobytes()
+    elif compression_type == 'HCOMPRESS_1':
+        # HCOMPRESS expects specifically little endian ints as input - again need to find
+        # a way to not special case this here.
+        tile_data_bytes = original_data[:4, :4].astype('i4').tobytes()
     else:
-        tile_data_bytes = original_data[:3, :3].tobytes()
+        tile_data_bytes = original_data[:4, :4].tobytes()
+
+    print(compressed_tile_bytes)
 
     compressed_tile_bytes = compress_tile(tile_data_bytes, algorithm=compression_type, **settings)
 
+    print(compressed_tile_bytes)
+    print(hdulist[1].data['COMPRESSED_DATA'][0].dtype)
+
     # Then check that it also round-trips if we go through fits.open
-    hdulist[1].data['COMPRESSED_DATA'][0] = np.frombuffer(compressed_tile_bytes, dtype=np.uint8)
+    if compression_type == 'PLIO_1':
+        hdulist[1].data['COMPRESSED_DATA'][0] = np.frombuffer(compressed_tile_bytes, dtype=np.int16)
+    else:
+        hdulist[1].data['COMPRESSED_DATA'][0] = np.frombuffer(compressed_tile_bytes, dtype=np.uint8)
     hdulist[1].writeto(tmp_path / 'updated.fits')
     hdulist.close()
     hdulist_new = fits.open(tmp_path / 'updated.fits')

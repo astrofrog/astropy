@@ -10,5 +10,7 @@ def get_extensions():
                       sources=[os.path.join(os.path.dirname(__file__),
                                             'src', 'compression.c'),
                                os.path.join('cextern', 'cfitsio', 'lib', 'pliocomp.c'),
-                               os.path.join('cextern', 'cfitsio', 'lib', 'ricecomp.c')],
+                               os.path.join('cextern', 'cfitsio', 'lib', 'ricecomp.c'),
+                               os.path.join('cextern', 'cfitsio', 'lib', 'fits_hcompress.c'),
+                               os.path.join('cextern', 'cfitsio', 'lib', 'fits_hdecompress.c')],
                       include_dirs=[os.path.join('cextern', 'cfitsio', 'lib')])]
