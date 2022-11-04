@@ -7,7 +7,7 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
-from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c
+from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c, compress_hcompress_1_c, decompress_hcompress_1_c
 
 __all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress', 'compress_tile', 'decompress_tile']
 
@@ -315,9 +315,13 @@ class HCompress(Codec):
     """
     codec_id = "FITS_HCOMPRESS1"
 
-    def __init__(self, scale: float, smooth: bool):
+    def __init__(self, scale: float, smooth: bool, bytepix: int, nx: int, ny: int):
         self.scale = scale
         self.smooth = smooth
+        self.bytepix = bytepix
+        # NOTE: we should probably make this less confusing, but nx is shape[0] and ny is shape[1]
+        self.nx = nx
+        self.ny = ny
 
     def decode(self, buf):
         """
@@ -333,7 +337,8 @@ class HCompress(Codec):
         buf
             A buffer with decompressed data.
         """
-        raise NotImplementedError
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return decompress_hcompress_1_c(cbytes, self.nx, self.ny, self.scale, self.smooth, self.bytepix)
 
     def encode(self, buf):
         """
@@ -349,7 +354,8 @@ class HCompress(Codec):
         buf
             A buffer with decompressed data.
         """
-        raise NotImplementedError
+        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return compress_hcompress_1_c(dbytes, self.nx, self.ny, self.scale, self.bytepix)
 
 
 ALGORITHMS = {

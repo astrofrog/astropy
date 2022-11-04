@@ -4,9 +4,13 @@
 #include <Python.h>
 #include <pliocomp.h>
 #include <ricecomp.h>
+#include <fits_hcompress.h>
+#include <fits_hdecompress.h>
 
 void ffpmsg(const char *err_message) {
 }
+
+typedef long long LONGLONG;
 
 /* Define docstrings */
 static char module_docstring[] = "Core compression/decompression functions";
@@ -14,12 +18,16 @@ static char compress_plio_1_c_docstring[] = "Compress data using PLIO_1";
 static char decompress_plio_1_c_docstring[] = "Decompress data using PLIO_1";
 static char compress_rice_1_c_docstring[] = "Compress data using RICE_1";
 static char decompress_rice_1_c_docstring[] = "Decompress data using RICE_1";
+static char compress_hcompress_1_c_docstring[] = "Compress data using HCOMPRESS_1";
+static char decompress_hcompress_1_c_docstring[] = "Decompress data using HCOMPRESS_1";
 
 /* Declare the C functions here. */
 static PyObject *compress_plio_1_c(PyObject *self, PyObject *args);
 static PyObject *decompress_plio_1_c(PyObject *self, PyObject *args);
 static PyObject *compress_rice_1_c(PyObject *self, PyObject *args);
 static PyObject *decompress_rice_1_c(PyObject *self, PyObject *args);
+static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args);
+static PyObject *decompress_hcompress_1_c(PyObject *self, PyObject *args);
 
 /* Define the methods that will be available on the module. */
 static PyMethodDef module_methods[] = {
@@ -27,6 +35,8 @@ static PyMethodDef module_methods[] = {
     {"decompress_plio_1_c", decompress_plio_1_c, METH_VARARGS, decompress_plio_1_c_docstring},
     {"compress_rice_1_c", compress_rice_1_c, METH_VARARGS, compress_rice_1_c_docstring},
     {"decompress_rice_1_c", decompress_rice_1_c, METH_VARARGS, decompress_rice_1_c_docstring},
+    {"compress_hcompress_1_c", compress_hcompress_1_c, METH_VARARGS, compress_hcompress_1_c_docstring},
+    {"decompress_hcompress_1_c", decompress_hcompress_1_c, METH_VARARGS, decompress_hcompress_1_c_docstring},
     {NULL, NULL, 0, NULL}
 };
 
@@ -49,6 +59,7 @@ MOD_INIT(_compression)
     return MOD_SUCCESS_VAL(m);
 }
 
+/* PLIO/IRAF compression */
 
 static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
 
@@ -83,7 +94,7 @@ static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
 
     buf = (char *)compressed_values;
 
-    result = Py_BuildValue("y#", buf, count * 2);
+    result = Py_BuildValue("y#", buf, compressed_length * 2);
     free(buf);
     return result;
 
@@ -122,6 +133,7 @@ static PyObject *decompress_plio_1_c(PyObject *self, PyObject *args) {
 
 }
 
+/* RICE compression */
 
 static PyObject *compress_rice_1_c(PyObject *self, PyObject *args) {
 
@@ -159,7 +171,7 @@ static PyObject *compress_rice_1_c(PyObject *self, PyObject *args) {
         compressed_length = fits_rcomp(decompressed_values_int, (int)count / 4, compressed_values, count * 16, blocksize);
     }
 
-    result = Py_BuildValue("y#", compressed_values, count * 2);
+    result = Py_BuildValue("y#", compressed_values, compressed_length);
     free(buf);
     return result;
 
@@ -201,6 +213,93 @@ static PyObject *decompress_rice_1_c(PyObject *self, PyObject *args) {
     }
 
     result = Py_BuildValue("y#", dbytes, npix * bytepix);
+    free(dbytes);
+    return result;
+
+}
+
+/* HCompress compression */
+
+static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args) {
+
+    const char* str;
+    char * buf;
+    Py_ssize_t count;
+    PyObject * result;
+    int *values;
+    int start=1;
+    unsigned char *compressed_values;
+    int compressed_length;
+    unsigned short blocksize, bytepix;
+    int *decompressed_values_int;
+    LONGLONG *decompressed_values_longlong;
+    int nx, ny, scale, status;
+
+    if (!PyArg_ParseTuple(args, "y#iiii", &str, &count, &nx, &ny, &scale, &bytepix))
+    {
+        return NULL;
+    }
+
+    // FIXME: for some reason nx is 0 instead of the value we pass in
+    nx = ny;
+
+    // TODO: not sure what the maximum length of the compressed data should be - for now
+    // use count * 64 which means we assume the number of elements will be less than or equal
+    // to the original number of elements.
+    compressed_values = (char *)malloc(count * 64);
+
+    if (bytepix == 4) {
+        decompressed_values_int = (int *)str;
+        compressed_length = fits_hcompress(decompressed_values_int,
+                                           ny, nx, scale,
+                                           compressed_values,
+                                           &count, &status);
+    } else {
+        decompressed_values_longlong = (LONGLONG *)str;
+        compressed_length = fits_hcompress64(decompressed_values_longlong,
+                                             ny, nx, scale,
+                                             compressed_values,
+                                             &count, &status);
+    }
+
+    result = Py_BuildValue("y#", compressed_values, count);
+    free(buf);
+    return result;
+
+}
+
+static PyObject *decompress_hcompress_1_c(PyObject *self, PyObject *args) {
+
+    const unsigned char* str;
+    char * dbytes;
+    Py_ssize_t count;
+    PyObject * result;
+    short *values;
+    int start=1;
+    int blocksize, bytepix;
+    int i;
+    unsigned int *decompressed_values_int;
+    LONGLONG *decompressed_values_longlong;
+    int nx, ny, scale, smooth, status;
+
+    if (!PyArg_ParseTuple(args, "y#iiiii", &str, &count, &nx, &ny, &scale, &smooth, &bytepix))
+    {
+        return NULL;
+    }
+
+    // TODO: raise an error if bytepix is not 4 or 8
+
+    if (bytepix == 4) {
+        decompressed_values_int = (int *)malloc(nx * ny * 32);
+        fits_hdecompress(str, smooth, decompressed_values_int, &ny, &nx, &scale, &status);
+        dbytes = (char *)decompressed_values_int;
+    } else {
+        decompressed_values_longlong = (LONGLONG *)malloc(nx * ny * 64);
+        fits_hdecompress64(str, smooth, decompressed_values_longlong, &ny, &nx, &scale, &status);
+        dbytes = (char *)decompressed_values_longlong;
+    }
+
+    result = Py_BuildValue("y#", dbytes, nx * ny * bytepix);
     free(dbytes);
     return result;
 
