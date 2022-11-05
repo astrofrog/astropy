@@ -2,15 +2,19 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
-#include <pliocomp.h>
-#include <ricecomp.h>
 #include <fits_hcompress.h>
 #include <fits_hdecompress.h>
+#include <pliocomp.h>
+#include <ricecomp.h>
 
-void ffpmsg(const char *err_message) {
-}
+// TODO: use better estimates for compressed buffer sizes, as done in
+//       imcomp_calc_max_elem in cfitsio. For now we assume the
+//       compressed data won't be more than four times the size of the
+//       uncompressed data, which is safe but too generous.
 
-typedef long long LONGLONG;
+// Some of the cfitsio compression files use ffpmsg
+// so we provide a dummy function to replace this.
+void ffpmsg(const char *err_message) {}
 
 /* Define docstrings */
 static char module_docstring[] = "Core compression/decompression functions";
@@ -45,262 +49,231 @@ static PyMethodDef module_methods[] = {
 #define MOD_ERROR_VAL NULL
 #define MOD_SUCCESS_VAL(val) val
 #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
-#define MOD_DEF(ob, name, doc, methods) \
-        static struct PyModuleDef moduledef = { \
-        PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
-        ob = PyModule_Create(&moduledef);
+#define MOD_DEF(ob, name, doc, methods)                                                                                                                                                                \
+  static struct PyModuleDef moduledef = {                                                                                                                                                              \
+      PyModuleDef_HEAD_INIT, name, doc, -1, methods,                                                                                                                                                   \
+  };                                                                                                                                                                                                   \
+  ob = PyModule_Create(&moduledef);
 
-MOD_INIT(_compression)
-{
-    PyObject *m;
-    MOD_DEF(m, "_compression", module_docstring, module_methods);
-    if (m == NULL)
-        return MOD_ERROR_VAL;
-    return MOD_SUCCESS_VAL(m);
+MOD_INIT(_compression) {
+  PyObject *m;
+  MOD_DEF(m, "_compression", module_docstring, module_methods);
+  if (m == NULL)
+    return MOD_ERROR_VAL;
+  return MOD_SUCCESS_VAL(m);
 }
 
 /* PLIO/IRAF compression */
 
 static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
 
-    const char* str;
-    char * buf;
-    Py_ssize_t count;
-    PyObject * result;
-    int *values;
-    int start=1;
-    short *compressed_values;
-    int compressed_length;
+  const char *str;
+  char *buf;
+  Py_ssize_t count;
+  PyObject *result;
 
-    if (!PyArg_ParseTuple(args, "y#", &str, &count))
-    {
-        return NULL;
-    }
+  short *compressed_values;
+  int compressed_length;
+  int *decompressed_values;
 
-    values = (int*)str;
-    count /= 4;
+  if (!PyArg_ParseTuple(args, "y#", &str, &count)) {
+    return NULL;
+  }
 
-    // TODO: not sure what the maximum length of the compressed data should be - for now
-    // use count * 16 which means we assume the number of elements will be less than or equal
-    // to the original number of elements.
-    compressed_values = (short *)malloc(count * 16);
+  compressed_values = (short *)malloc(count * 4);
 
-    // Zero the compressed values array
-    for(int i=0;i<count*2;i++) {
-        compressed_values[i] = 0;
-    }
+  decompressed_values = (int *)str;
+  count /= 4;
 
-    compressed_length = pl_p2li(values, start, compressed_values, (int)count);
+  // Zero the compressed values array
+  for (int i = 0; i < count * 2; i++) {
+    compressed_values[i] = 0;
+  }
 
-    buf = (char *)compressed_values;
+  compressed_length = pl_p2li(decompressed_values, 1, compressed_values, (int)count);
 
-    result = Py_BuildValue("y#", buf, compressed_length * 2);
-    free(buf);
-    return result;
+  buf = (char *)compressed_values;
 
+  result = Py_BuildValue("y#", buf, compressed_length * 2);
+  free(buf);
+  return result;
 }
 
 static PyObject *decompress_plio_1_c(PyObject *self, PyObject *args) {
 
-    const char* str;
-    char * buf;
-    Py_ssize_t count;
-    PyObject * result;
-    short *values;
-    int start=1;
-    int *decompressed_values;
-    int npix;
+  const char *str;
+  char *buf;
+  Py_ssize_t count;
+  PyObject *result;
 
-    if (!PyArg_ParseTuple(args, "y#", &str, &count))
-    {
-        return NULL;
-    }
+  int tilesize;
 
-    values = (short*)str;
+  short *compressed_values;
+  int *decompressed_values;
 
-    // TODO: determine how big we need to make the buffer here - we should
-    // pass down information about the tile size to this function but for now
-    // just hard-code a big size.
-    decompressed_values = (int *)malloc(100000);
+  if (!PyArg_ParseTuple(args, "y#i", &str, &count, &tilesize)) {
+    return NULL;
+  }
 
-    npix = pl_l2pi(values, start, decompressed_values, (int)count);
+  compressed_values = (short *)str;
 
-    buf = (char *)decompressed_values;
+  // NOTE: the second *4 shouldn't be needed but ran into segfaults with
+  // smaller buffers.
+  decompressed_values = (int *)malloc(tilesize * 4 * 4);
 
-    result = Py_BuildValue("y#", buf, npix * 4);
-    free(buf);
-    return result;
+  pl_l2pi(compressed_values, 1, decompressed_values, (int)count);
 
+  buf = (char *)decompressed_values;
+
+  result = Py_BuildValue("y#", buf, tilesize * 4);
+  free(buf);
+  return result;
 }
 
 /* RICE compression */
 
 static PyObject *compress_rice_1_c(PyObject *self, PyObject *args) {
 
-    const char* str;
-    char * buf;
-    Py_ssize_t count;
-    PyObject * result;
-    int *values;
-    int start=1;
-    unsigned char *compressed_values;
-    int compressed_length;
-    unsigned short blocksize, bytepix;
-    unsigned char *decompressed_values_byte;
-    unsigned short *decompressed_values_short;
-    unsigned int *decompressed_values_int;
+  const char *str;
+  Py_ssize_t count;
+  PyObject *result;
 
-    if (!PyArg_ParseTuple(args, "y#HH", &str, &count, &blocksize, &bytepix))
-    {
-        return NULL;
-    }
+  int blocksize, bytepix;
 
-    // TODO: not sure what the maximum length of the compressed data should be - for now
-    // use count * 16 which means we assume the number of elements will be less than or equal
-    // to the original number of elements.
-    compressed_values = (short *)malloc(count * 16);
+  unsigned char *compressed_values;
+  int compressed_length;
+  signed char *decompressed_values_byte;
+  short *decompressed_values_short;
+  int *decompressed_values_int;
 
-    if (bytepix == 1) {
-        decompressed_values_byte = (unsigned char *)str;
-        compressed_length = fits_rcomp_byte(decompressed_values_byte, (int)count, compressed_values, count * 16, blocksize);
-    } else if (bytepix == 2){
-        decompressed_values_short = (unsigned short *)str;
-        compressed_length = fits_rcomp_short(decompressed_values_short, (int)count / 2, compressed_values, count * 16, blocksize);
-    } else {
-        decompressed_values_int = (unsigned int *)str;
-        compressed_length = fits_rcomp(decompressed_values_int, (int)count / 4, compressed_values, count * 16, blocksize);
-    }
+  if (!PyArg_ParseTuple(args, "y#ii", &str, &count, &blocksize, &bytepix)) {
+    return NULL;
+  }
 
-    result = Py_BuildValue("y#", compressed_values, compressed_length);
-    free(buf);
-    return result;
+  compressed_values = (unsigned char *)malloc(count * 4);
 
+  if (bytepix == 1) {
+    decompressed_values_byte = (signed char *)str;
+    compressed_length = fits_rcomp_byte(decompressed_values_byte, (int)count, compressed_values, count * 16, blocksize);
+  } else if (bytepix == 2) {
+    decompressed_values_short = (short *)str;
+    compressed_length = fits_rcomp_short(decompressed_values_short, (int)count / 2, compressed_values, count * 16, blocksize);
+  } else {
+    decompressed_values_int = (int *)str;
+    compressed_length = fits_rcomp(decompressed_values_int, (int)count / 4, compressed_values, count * 16, blocksize);
+  }
+
+  result = Py_BuildValue("y#", compressed_values, compressed_length);
+  free(compressed_values);
+  return result;
 }
 
 static PyObject *decompress_rice_1_c(PyObject *self, PyObject *args) {
 
-    const char* str;
-    char * dbytes;
-    Py_ssize_t count;
-    PyObject * result;
-    short *values;
-    int start=1;
-    unsigned char *decompressed_values_byte;
-    unsigned short *decompressed_values_short;
-    unsigned int *decompressed_values_int;
-    int npix;
-    int blocksize, bytepix;
-    int i;
+  const char *str;
+  char *dbytes;
+  Py_ssize_t count;
+  PyObject *result;
 
-    if (!PyArg_ParseTuple(args, "y#iii", &str, &count, &blocksize, &bytepix, &npix))
-    {
-        return NULL;
-    }
+  int blocksize, bytepix, tilesize;
 
+  unsigned char *compressed_values;
+  unsigned char *decompressed_values_byte;
+  unsigned short *decompressed_values_short;
+  unsigned int *decompressed_values_int;
 
-    if (bytepix == 1) {
-        decompressed_values_byte = (unsigned char *)malloc(npix * 8);
-        fits_rdecomp_byte(str, (int)count, decompressed_values_byte, npix, blocksize);
-        dbytes = (char *)decompressed_values_byte;
-    } else if (bytepix == 2){
-        decompressed_values_short = (unsigned short *)malloc(npix * 2 * 8);
-        fits_rdecomp_short(str, (int)count, decompressed_values_short, npix, blocksize);
-        dbytes = (char *)decompressed_values_short;
-    } else {
-        decompressed_values_int = (unsigned int *)malloc(npix * 4 * 8);
-        fits_rdecomp(str, (int)count, decompressed_values_int, npix, blocksize);
-        dbytes = (char *)decompressed_values_int;
-    }
+  if (!PyArg_ParseTuple(args, "y#iii", &str, &count, &blocksize, &bytepix, &tilesize)) {
+    return NULL;
+  }
 
-    result = Py_BuildValue("y#", dbytes, npix * bytepix);
-    free(dbytes);
-    return result;
+  compressed_values = (unsigned char *)str;
 
+  if (bytepix == 1) {
+    decompressed_values_byte = (unsigned char *)malloc(tilesize);
+    fits_rdecomp_byte(compressed_values, (int)count, decompressed_values_byte, tilesize, blocksize);
+    dbytes = (char *)decompressed_values_byte;
+  } else if (bytepix == 2) {
+    decompressed_values_short = (unsigned short *)malloc(tilesize * 2);
+    fits_rdecomp_short(compressed_values, (int)count, decompressed_values_short, tilesize, blocksize);
+    dbytes = (char *)decompressed_values_short;
+  } else {
+    decompressed_values_int = (unsigned int *)malloc(tilesize * 4);
+    fits_rdecomp(compressed_values, (int)count, decompressed_values_int, tilesize, blocksize);
+    dbytes = (char *)decompressed_values_int;
+  }
+
+  result = Py_BuildValue("y#", dbytes, tilesize * bytepix);
+  free(dbytes);
+  return result;
 }
 
 /* HCompress compression */
 
 static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args) {
 
-    const char* str;
-    char * buf;
-    Py_ssize_t count;
-    PyObject * result;
-    int *values;
-    int start=1;
-    unsigned char *compressed_values;
-    int compressed_length;
-    unsigned short blocksize, bytepix;
-    int *decompressed_values_int;
-    LONGLONG *decompressed_values_longlong;
-    int nx, ny, scale, status;
+  const char *str;
+  Py_ssize_t count;
+  PyObject *result;
 
-    if (!PyArg_ParseTuple(args, "y#iiii", &str, &count, &nx, &ny, &scale, &bytepix))
-    {
-        return NULL;
-    }
+  int bytepix, nx, ny, scale;
+  int status=0;  // Important to initialize this to zero otherwise will fail silently
 
-    // FIXME: for some reason nx is 0 instead of the value we pass in
-    nx = ny;
+  char *compressed_values;
+  int *decompressed_values_int;
+  long long *decompressed_values_longlong;
 
-    // TODO: not sure what the maximum length of the compressed data should be - for now
-    // use count * 64 which means we assume the number of elements will be less than or equal
-    // to the original number of elements.
-    compressed_values = (char *)malloc(count * 64);
+  if (!PyArg_ParseTuple(args, "y#iiii", &str, &count, &nx, &ny, &scale, &bytepix)) {
+    return NULL;
+  }
 
-    if (bytepix == 4) {
-        decompressed_values_int = (int *)str;
-        compressed_length = fits_hcompress(decompressed_values_int,
-                                           ny, nx, scale,
-                                           compressed_values,
-                                           &count, &status);
-    } else {
-        decompressed_values_longlong = (LONGLONG *)str;
-        compressed_length = fits_hcompress64(decompressed_values_longlong,
-                                             ny, nx, scale,
-                                             compressed_values,
-                                             &count, &status);
-    }
+  compressed_values = (char *)malloc(count * 4);
 
-    result = Py_BuildValue("y#", compressed_values, count);
-    free(buf);
-    return result;
+  if (bytepix == 4) {
+    decompressed_values_int = (int *)str;
+    fits_hcompress(decompressed_values_int, ny, nx, scale, compressed_values, &count, &status);
+  } else {
+    decompressed_values_longlong = (long long *)str;
+    fits_hcompress64(decompressed_values_longlong, ny, nx, scale, compressed_values, &count, &status);
+  }
 
+  result = Py_BuildValue("y#", compressed_values, count);
+  free(compressed_values);
+  return result;
 }
 
 static PyObject *decompress_hcompress_1_c(PyObject *self, PyObject *args) {
 
-    const unsigned char* str;
-    char * dbytes;
-    Py_ssize_t count;
-    PyObject * result;
-    short *values;
-    int start=1;
-    int blocksize, bytepix;
-    int i;
-    unsigned int *decompressed_values_int;
-    LONGLONG *decompressed_values_longlong;
-    int nx, ny, scale, smooth, status;
+  const unsigned char *str;
+  char *dbytes;
+  Py_ssize_t count;
+  PyObject *result;
 
-    if (!PyArg_ParseTuple(args, "y#iiiii", &str, &count, &nx, &ny, &scale, &smooth, &bytepix))
-    {
-        return NULL;
-    }
+  int bytepix, nx, ny, scale, smooth;
+  int status=0;  // Important to initialize this to zero otherwise will fail silently
 
-    // TODO: raise an error if bytepix is not 4 or 8
+  unsigned char *compressed_values;
+  int *decompressed_values_int;
+  long long *decompressed_values_longlong;
 
-    if (bytepix == 4) {
-        decompressed_values_int = (int *)malloc(nx * ny * 32);
-        fits_hdecompress(str, smooth, decompressed_values_int, &ny, &nx, &scale, &status);
-        dbytes = (char *)decompressed_values_int;
-    } else {
-        decompressed_values_longlong = (LONGLONG *)malloc(nx * ny * 64);
-        fits_hdecompress64(str, smooth, decompressed_values_longlong, &ny, &nx, &scale, &status);
-        dbytes = (char *)decompressed_values_longlong;
-    }
+  if (!PyArg_ParseTuple(args, "y#iiiii", &str, &count, &nx, &ny, &scale, &smooth, &bytepix)) {
+    return NULL;
+  }
 
-    result = Py_BuildValue("y#", dbytes, nx * ny * bytepix);
-    free(dbytes);
-    return result;
+  compressed_values = (unsigned char *)str;
 
+  // TODO: raise an error if bytepix is not 4 or 8
+
+  dbytes = malloc(nx * ny * bytepix);
+
+  if (bytepix == 4) {
+    decompressed_values_int = (int *)dbytes;
+    fits_hdecompress(compressed_values, smooth, decompressed_values_int, &ny, &nx, &scale, &status);
+  } else {
+    decompressed_values_longlong = (long long *)dbytes;
+    fits_hdecompress64(compressed_values, smooth, decompressed_values_longlong, &ny, &nx, &scale, &status);
+  }
+
+  result = Py_BuildValue("y#", dbytes, nx * ny * bytepix);
+  free(dbytes);
+  return result;
 }
