@@ -39,6 +39,8 @@ def test_basic(tmp_path, compression_type):
 
     if compression_type == 'GZIP_2':
         settings['itemsize'] = original_data.dtype.itemsize
+    elif compression_type == 'PLIO_1':
+        settings['tilesize'] = np.product(tile_shape)
     elif compression_type == 'RICE_1':
         settings['blocksize'] = hdulist[1].header['ZVAL1']
         settings['bytepix'] = hdulist[1].header['ZVAL2']
@@ -93,12 +95,7 @@ def test_basic(tmp_path, compression_type):
     else:
         tile_data_bytes = original_data[:4, :4].tobytes()
 
-    print(compressed_tile_bytes)
-
     compressed_tile_bytes = compress_tile(tile_data_bytes, algorithm=compression_type, **settings)
-
-    print(compressed_tile_bytes)
-    print(hdulist[1].data['COMPRESSED_DATA'][0].dtype)
 
     # Then check that it also round-trips if we go through fits.open
     if compression_type == 'PLIO_1':

@@ -258,6 +258,9 @@ class PLIO1(Codec):
     """
     codec_id = "FITS_PLIO1"
 
+    def __init__(self, tilesize: int):
+        self.tilesize = tilesize
+
     def decode(self, buf):
         """
         Decompress buffer using the PLIO_1 algorithm.
@@ -273,7 +276,7 @@ class PLIO1(Codec):
             The decompressed buffer.
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
-        return decompress_plio_1_c(cbytes)
+        return decompress_plio_1_c(cbytes, self.tilesize)
 
     def encode(self, buf):
         """
