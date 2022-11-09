@@ -16,6 +16,13 @@
 // so we provide a dummy function to replace this.
 void ffpmsg(const char *err_message) {}
 
+// Compatibility code because we pick up fitsio2.h from cextern. Can
+// remove once we remove cextern
+#ifdef _REENTRANT
+pthread_mutex_t Fitsio_Lock;
+int Fitsio_Pthread_Status = 0;
+#endif
+
 /* Define docstrings */
 static char module_docstring[] = "Core compression/decompression functions";
 static char compress_plio_1_c_docstring[] = "Compress data using PLIO_1";
