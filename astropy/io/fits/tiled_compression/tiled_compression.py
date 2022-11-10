@@ -7,7 +7,9 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
-__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress']
+from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c, compress_hcompress_1_c, decompress_hcompress_1_c
+
+__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress', 'compress_tile', 'decompress_tile']
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -104,7 +106,7 @@ class Gzip2(Codec):
     """
     The FTIS GZIP2 compression and decompression algorithm.
 
-    The gzip2 algorithm is a variation on ’GZIP 1’. In this case the buffer in
+    The gzip2 algorithm is a variation on 'GZIP 1'. In this case the buffer in
     the array of data values are shuffled so that they are arranged in order of
     decreasing significance before being compressed.
 
@@ -203,9 +205,10 @@ class Rice1(Codec):
     """
     codec_id = "FITS_RICE1"
 
-    def __init__(self, blocksize: int, bytepix: int):
+    def __init__(self, blocksize: int, bytepix: int, tilesize: int):
         self.blocksize = blocksize
         self.bytepix = bytepix
+        self.tilesize = tilesize
 
     def decode(self, buf):
         """
@@ -221,7 +224,8 @@ class Rice1(Codec):
         buf
             The decompressed buffer.
         """
-        raise NotImplementedError
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return decompress_rice_1_c(cbytes, self.blocksize, self.bytepix, self.tilesize)
 
     def encode(self, buf):
         """
@@ -237,7 +241,8 @@ class Rice1(Codec):
         buf
             A buffer with decompressed data.
         """
-        raise NotImplementedError
+        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return compress_rice_1_c(dbytes, self.blocksize, self.bytepix)
 
 
 class PLIO1(Codec):
@@ -253,6 +258,9 @@ class PLIO1(Codec):
     """
     codec_id = "FITS_PLIO1"
 
+    def __init__(self, tilesize: int):
+        self.tilesize = tilesize
+
     def decode(self, buf):
         """
         Decompress buffer using the PLIO_1 algorithm.
@@ -267,13 +275,15 @@ class PLIO1(Codec):
         buf
             The decompressed buffer.
         """
-        raise NotImplementedError
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return decompress_plio_1_c(cbytes, self.tilesize)
 
     def encode(self, buf):
         """
         Compress the data in the buffer using the PLIO_1 algorithm.
         """
-        raise NotImplementedError
+        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return compress_plio_1_c(dbytes)
 
 
 class HCompress(Codec):
@@ -308,9 +318,13 @@ class HCompress(Codec):
     """
     codec_id = "FITS_HCOMPRESS1"
 
-    def __init__(self, scale: float, smooth: bool):
+    def __init__(self, scale: float, smooth: bool, bytepix: int, nx: int, ny: int):
         self.scale = scale
         self.smooth = smooth
+        self.bytepix = bytepix
+        # NOTE: we should probably make this less confusing, but nx is shape[0] and ny is shape[1]
+        self.nx = nx
+        self.ny = ny
 
     def decode(self, buf):
         """
@@ -326,7 +340,8 @@ class HCompress(Codec):
         buf
             A buffer with decompressed data.
         """
-        raise NotImplementedError
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return decompress_hcompress_1_c(cbytes, self.nx, self.ny, self.scale, self.smooth, self.bytepix)
 
     def encode(self, buf):
         """
@@ -342,7 +357,8 @@ class HCompress(Codec):
         buf
             A buffer with decompressed data.
         """
-        raise NotImplementedError
+        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        return compress_hcompress_1_c(dbytes, self.nx, self.ny, self.scale, self.bytepix)
 
 
 ALGORITHMS = {
@@ -367,7 +383,7 @@ def decompress_tile(buf, *, algorithm: str, **kwargs):
     kwargs
         Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].decode(buf, **kwargs)
+    return ALGORITHMS[algorithm](**kwargs).decode(buf)
 
 
 def compress_tile(buf, *, algorithm: str, **kwargs):
@@ -383,4 +399,4 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
     kwargs
         Any parameters for the given compression algorithm
     """
-    return ALGORITHMS[algorithm].encode(buf, **kwargs)
+    return ALGORITHMS[algorithm](**kwargs).encode(buf)
