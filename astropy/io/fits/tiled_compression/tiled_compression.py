@@ -9,7 +9,7 @@ import numpy as np
 
 from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c, compress_hcompress_1_c, decompress_hcompress_1_c
 
-__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'decompress_tile']
+__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'decompress_tile', 'decompress_hdu']
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -407,3 +407,45 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
         Any parameters for the given compression algorithm
     """
     return ALGORITHMS[algorithm](**kwargs).encode(buf)
+
+
+def decompress_hdu(hdu):
+    """
+    Drop-in replacement for decompress_hdu from compressionmodule.c
+    """
+
+
+    tile_shape = (hdu._header['ZTILE2'], hdu._header['ZTILE1'])
+    data_shape = (hdu._header['ZNAXIS1'], hdu._header['ZNAXIS2'])
+
+    settings = {}
+
+    if hdu._header['ZCMPTYPE'] == 'GZIP_2':
+        raise NotImplementedError()
+    elif hdu._header['ZCMPTYPE'] == 'PLIO_1':
+        settings['tilesize'] = np.product(tile_shape)
+    elif hdu._header['ZCMPTYPE'] == 'RICE_1':
+        settings['blocksize'] = hdu._header['ZVAL1']
+        settings['bytepix'] = hdu._header['ZVAL2']
+        settings['tilesize'] = np.product(tile_shape)
+    elif hdu._header['ZCMPTYPE'] == 'HCOMPRESS_1':
+        settings['bytepix'] = 4
+        settings['scale'] = hdu._header['ZVAL1']
+        settings['smooth'] = hdu._header['ZVAL2']
+        settings['nx'] = hdu._header['ZTILE2']
+        settings['ny'] = hdu._header['ZTILE1']
+
+    data = np.zeros(data_shape, dtype='i4')
+
+    istart = 0
+    jstart = 0
+    for cdata in hdu.compressed_data['COMPRESSED_DATA']:
+        tile_buffer = decompress_tile(cdata, algorithm=hdu._header['ZCMPTYPE'], **settings)
+        tile_data = np.asarray(tile_buffer).reshape(tile_shape)
+        data[istart:istart + tile_shape[0], jstart:jstart + tile_shape[1]] = tile_data
+        jstart += tile_shape[1]
+        if jstart >= data_shape[1]:
+            jstart = 0
+            istart += tile_shape[0]
+
+    return data

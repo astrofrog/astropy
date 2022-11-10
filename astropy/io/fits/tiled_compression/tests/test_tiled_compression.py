@@ -5,7 +5,7 @@ import pytest
 from numpy.testing import assert_equal
 
 from astropy.io import fits
-from astropy.io.fits.tiled_compression import compress_tile, decompress_tile
+from astropy.io.fits.tiled_compression import compress_tile, decompress_tile, decompress_hdu
 
 COMPRESSION_TYPES = [
     "GZIP_1",
@@ -107,3 +107,30 @@ def test_basic(tmp_path, compression_type, dtype):
     hdulist_new = fits.open(tmp_path / 'updated.fits')
     assert_equal(hdulist_new[1].data, original_data)
     hdulist_new.close()
+
+
+@pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
+def test_decompress_hdu(tmp_path, compression_type, dtype):
+
+    if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype:
+        pytest.xfail()
+
+    original_data = np.arange(144).reshape((12, 12)).astype(dtype)
+
+    header = fits.Header()
+
+    hdu = fits.CompImageHDU(
+        original_data, header, compression_type=compression_type, tile_size=(4, 4)
+    )
+
+    hdu.writeto(tmp_path / 'test.fits')
+
+    # Load in CompImageHDU
+    hdulist = fits.open(tmp_path / 'test.fits')
+    hdu = hdulist[1]
+
+    data = decompress_hdu(hdu)
+
+    assert_equal(data, original_data)
+
+    hdulist.close()
