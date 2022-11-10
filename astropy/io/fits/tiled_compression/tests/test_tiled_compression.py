@@ -1,3 +1,5 @@
+from itertools import product
+
 import numpy as np
 import pytest
 from numpy.testing import assert_equal
@@ -13,16 +15,25 @@ COMPRESSION_TYPES = [
     "PLIO_1",
 ]
 
+parameters = []
+for compression_type in COMPRESSION_TYPES:
+    # io.fits doesn't seem able to compress 64-bit data, even though e.g. GZIP_?
+    # and HCOMPRESS_1 should be able to handle it.
+    for itemsize in [1, 2, 4]:
+        for endian in ['<', '>']:
+            format = 'u' if itemsize == 1 else 'i'
+            parameters.append((compression_type, f'{endian}{format}{itemsize}'))
 
-@pytest.mark.parametrize('compression_type', COMPRESSION_TYPES)
-def test_basic(tmp_path, compression_type):
+
+@pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
+def test_basic(tmp_path, compression_type, dtype):
 
     # In future can pass in settings as part of the parameterization
     settings = {}
 
     # Generate compressed file dynamically
 
-    original_data = np.arange(144).reshape((12, 12)).astype('>i2')
+    original_data = np.arange(144).reshape((12, 12)).astype(dtype)
 
     header = fits.Header()
 
@@ -58,19 +69,16 @@ def test_basic(tmp_path, compression_type):
 
     compressed_tile_bytes = hdulist[1].data['COMPRESSED_DATA'][0].tobytes()
 
-    tile_data_bytes = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
+    tile_data_buffer = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
 
-    if compression_type == 'PLIO_1':
-        # In the case of PLIO_1, the bytes are always returned as 32-bit
-        # native endian bits, which might differ from ZBITPIX.
-        tile_data_bytes = tile_data_bytes[:np.product(tile_shape) * 4]
-        tile_data = np.frombuffer(tile_data_bytes, dtype='i4').astype('>i2').reshape(tile_shape)
-    elif compression_type == 'RICE_1':
-        tile_data = np.frombuffer(tile_data_bytes, dtype=f'i{settings["bytepix"]}').astype('>i2').reshape(tile_shape)
-    elif compression_type == 'HCOMPRESS_1':
-        tile_data = np.frombuffer(tile_data_bytes, dtype='i4').astype('>i2').reshape(tile_shape)
+    # TODO: determine whether we are happy with having to interpret the returned bytes from
+    # the GZip codec or whether we want to set the dtype as a setting to the codec.
+    if compression_type.startswith('GZIP'):
+        # NOTE: It looks like the data is stored as big endian data even if it was
+        # originally little-endian.
+        tile_data = np.asarray(tile_data_buffer).view(original_data.dtype.newbyteorder('>')).reshape(tile_shape)
     else:
-        tile_data = np.frombuffer(tile_data_bytes, dtype='>i2').reshape(tile_shape)
+        tile_data = np.asarray(tile_data_buffer).reshape(tile_shape)
 
     assert_equal(tile_data, original_data[:4, :4])
 
@@ -80,22 +88,14 @@ def test_basic(tmp_path, compression_type):
     # original BinTableHDU, then read it in as a normal compressed HDU and make
     # sure the final data match.
 
-    if compression_type == 'PLIO_1':
-        # PLIO expects specifically 32-bit ints as input - again need to find
-        # a way to not special case this here.
-        tile_data_bytes = original_data[:4, :4].astype('i4').tobytes()
-    elif compression_type == 'RICE_1':
-        # PLIO expects specifically little endian ints as input - again need to find
-        # a way to not special case this here.
-        tile_data_bytes = original_data[:4, :4].astype(f'i{settings["bytepix"]}').tobytes()
-    elif compression_type == 'HCOMPRESS_1':
-        # HCOMPRESS expects specifically little endian ints as input - again need to find
-        # a way to not special case this here.
-        tile_data_bytes = original_data[:4, :4].astype('i4').tobytes()
+    if compression_type.startswith('GZIP'):
+        # NOTE: It looks like the data is stored as big endian data even if it was
+        # originally little-endian.
+        tile_data_buffer = original_data[:4, :4].astype(original_data.dtype.newbyteorder('>')).data
     else:
-        tile_data_bytes = original_data[:4, :4].tobytes()
+        tile_data_buffer = original_data[:4, :4].data
 
-    compressed_tile_bytes = compress_tile(tile_data_bytes, algorithm=compression_type, **settings)
+    compressed_tile_bytes = compress_tile(tile_data_buffer, algorithm=compression_type, **settings)
 
     # Then check that it also round-trips if we go through fits.open
     if compression_type == 'PLIO_1':
