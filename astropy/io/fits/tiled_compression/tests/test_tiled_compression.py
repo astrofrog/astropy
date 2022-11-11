@@ -1,11 +1,10 @@
-from itertools import product
-
 import numpy as np
 import pytest
 from numpy.testing import assert_equal
 
 from astropy.io import fits
-from astropy.io.fits.tiled_compression import compress_tile, decompress_tile, decompress_hdu
+from astropy.io.fits.tiled_compression import (
+    compress_hdu, compress_tile, decompress_hdu, decompress_tile)
 
 COMPRESSION_TYPES = [
     "GZIP_1",
@@ -112,6 +111,10 @@ def test_basic(tmp_path, compression_type, dtype):
 @pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
 def test_decompress_hdu(tmp_path, compression_type, dtype):
 
+    # NOTE: for now this test is designed to compare the Python implementation
+    # of decompress_hdu with the C implementation - once we get rid of the C
+    # implementation we should update this test.
+
     if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype:
         pytest.xfail()
 
@@ -133,4 +136,36 @@ def test_decompress_hdu(tmp_path, compression_type, dtype):
 
     assert_equal(data, original_data)
 
+    # NOTE: the following block can be removed once we remove the C implementation
+    from astropy.io.fits.compression import decompress_hdu as decompress_hdu_c
+    data_c = decompress_hdu_c(hdu)
+    assert_equal(data, data_c)
+
     hdulist.close()
+
+
+@pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
+def test_compress_hdu(tmp_path, compression_type, dtype):
+
+    # NOTE: for now this test is designed to compare the Python implementation
+    # of compress_hdu with the C implementation - once we get rid of the C
+    # implementation we should update this test.
+
+    if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype:
+        pytest.xfail()
+
+    original_data = np.arange(144).reshape((12, 12)).astype(dtype)
+
+    header = fits.Header()
+
+    hdu = fits.CompImageHDU(
+        original_data, header, compression_type=compression_type, tile_size=(4, 4)
+    )
+
+    heap_length, heap_data = compress_hdu(hdu)
+
+    # NOTE: the following block can be removed once we remove the C implementation
+    from astropy.io.fits.compression import compress_hdu as compress_hdu_c
+    heap_length_c, heap_data_c = compress_hdu_c(hdu)
+    assert heap_length == heap_length_c
+    assert_equal(heap_data, heap_data_c)
