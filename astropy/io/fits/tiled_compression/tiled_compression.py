@@ -9,7 +9,7 @@ import numpy as np
 
 from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c, compress_hcompress_1_c, decompress_hcompress_1_c
 
-__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress', 'compress_tile', 'decompress_tile']
+__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'decompress_tile']
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -83,7 +83,9 @@ class Gzip1(Codec):
         buf
             The decompressed buffer.
         """
-        return gzip_decompress(bytes(buf))
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        dbytes = gzip_decompress(cbytes)
+        return np.frombuffer(dbytes, dtype=np.uint8).data
 
     def encode(self, buf):
         """
@@ -99,7 +101,8 @@ class Gzip1(Codec):
         buf
             A buffer with compressed data.
         """
-        return gzip_compress(bytes(buf))
+        dbytes = np.asarray(buf).tobytes()
+        return gzip_compress(dbytes)
 
 
 class Gzip2(Codec):
@@ -153,10 +156,11 @@ class Gzip2(Codec):
         buf
             The decompressed buffer.
         """
+        cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
         # Start off by unshuffling buffer
-        shuffled_buffer = gzip_decompress(bytes(buf))
-        array = np.frombuffer(shuffled_buffer, dtype=np.uint8)
-        return array.reshape((self.itemsize, -1)).T.ravel().tobytes()
+        unshuffled_buffer = gzip_decompress(cbytes)
+        array = np.frombuffer(unshuffled_buffer, dtype=np.uint8)
+        return array.reshape((self.itemsize, -1)).T.ravel().data
 
     def encode(self, buf):
         """
@@ -173,7 +177,7 @@ class Gzip2(Codec):
             The decompressed buffer.
         """
         # Start off by shuffling buffer
-        array = np.frombuffer(buf, dtype=np.uint8)
+        array = np.asarray(buf).ravel().view(np.uint8)
         shuffled_buffer = array.reshape((-1, self.itemsize)).T.ravel().tobytes()
         return gzip_compress(shuffled_buffer)
 
@@ -225,7 +229,8 @@ class Rice1(Codec):
             The decompressed buffer.
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
-        return decompress_rice_1_c(cbytes, self.blocksize, self.bytepix, self.tilesize)
+        dbytes = decompress_rice_1_c(cbytes, self.blocksize, self.bytepix, self.tilesize)
+        return np.frombuffer(dbytes, dtype=f'i{self.bytepix}').data
 
     def encode(self, buf):
         """
@@ -241,7 +246,7 @@ class Rice1(Codec):
         buf
             A buffer with decompressed data.
         """
-        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        dbytes = np.asarray(buf).astype(f'i{self.bytepix}').tobytes()
         return compress_rice_1_c(dbytes, self.blocksize, self.bytepix)
 
 
@@ -276,17 +281,18 @@ class PLIO1(Codec):
             The decompressed buffer.
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
-        return decompress_plio_1_c(cbytes, self.tilesize)
+        dbytes = decompress_plio_1_c(cbytes, self.tilesize)
+        return np.frombuffer(dbytes, dtype='i4').data
 
     def encode(self, buf):
         """
         Compress the data in the buffer using the PLIO_1 algorithm.
         """
-        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        dbytes = np.asarray(buf).astype('i4').tobytes()
         return compress_plio_1_c(dbytes)
 
 
-class HCompress(Codec):
+class HCompress1(Codec):
     """
     The FTIS PLIO1 compression and decompression algorithm.
 
@@ -341,7 +347,8 @@ class HCompress(Codec):
             A buffer with decompressed data.
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
-        return decompress_hcompress_1_c(cbytes, self.nx, self.ny, self.scale, self.smooth, self.bytepix)
+        dbytes = decompress_hcompress_1_c(cbytes, self.nx, self.ny, self.scale, self.smooth, self.bytepix)
+        return np.frombuffer(dbytes, dtype=f'i{self.bytepix}').data
 
     def encode(self, buf):
         """
@@ -357,7 +364,7 @@ class HCompress(Codec):
         buf
             A buffer with decompressed data.
         """
-        dbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
+        dbytes = np.asarray(buf).astype(f'i{self.bytepix}').tobytes()
         return compress_hcompress_1_c(dbytes, self.nx, self.ny, self.scale, self.bytepix)
 
 
@@ -366,7 +373,7 @@ ALGORITHMS = {
     "GZIP_2": Gzip2,
     "RICE_1": Rice1,
     "PLIO_1": PLIO1,
-    "HCOMPRESS_1": HCompress,
+    "HCOMPRESS_1": HCompress1,
 }
 
 
