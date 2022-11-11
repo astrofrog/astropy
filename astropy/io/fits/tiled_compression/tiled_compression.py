@@ -7,9 +7,11 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
-from astropy.io.fits.tiled_compression._compression import compress_plio_1_c, decompress_plio_1_c, compress_rice_1_c, decompress_rice_1_c, compress_hcompress_1_c, decompress_hcompress_1_c
+from astropy.io.fits.tiled_compression._compression import (
+    compress_hcompress_1_c, compress_plio_1_c, compress_rice_1_c, decompress_hcompress_1_c,
+    decompress_plio_1_c, decompress_rice_1_c)
 
-__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'decompress_tile', 'decompress_hdu']
+__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'decompress_tile', 'compress_hdu', 'decompress_hdu']
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -409,31 +411,39 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
     return ALGORITHMS[algorithm](**kwargs).encode(buf)
 
 
+def _header_to_settings(header):
+
+    tile_shape = (header['ZTILE2'], header['ZTILE1'])
+
+    settings = {}
+
+    if header['ZCMPTYPE'] == 'GZIP_2':
+        raise NotImplementedError()
+    elif header['ZCMPTYPE'] == 'PLIO_1':
+        settings['tilesize'] = np.product(tile_shape)
+    elif header['ZCMPTYPE'] == 'RICE_1':
+        settings['blocksize'] = header['ZVAL1']
+        settings['bytepix'] = header['ZVAL2']
+        settings['tilesize'] = np.product(tile_shape)
+    elif header['ZCMPTYPE'] == 'HCOMPRESS_1':
+        settings['bytepix'] = 4
+        settings['scale'] = header['ZVAL1']
+        settings['smooth'] = header['ZVAL2']
+        settings['nx'] = header['ZTILE2']
+        settings['ny'] = header['ZTILE1']
+
+    return settings
+
+
 def decompress_hdu(hdu):
     """
     Drop-in replacement for decompress_hdu from compressionmodule.c
     """
 
-
     tile_shape = (hdu._header['ZTILE2'], hdu._header['ZTILE1'])
     data_shape = (hdu._header['ZNAXIS1'], hdu._header['ZNAXIS2'])
 
-    settings = {}
-
-    if hdu._header['ZCMPTYPE'] == 'GZIP_2':
-        raise NotImplementedError()
-    elif hdu._header['ZCMPTYPE'] == 'PLIO_1':
-        settings['tilesize'] = np.product(tile_shape)
-    elif hdu._header['ZCMPTYPE'] == 'RICE_1':
-        settings['blocksize'] = hdu._header['ZVAL1']
-        settings['bytepix'] = hdu._header['ZVAL2']
-        settings['tilesize'] = np.product(tile_shape)
-    elif hdu._header['ZCMPTYPE'] == 'HCOMPRESS_1':
-        settings['bytepix'] = 4
-        settings['scale'] = hdu._header['ZVAL1']
-        settings['smooth'] = hdu._header['ZVAL2']
-        settings['nx'] = hdu._header['ZTILE2']
-        settings['ny'] = hdu._header['ZTILE1']
+    settings = _header_to_settings(hdu._header)
 
     data = np.zeros(data_shape, dtype='i4')
 
@@ -449,3 +459,34 @@ def decompress_hdu(hdu):
             istart += tile_shape[0]
 
     return data
+
+
+def compress_hdu(hdu):
+    """
+    Drop-in replacement for compress_hdu from compressionmodule.c
+    """
+
+    # For now this is very inefficient, just a proof of concept!
+
+    settings = _header_to_settings(hdu._header)
+
+    tile_shape = (hdu._header['ZTILE2'], hdu._header['ZTILE1'])
+    data_shape = (hdu._header['ZNAXIS1'], hdu._header['ZNAXIS2'])
+
+    compressed_bytes = []
+
+    for i in range(0, data_shape[0], tile_shape[0]):
+        for j in range(0, data_shape[1], tile_shape[1]):
+            # TODO: deal with data not being integer number of tiles
+            data = hdu.data[i:i+tile_shape[0], j:j+tile_shape[1]]
+            cbytes = compress_tile(data, algorithm=hdu._header['ZCMPTYPE'], **settings)
+            compressed_bytes.append(cbytes)
+
+    heap_header = np.zeros(len(compressed_bytes) * 2, '>i4')
+    for i in range(len(compressed_bytes)):
+        heap_header[i * 2] = len(compressed_bytes[i])
+        heap_header[1 + i * 2] = heap_header[:i * 2:2].sum()
+
+    heap = heap_header.tobytes() + b''.join(compressed_bytes)
+
+    return heap_header[::2].sum(), np.frombuffer(heap, dtype=np.uint8)
