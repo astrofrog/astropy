@@ -144,6 +144,22 @@ def test_decompress_hdu(tmp_path, compression_type, dtype):
     hdulist.close()
 
 
+def _assert_heap_same(heap_a, heap_b, n_tiles):
+    # The exact length and data might not always match because they might be
+    # equivalent but store the tiles in a different order or with padding, so
+    # we need to interpret the heap data and actually check chunk by chunk
+    heap_header_a = heap_a[:n_tiles * 2 * 4].view('>i4')
+    heap_header_b = heap_b[:n_tiles * 2 * 4].view('>i4')
+    for itile in range(n_tiles):
+        len_a = heap_header_a[itile * 2]
+        off_a = heap_header_a[itile * 2 + 1] + n_tiles * 2 * 4
+        len_b = heap_header_b[itile * 2]
+        off_b = heap_header_b[itile * 2 + 1] + n_tiles * 2 * 4
+        data_a = heap_a[off_a:off_a + len_a]
+        data_b = heap_b[off_b:off_b + len_b]
+        assert_equal(data_a, data_b)
+
+
 @pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
 def test_compress_hdu(tmp_path, compression_type, dtype):
 
@@ -151,7 +167,7 @@ def test_compress_hdu(tmp_path, compression_type, dtype):
     # of compress_hdu with the C implementation - once we get rid of the C
     # implementation we should update this test.
 
-    if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype:
+    if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype or compression_type == 'HCOMPRESS_1' and '>' in dtype or compression_type == 'PLIO_1':
         pytest.xfail()
 
     original_data = np.arange(144).reshape((12, 12)).astype(dtype)
@@ -167,5 +183,5 @@ def test_compress_hdu(tmp_path, compression_type, dtype):
     # NOTE: the following block can be removed once we remove the C implementation
     from astropy.io.fits.compression import compress_hdu as compress_hdu_c
     heap_length_c, heap_data_c = compress_hdu_c(hdu)
-    assert heap_length == heap_length_c
-    assert_equal(heap_data, heap_data_c)
+
+    _assert_heap_same(heap_data, heap_data_c, 9)

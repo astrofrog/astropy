@@ -479,6 +479,10 @@ def compress_hdu(hdu):
         for j in range(0, data_shape[1], tile_shape[1]):
             # TODO: deal with data not being integer number of tiles
             data = hdu.data[i:i+tile_shape[0], j:j+tile_shape[1]]
+            # The original compress_hdu assumed the data was in native endian, so we
+            # change this here:
+            if not data.dtype.isnative:
+                data = data.byteswap()
             cbytes = compress_tile(data, algorithm=hdu._header['ZCMPTYPE'], **settings)
             compressed_bytes.append(cbytes)
 
