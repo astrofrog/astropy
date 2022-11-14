@@ -418,7 +418,7 @@ def _header_to_settings(header):
     settings = {}
 
     if header['ZCMPTYPE'] == 'GZIP_2':
-        raise NotImplementedError()
+        settings['itemsize'] = header['ZBITPIX'] // 8
     elif header['ZCMPTYPE'] == 'PLIO_1':
         settings['tilesize'] = np.product(tile_shape)
     elif header['ZCMPTYPE'] == 'RICE_1':
@@ -451,7 +451,18 @@ def decompress_hdu(hdu):
     jstart = 0
     for cdata in hdu.compressed_data['COMPRESSED_DATA']:
         tile_buffer = decompress_tile(cdata, algorithm=hdu._header['ZCMPTYPE'], **settings)
-        tile_data = np.asarray(tile_buffer).reshape(tile_shape)
+
+        if hdu._header['ZCMPTYPE'].startswith('GZIP') and  hdu._header['ZBITPIX'] > 8:
+            # TOOD: support float types
+            int_size = hdu._header['ZBITPIX'] // 8
+            tile_data = np.asarray(tile_buffer).view(f'>i{int_size}').reshape(tile_shape)
+        else:
+            if tile_buffer.format == 'b':
+                # NOTE: this feels like a Numpy bug - need to investigate
+                tile_data = np.asarray(tile_buffer, dtype=np.uint8).reshape(tile_shape)
+            else:
+                tile_data = np.asarray(tile_buffer).reshape(tile_shape)
+
         data[istart:istart + tile_shape[0], jstart:jstart + tile_shape[1]] = tile_data
         jstart += tile_shape[1]
         if jstart >= data_shape[1]:

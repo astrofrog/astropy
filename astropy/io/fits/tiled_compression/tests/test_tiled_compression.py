@@ -115,9 +115,6 @@ def test_decompress_hdu(tmp_path, compression_type, dtype):
     # of decompress_hdu with the C implementation - once we get rid of the C
     # implementation we should update this test.
 
-    if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype:
-        pytest.xfail()
-
     original_data = np.arange(144).reshape((12, 12)).astype(dtype)
 
     header = fits.Header()
