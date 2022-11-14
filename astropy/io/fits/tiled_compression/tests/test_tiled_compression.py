@@ -52,28 +52,14 @@ def test_basic(tmp_path, compression_type, dtype):
     # Load in raw compressed data
     hdulist = fits.open(tmp_path / "test.fits", disable_image_compression=True)
 
-    settings = settings_from_hdu(hdulist[1], original_data)
+    settings = _header_to_settings(hdulist[1].header)
 
     # Test decompression of the first tile
 
     compressed_tile_bytes = hdulist[1].data["COMPRESSED_DATA"][0].tobytes()
 
-    tile_data_buffer = decompress_tile(
-        compressed_tile_bytes, algorithm=compression_type, **settings
-    )
-
-    # TODO: determine whether we are happy with having to interpret the returned bytes from
-    # the GZip codec or whether we want to set the dtype as a setting to the codec.
-    if compression_type.startswith("GZIP"):
-        # NOTE: It looks like the data is stored as big endian data even if it was
-        # originally little-endian.
-        tile_data = (
-            np.asarray(tile_data_buffer)
-            .view(original_data.dtype.newbyteorder(">"))
-            .reshape(tile_shape)
-        )
-    else:
-        tile_data = np.asarray(tile_data_buffer).reshape(tile_shape)
+    tile_data_buffer = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
+    tile_data = _buffer_to_array(tile_data_buffer, hdulist[1].header)
 
     assert_equal(tile_data, original_data[:4, :4])
 
@@ -239,3 +225,7 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
     )
     tile_data = _buffer_to_array(tile_data_buffer, hdr)
     np.testing.assert_allclose(original_tile_1, tile_data)
+
+    # Now compress the original data and see if we can recover the compressed bytes we loaded
+    compressed_tile_data = compress_tile(original_tile_1, algorithm=compression_type, **settings)
+    assert compressed_tile_data == compressed_tile_bytes
