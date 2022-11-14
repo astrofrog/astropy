@@ -154,7 +154,15 @@ def _assert_heap_same(heap_a, heap_b, n_tiles):
         off_b = heap_header_b[itile * 2 + 1] + n_tiles * 2 * 4
         data_a = heap_a[off_a:off_a + len_a]
         data_b = heap_b[off_b:off_b + len_b]
-        assert_equal(data_a, data_b)
+        if np.all(data_a[:4] == np.array([31, 139, 8, 0], dtype=np.uint8)):
+            # gzip compressed - need to compare decompressed bytes as compression
+            # is non-deterministic due to e.g. compression level and so on
+            from gzip import decompress
+            data_a = decompress(data_a.tobytes())
+            data_b = decompress(data_b.tobytes())
+            assert data_a == data_b
+        else:
+            assert_equal(data_a, data_b)
 
 
 @pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
@@ -164,7 +172,7 @@ def test_compress_hdu(tmp_path, compression_type, dtype):
     # of compress_hdu with the C implementation - once we get rid of the C
     # implementation we should update this test.
 
-    if compression_type.startswith('GZIP') or compression_type == 'RICE_1' and 'u' in dtype or compression_type == 'HCOMPRESS_1' and '>' in dtype or compression_type == 'PLIO_1':
+    if compression_type == 'PLIO_1':
         pytest.xfail()
 
     original_data = np.arange(144).reshape((12, 12)).astype(dtype)
@@ -179,6 +187,9 @@ def test_compress_hdu(tmp_path, compression_type, dtype):
 
     # NOTE: the following block can be removed once we remove the C implementation
     from astropy.io.fits.compression import compress_hdu as compress_hdu_c
+    # Note that when CompImageHDU calls compress_hdu it converts to native byte
+    # order first, so we have to do this here.
+    hdu.data = hdu.data.astype(hdu.data.dtype.newbyteorder('='))
     heap_length_c, heap_data_c = compress_hdu_c(hdu)
 
     _assert_heap_same(heap_data, heap_data_c, 9)
