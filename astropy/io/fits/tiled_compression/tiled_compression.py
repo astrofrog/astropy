@@ -492,8 +492,13 @@ def compress_hdu(hdu):
             data = hdu.data[i:i+tile_shape[0], j:j+tile_shape[1]]
             # The original compress_hdu assumed the data was in native endian, so we
             # change this here:
-            if not data.dtype.isnative:
-                data = data.byteswap()
+            if hdu._header['ZCMPTYPE'].startswith('GZIP'):
+                # This is apparently needed so that our heap data agrees with
+                # the C implementation!?
+                data = data.astype(data.dtype.newbyteorder('>'))
+            else:
+                if not data.dtype.isnative:
+                    data = data.astype(data.dtype.newbyteorder('='))
             cbytes = compress_tile(data, algorithm=hdu._header['ZCMPTYPE'], **settings)
             compressed_bytes.append(cbytes)
 
