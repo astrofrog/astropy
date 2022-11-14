@@ -11,6 +11,10 @@ from astropy.io.fits.tiled_compression import (
     decompress_hdu,
     decompress_tile,
 )
+from astropy.io.fits.tiled_compression.tiled_compression import (
+    _buffer_to_array,
+    _header_to_settings,
+)
 
 COMPRESSION_TYPES = [
     "GZIP_1",
@@ -30,31 +34,7 @@ for compression_type in COMPRESSION_TYPES:
             parameters.append((compression_type, f"{endian}{format}{itemsize}"))
 
 
-def settings_from_hdu(hdu, original_data):
-    compression_type = hdu.header["ZCMPTYPE"]
-    tile_shape = (hdu.header['ZTILE2'], hdu.header['ZTILE1'])
-
-    settings = {}
-    if compression_type == 'GZIP_2':
-        settings['itemsize'] = original_data.dtype.itemsize
-    elif compression_type == 'PLIO_1':
-        settings['tilesize'] = np.product(tile_shape)
-    elif compression_type == 'RICE_1':
-        settings['blocksize'] = hdu.header.get('ZVAL1', 32)
-        settings['bytepix'] = hdu.header.get('ZVAL2', 4)
-        settings['tilesize'] = np.product(tile_shape)
-    elif compression_type == 'HCOMPRESS_1':
-        # TODO: generalize bytepix, we need to pick 4 or 8 and then cast down
-        # later to smaller ints if needed.
-        settings['bytepix'] = 4
-        settings['scale'] = hdu.header['ZVAL1']
-        settings['smooth'] = hdu.header['ZVAL2']
-        settings['nx'] = hdu.header['ZTILE2']
-        settings['ny'] = hdu.header['ZTILE1']
-    return settings
-
-
-@pytest.mark.parametrize(('compression_type', 'dtype'), parameters)
+@pytest.mark.parametrize(("compression_type", "dtype"), parameters)
 def test_basic(tmp_path, compression_type, dtype):
 
     # Generate compressed file dynamically
@@ -227,7 +207,9 @@ def canonical_data_base_path():
     return Path(__file__).parent / "data"
 
 
-@pytest.fixture(params=(Path(__file__).parent / "data").glob("m13_*.fits"), ids=lambda x: x.name)
+@pytest.fixture(
+    params=(Path(__file__).parent / "data").glob("m13_*.fits"), ids=lambda x: x.name
+)
 def canonical_int_hdus(request):
     """
     This fixture provides 4 files downloaded from https://fits.gsfc.nasa.gov/registry/tilecompression.html
@@ -248,16 +230,12 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
     hdr = canonical_int_hdus.header
     tile_size = (hdr["ZTILE2"], hdr["ZTILE1"])
     compression_type = hdr["ZCMPTYPE"]
-    original_tile_1 = original_int_hdu.data[:tile_size[0], :tile_size[1]]
-    compressed_tile_bytes = canonical_int_hdus.data['COMPRESSED_DATA'][0].tobytes()
+    original_tile_1 = original_int_hdu.data[: tile_size[0], : tile_size[1]]
+    compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][0].tobytes()
 
-    settings = settings_from_hdu(canonical_int_hdus, original_int_hdu.data)
-    tile_data_buffer = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
-
-    if compression_type.startswith('GZIP'):
-        # NOTE: It looks like the data is stored as big endian data even if it was
-        # originally little-endian.
-        tile_data = np.asarray(tile_data_buffer).view(original_int_hdu.data.dtype.newbyteorder('>')).reshape(tile_size)
-    else:
-        tile_data = np.asarray(tile_data_buffer).reshape(tile_size)
-    np.testing.assert_allclose(original_tile_1, np.asarray(tile_data_buffer).reshape(tile_size))
+    settings = _header_to_settings(canonical_int_hdus.header)
+    tile_data_buffer = decompress_tile(
+        compressed_tile_bytes, algorithm=compression_type, **settings
+    )
+    tile_data = _buffer_to_array(tile_data_buffer, hdr)
+    np.testing.assert_allclose(original_tile_1, tile_data)

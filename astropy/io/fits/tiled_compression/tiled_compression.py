@@ -7,6 +7,7 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
+from astropy.io.fits.hdu import BITPIX2DTYPE
 from astropy.io.fits.tiled_compression._compression import (
     compress_hcompress_1_c,
     compress_plio_1_c,
@@ -449,8 +450,8 @@ def _header_to_settings(header):
     elif header["ZCMPTYPE"] == "PLIO_1":
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "RICE_1":
-        settings["blocksize"] = header["ZVAL1"]
-        settings["bytepix"] = header["ZVAL2"]
+        settings["blocksize"] = header.get("ZVAL1", 32)
+        settings["bytepix"] = header.get("ZVAL2", 4)
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "HCOMPRESS_1":
         settings["bytepix"] = 4
@@ -460,6 +461,20 @@ def _header_to_settings(header):
         settings["ny"] = header["ZTILE1"]
 
     return settings
+
+
+def _buffer_to_array(buf, header):
+    """
+    Convert a buffer to an array using the header.
+
+    This is a helper function which takes a raw buffer (as output by .decode)
+    and using the FITS header translates it into a numpy array with the correct
+    dtype, endianess and shape.
+    """
+    tile_shape = (header["ZTILE2"], header["ZTILE1"])
+    compression_type = header["ZCMPTYPE"]
+    dtype = BITPIX2DTYPE[header["ZBITPIX"]]
+    return np.asarray(buf).view(np.dtype(dtype).newbyteorder(">")).reshape(tile_shape)
 
 
 def decompress_hdu(hdu):
