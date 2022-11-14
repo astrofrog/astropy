@@ -463,7 +463,7 @@ def _header_to_settings(header):
     return settings
 
 
-def _buffer_to_array(buf, header):
+def _buffer_to_array(tile_buffer, header):
     """
     Convert a buffer to an array using the header.
 
@@ -471,10 +471,20 @@ def _buffer_to_array(buf, header):
     and using the FITS header translates it into a numpy array with the correct
     dtype, endianess and shape.
     """
-    tile_shape = (header["ZTILE2"], header["ZTILE1"])
-    compression_type = header["ZCMPTYPE"]
-    dtype = BITPIX2DTYPE[header["ZBITPIX"]]
-    return np.asarray(buf).view(np.dtype(dtype).newbyteorder(">")).reshape(tile_shape)
+    tile_shape = (header['ZTILE2'], header['ZTILE1'])
+
+    if header['ZCMPTYPE'].startswith('GZIP') and header['ZBITPIX'] > 8:
+        # TOOD: support float types
+        int_size = header['ZBITPIX'] // 8
+        tile_data = np.asarray(tile_buffer).view(f'>i{int_size}').reshape(tile_shape)
+    else:
+        if tile_buffer.format == 'b':
+            # NOTE: this feels like a Numpy bug - need to investigate
+            tile_data = np.asarray(tile_buffer, dtype=np.uint8).reshape(tile_shape)
+        else:
+            tile_data = np.asarray(tile_buffer).reshape(tile_shape)
+
+    return tile_data
 
 
 def decompress_hdu(hdu):
@@ -491,27 +501,10 @@ def decompress_hdu(hdu):
 
     istart = 0
     jstart = 0
-    for cdata in hdu.compressed_data["COMPRESSED_DATA"]:
-        tile_buffer = decompress_tile(
-            cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
-        )
-
-        if hdu._header["ZCMPTYPE"].startswith("GZIP") and hdu._header["ZBITPIX"] > 8:
-            # TOOD: support float types
-            int_size = hdu._header["ZBITPIX"] // 8
-            tile_data = (
-                np.asarray(tile_buffer).view(f">i{int_size}").reshape(tile_shape)
-            )
-        else:
-            if tile_buffer.format == "b":
-                # NOTE: this feels like a Numpy bug - need to investigate
-                tile_data = np.asarray(tile_buffer, dtype=np.uint8).reshape(tile_shape)
-            else:
-                tile_data = np.asarray(tile_buffer).reshape(tile_shape)
-
-        data[
-            istart : istart + tile_shape[0], jstart : jstart + tile_shape[1]
-        ] = tile_data
+    for cdata in hdu.compressed_data['COMPRESSED_DATA']:
+        tile_buffer = decompress_tile(cdata, algorithm=hdu._header['ZCMPTYPE'], **settings)
+        tile_data = _buffer_to_array(tile_buffer, hdu._header)
+        data[istart:istart + tile_shape[0], jstart:jstart + tile_shape[1]] = tile_data
         jstart += tile_shape[1]
         if jstart >= data_shape[1]:
             jstart = 0
