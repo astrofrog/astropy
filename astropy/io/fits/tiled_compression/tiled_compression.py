@@ -518,7 +518,8 @@ def decompress_hdu(hdu):
         )
         tile_data = _buffer_to_array(tile_buffer, hdu._header)
         data[
-            istart : istart + tile_shape[0], jstart : jstart + tile_shape[1]
+            istart : istart + tile_shape[0],
+            jstart : jstart + tile_shape[1],
         ] = tile_data
         jstart += tile_shape[1]
         if jstart >= data_shape[1]:
