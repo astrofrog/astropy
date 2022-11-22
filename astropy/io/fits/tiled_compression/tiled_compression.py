@@ -8,10 +8,25 @@ from gzip import decompress as gzip_decompress
 import numpy as np
 
 from astropy.io.fits.tiled_compression._compression import (
-    compress_hcompress_1_c, compress_plio_1_c, compress_rice_1_c, decompress_hcompress_1_c,
-    decompress_plio_1_c, decompress_rice_1_c)
+    compress_hcompress_1_c,
+    compress_plio_1_c,
+    compress_rice_1_c,
+    decompress_hcompress_1_c,
+    decompress_plio_1_c,
+    decompress_rice_1_c,
+)
 
-__all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'decompress_tile', 'compress_hdu', 'decompress_hdu']
+__all__ = [
+    "Gzip1",
+    "Gzip2",
+    "Rice1",
+    "PLIO1",
+    "HCompress1",
+    "compress_tile",
+    "decompress_tile",
+    "compress_hdu",
+    "decompress_hdu",
+]
 
 
 # We define our compression classes in the form of a numcodecs class. We make
@@ -20,6 +35,7 @@ __all__ = ['Gzip1', 'Gzip2', 'Rice1', 'PLIO1', 'HCompress1', 'compress_tile', 'd
 try:
     from numcodecs.abc import Codec
 except ImportError:
+
     class Codec:
         codec_id = None
         """Codec identifier."""
@@ -67,6 +83,7 @@ class Gzip1(Codec):
     DEFLATE algorithm (Deutsch 1996), which is a combination of LZ77 (Ziv &
     Lempel 1977) and Huffman coding.
     """
+
     codec_id = "FITS_GZIP1"
 
     def decode(self, buf):
@@ -138,6 +155,7 @@ class Gzip2(Codec):
         The number of buffer per value (e.g. 2 for a 16-bit integer)
 
     """
+
     codec_id = "FITS_GZIP2"
 
     def __init__(self, itemsize: int):
@@ -209,6 +227,7 @@ class Rice1(Codec):
     AIAA Computing in Aerospace Conf., AIAA-93-4541-CP, American Institute of
     Aeronautics and Astronautics [https://doi.org/10.2514/6.1993-4541]
     """
+
     codec_id = "FITS_RICE1"
 
     def __init__(self, blocksize: int, bytepix: int, tilesize: int):
@@ -231,8 +250,10 @@ class Rice1(Codec):
             The decompressed buffer.
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
-        dbytes = decompress_rice_1_c(cbytes, self.blocksize, self.bytepix, self.tilesize)
-        return np.frombuffer(dbytes, dtype=f'i{self.bytepix}').data
+        dbytes = decompress_rice_1_c(
+            cbytes, self.blocksize, self.bytepix, self.tilesize
+        )
+        return np.frombuffer(dbytes, dtype=f"i{self.bytepix}").data
 
     def encode(self, buf):
         """
@@ -248,7 +269,7 @@ class Rice1(Codec):
         buf
             A buffer with decompressed data.
         """
-        dbytes = np.asarray(buf).astype(f'i{self.bytepix}').tobytes()
+        dbytes = np.asarray(buf).astype(f"i{self.bytepix}").tobytes()
         return compress_rice_1_c(dbytes, self.blocksize, self.bytepix)
 
 
@@ -263,6 +284,7 @@ class PLIO1(Codec):
     follow level changes in the image, allowing a 16-bit encoding to be used
     regardless of the image depth.
     """
+
     codec_id = "FITS_PLIO1"
 
     def __init__(self, tilesize: int):
@@ -284,13 +306,13 @@ class PLIO1(Codec):
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
         dbytes = decompress_plio_1_c(cbytes, self.tilesize)
-        return np.frombuffer(dbytes, dtype='i4').data
+        return np.frombuffer(dbytes, dtype="i4").data
 
     def encode(self, buf):
         """
         Compress the data in the buffer using the PLIO_1 algorithm.
         """
-        dbytes = np.asarray(buf).astype('i4').tobytes()
+        dbytes = np.asarray(buf).astype("i4").tobytes()
         return compress_plio_1_c(dbytes)
 
 
@@ -324,6 +346,7 @@ class HCompress1(Codec):
         ness is greatly reduced, producing more pleasing images, if the image
         is smoothed slightly during decompression.
     """
+
     codec_id = "FITS_HCOMPRESS1"
 
     def __init__(self, scale: float, smooth: bool, bytepix: int, nx: int, ny: int):
@@ -349,8 +372,10 @@ class HCompress1(Codec):
             A buffer with decompressed data.
         """
         cbytes = np.frombuffer(buf, dtype=np.uint8).tobytes()
-        dbytes = decompress_hcompress_1_c(cbytes, self.nx, self.ny, self.scale, self.smooth, self.bytepix)
-        return np.frombuffer(dbytes, dtype=f'i{self.bytepix}').data
+        dbytes = decompress_hcompress_1_c(
+            cbytes, self.nx, self.ny, self.scale, self.smooth, self.bytepix
+        )
+        return np.frombuffer(dbytes, dtype=f"i{self.bytepix}").data
 
     def encode(self, buf):
         """
@@ -366,8 +391,10 @@ class HCompress1(Codec):
         buf
             A buffer with decompressed data.
         """
-        dbytes = np.asarray(buf).astype(f'i{self.bytepix}').tobytes()
-        return compress_hcompress_1_c(dbytes, self.nx, self.ny, self.scale, self.bytepix)
+        dbytes = np.asarray(buf).astype(f"i{self.bytepix}").tobytes()
+        return compress_hcompress_1_c(
+            dbytes, self.nx, self.ny, self.scale, self.bytepix
+        )
 
 
 ALGORITHMS = {
@@ -413,24 +440,24 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
 
 def _header_to_settings(header):
 
-    tile_shape = (header['ZTILE2'], header['ZTILE1'])
+    tile_shape = (header["ZTILE2"], header["ZTILE1"])
 
     settings = {}
 
-    if header['ZCMPTYPE'] == 'GZIP_2':
-        settings['itemsize'] = header['ZBITPIX'] // 8
-    elif header['ZCMPTYPE'] == 'PLIO_1':
-        settings['tilesize'] = np.product(tile_shape)
-    elif header['ZCMPTYPE'] == 'RICE_1':
-        settings['blocksize'] = header['ZVAL1']
-        settings['bytepix'] = header['ZVAL2']
-        settings['tilesize'] = np.product(tile_shape)
-    elif header['ZCMPTYPE'] == 'HCOMPRESS_1':
-        settings['bytepix'] = 4
-        settings['scale'] = header['ZVAL1']
-        settings['smooth'] = header['ZVAL2']
-        settings['nx'] = header['ZTILE2']
-        settings['ny'] = header['ZTILE1']
+    if header["ZCMPTYPE"] == "GZIP_2":
+        settings["itemsize"] = header["ZBITPIX"] // 8
+    elif header["ZCMPTYPE"] == "PLIO_1":
+        settings["tilesize"] = np.product(tile_shape)
+    elif header["ZCMPTYPE"] == "RICE_1":
+        settings["blocksize"] = header["ZVAL1"]
+        settings["bytepix"] = header["ZVAL2"]
+        settings["tilesize"] = np.product(tile_shape)
+    elif header["ZCMPTYPE"] == "HCOMPRESS_1":
+        settings["bytepix"] = 4
+        settings["scale"] = header["ZVAL1"]
+        settings["smooth"] = header["ZVAL2"]
+        settings["nx"] = header["ZTILE2"]
+        settings["ny"] = header["ZTILE1"]
 
     return settings
 
@@ -440,30 +467,36 @@ def decompress_hdu(hdu):
     Drop-in replacement for decompress_hdu from compressionmodule.c
     """
 
-    tile_shape = (hdu._header['ZTILE2'], hdu._header['ZTILE1'])
-    data_shape = (hdu._header['ZNAXIS1'], hdu._header['ZNAXIS2'])
+    tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
+    data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
 
     settings = _header_to_settings(hdu._header)
 
-    data = np.zeros(data_shape, dtype='i4')
+    data = np.zeros(data_shape, dtype="i4")
 
     istart = 0
     jstart = 0
-    for cdata in hdu.compressed_data['COMPRESSED_DATA']:
-        tile_buffer = decompress_tile(cdata, algorithm=hdu._header['ZCMPTYPE'], **settings)
+    for cdata in hdu.compressed_data["COMPRESSED_DATA"]:
+        tile_buffer = decompress_tile(
+            cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
+        )
 
-        if hdu._header['ZCMPTYPE'].startswith('GZIP') and  hdu._header['ZBITPIX'] > 8:
+        if hdu._header["ZCMPTYPE"].startswith("GZIP") and hdu._header["ZBITPIX"] > 8:
             # TOOD: support float types
-            int_size = hdu._header['ZBITPIX'] // 8
-            tile_data = np.asarray(tile_buffer).view(f'>i{int_size}').reshape(tile_shape)
+            int_size = hdu._header["ZBITPIX"] // 8
+            tile_data = (
+                np.asarray(tile_buffer).view(f">i{int_size}").reshape(tile_shape)
+            )
         else:
-            if tile_buffer.format == 'b':
+            if tile_buffer.format == "b":
                 # NOTE: this feels like a Numpy bug - need to investigate
                 tile_data = np.asarray(tile_buffer, dtype=np.uint8).reshape(tile_shape)
             else:
                 tile_data = np.asarray(tile_buffer).reshape(tile_shape)
 
-        data[istart:istart + tile_shape[0], jstart:jstart + tile_shape[1]] = tile_data
+        data[
+            istart : istart + tile_shape[0], jstart : jstart + tile_shape[1]
+        ] = tile_data
         jstart += tile_shape[1]
         if jstart >= data_shape[1]:
             jstart = 0
@@ -481,32 +514,32 @@ def compress_hdu(hdu):
 
     settings = _header_to_settings(hdu._header)
 
-    tile_shape = (hdu._header['ZTILE2'], hdu._header['ZTILE1'])
-    data_shape = (hdu._header['ZNAXIS1'], hdu._header['ZNAXIS2'])
+    tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
+    data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
 
     compressed_bytes = []
 
     for i in range(0, data_shape[0], tile_shape[0]):
         for j in range(0, data_shape[1], tile_shape[1]):
             # TODO: deal with data not being integer number of tiles
-            data = hdu.data[i:i+tile_shape[0], j:j+tile_shape[1]]
+            data = hdu.data[i : i + tile_shape[0], j : j + tile_shape[1]]
             # The original compress_hdu assumed the data was in native endian, so we
             # change this here:
-            if hdu._header['ZCMPTYPE'].startswith('GZIP'):
+            if hdu._header["ZCMPTYPE"].startswith("GZIP"):
                 # This is apparently needed so that our heap data agrees with
                 # the C implementation!?
-                data = data.astype(data.dtype.newbyteorder('>'))
+                data = data.astype(data.dtype.newbyteorder(">"))
             else:
                 if not data.dtype.isnative:
-                    data = data.astype(data.dtype.newbyteorder('='))
-            cbytes = compress_tile(data, algorithm=hdu._header['ZCMPTYPE'], **settings)
+                    data = data.astype(data.dtype.newbyteorder("="))
+            cbytes = compress_tile(data, algorithm=hdu._header["ZCMPTYPE"], **settings)
             compressed_bytes.append(cbytes)
 
-    heap_header = np.zeros(len(compressed_bytes) * 2, '>i4')
+    heap_header = np.zeros(len(compressed_bytes) * 2, ">i4")
     for i in range(len(compressed_bytes)):
         heap_header[i * 2] = len(compressed_bytes[i])
-        heap_header[1 + i * 2] = heap_header[:i * 2:2].sum()
+        heap_header[1 + i * 2] = heap_header[: i * 2 : 2].sum()
 
-    heap = heap_header.tobytes() + b''.join(compressed_bytes)
+    heap = heap_header.tobytes() + b"".join(compressed_bytes)
 
     return heap_header[::2].sum(), np.frombuffer(heap, dtype=np.uint8)
