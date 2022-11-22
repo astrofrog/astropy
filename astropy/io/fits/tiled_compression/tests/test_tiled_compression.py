@@ -220,9 +220,9 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
     tile_size = (hdr["ZTILE2"], hdr["ZTILE1"])
     compression_type = hdr["ZCMPTYPE"]
     original_tile_1 = original_int_hdu.data[: tile_size[0], : tile_size[1]]
-    original_compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][
-        0
-    ].tobytes()
+    # fmt: off
+    original_compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][0].tobytes()
+    # fmt: on
 
     settings = _header_to_settings(canonical_int_hdus.header)
     tile_data_buffer = decompress_tile(
