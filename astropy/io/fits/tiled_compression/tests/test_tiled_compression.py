@@ -1,3 +1,4 @@
+import gzip
 from pathlib import Path
 
 import numpy as np
@@ -58,7 +59,9 @@ def test_basic(tmp_path, compression_type, dtype):
 
     compressed_tile_bytes = hdulist[1].data["COMPRESSED_DATA"][0].tobytes()
 
-    tile_data_buffer = decompress_tile(compressed_tile_bytes, algorithm=compression_type, **settings)
+    tile_data_buffer = decompress_tile(
+        compressed_tile_bytes, algorithm=compression_type, **settings
+    )
     tile_data = _buffer_to_array(tile_data_buffer, hdulist[1].header)
 
     assert_equal(tile_data, original_data[:4, :4])
@@ -217,15 +220,26 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
     tile_size = (hdr["ZTILE2"], hdr["ZTILE1"])
     compression_type = hdr["ZCMPTYPE"]
     original_tile_1 = original_int_hdu.data[: tile_size[0], : tile_size[1]]
-    compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][0].tobytes()
+    original_compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][
+        0
+    ].tobytes()
 
     settings = _header_to_settings(canonical_int_hdus.header)
     tile_data_buffer = decompress_tile(
-        compressed_tile_bytes, algorithm=compression_type, **settings
+        original_compressed_tile_bytes, algorithm=compression_type, **settings
     )
     tile_data = _buffer_to_array(tile_data_buffer, hdr)
     np.testing.assert_allclose(original_tile_1, tile_data)
 
     # Now compress the original data and see if we can recover the compressed bytes we loaded
-    compressed_tile_data = compress_tile(original_tile_1, algorithm=compression_type, **settings)
-    assert compressed_tile_data == compressed_tile_bytes
+    compressed_tile_data = compress_tile(
+        original_tile_1, algorithm=compression_type, **settings
+    )
+    if compression_type.startswith("GZIP"):
+        # gzip compression can be non-deterministic i.e. compression level etc,
+        # so we validate the raw decompressed bytes are the same.
+        assert gzip.decompress(compressed_tile_data) == gzip.decompress(
+            original_compressed_tile_bytes
+        )
+    else:
+        assert compressed_tile_data == compressed_tile_bytes
