@@ -230,9 +230,9 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
 
     # gzip compression can be non-deterministic i.e. compression level,
     # compressed data dtype etc. So this test can't work for GZIP files.
-    if notcompression_type.startswith("GZIP"):
+    if not compression_type.startswith("GZIP"):
         # Now compress the original data and see if we can recover the compressed bytes we loaded
         compressed_tile_data = compress_tile(
             original_tile_1, algorithm=compression_type, **settings
         )
-        assert compressed_tile_data == compressed_tile_bytes
+        assert compressed_tile_data == original_compressed_tile_bytes
