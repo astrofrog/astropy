@@ -1,4 +1,3 @@
-import gzip
 from pathlib import Path
 
 import numpy as np
@@ -220,9 +219,7 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
     tile_size = (hdr["ZTILE2"], hdr["ZTILE1"])
     compression_type = hdr["ZCMPTYPE"]
     original_tile_1 = original_int_hdu.data[: tile_size[0], : tile_size[1]]
-    # fmt: off
-    original_compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][0].tobytes()
-    # fmt: on
+    original_compressed_tile_bytes = canonical_int_hdus.data["COMPRESSED_DATA"][0].tobytes()  # fmt: skip
 
     settings = _header_to_settings(canonical_int_hdus.header)
     tile_data_buffer = decompress_tile(
@@ -231,15 +228,11 @@ def test_canonical_data(original_int_hdu, canonical_int_hdus):
     tile_data = _buffer_to_array(tile_data_buffer, hdr)
     np.testing.assert_allclose(original_tile_1, tile_data)
 
-    # Now compress the original data and see if we can recover the compressed bytes we loaded
-    compressed_tile_data = compress_tile(
-        original_tile_1, algorithm=compression_type, **settings
-    )
-    if compression_type.startswith("GZIP"):
-        # gzip compression can be non-deterministic i.e. compression level etc,
-        # so we validate the raw decompressed bytes are the same.
-        assert gzip.decompress(compressed_tile_data) == gzip.decompress(
-            original_compressed_tile_bytes
+    # gzip compression can be non-deterministic i.e. compression level,
+    # compressed data dtype etc. So this test can't work for GZIP files.
+    if notcompression_type.startswith("GZIP"):
+        # Now compress the original data and see if we can recover the compressed bytes we loaded
+        compressed_tile_data = compress_tile(
+            original_tile_1, algorithm=compression_type, **settings
         )
-    else:
         assert compressed_tile_data == compressed_tile_bytes
