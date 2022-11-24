@@ -30,13 +30,9 @@ from .base import BITPIX2DTYPE, DELAYED, DTYPE2BITPIX, ExtensionHDU
 from .image import ImageHDU
 from .table import BinTableHDU
 
-try:
-    from astropy.io.fits import compression
+from astropy.io.fits.tiled_compression import compress_hdu, decompress_hdu
 
-    COMPRESSION_SUPPORTED = COMPRESSION_ENABLED = True
-except ImportError:
-    COMPRESSION_SUPPORTED = COMPRESSION_ENABLED = False
-
+COMPRESSION_ENABLED = True
 
 # Quantization dithering method constants; these are right out of fitsio.h
 NO_DITHER = -1
@@ -642,14 +638,6 @@ class CompImageHDU(BinTableHDU):
         same image will always use the same seed.
         """
 
-        if not COMPRESSION_SUPPORTED:
-            # TODO: Raise a more specific Exception type
-            raise Exception(
-                "The astropy.io.fits.compression module is not "
-                "available.  Creation of compressed image HDUs is "
-                "disabled."
-            )
-
         compression_type = CMTYPE_ALIASES.get(compression_type, compression_type)
 
         if data is DELAYED:
@@ -764,16 +752,8 @@ class CompImageHDU(BinTableHDU):
         if "ZIMAGE" not in header or not header["ZIMAGE"]:
             return False
 
-        if COMPRESSION_SUPPORTED and COMPRESSION_ENABLED:
+        if COMPRESSION_ENABLED:
             return True
-        elif not COMPRESSION_SUPPORTED:
-            warnings.warn(
-                "Failure matching header to a compressed image "
-                "HDU: The compression module is not available.\n"
-                "The HDU will be treated as a Binary Table HDU.",
-                AstropyUserWarning,
-            )
-            return False
         else:
             # Compression is supported but disabled; just pass silently (#92)
             return False
@@ -1495,7 +1475,7 @@ class CompImageHDU(BinTableHDU):
     @lazyproperty
     def data(self):
         # The data attribute is the image data (not the table data).
-        data = compression.decompress_hdu(self)
+        data = decompress_hdu(self)
 
         if data is None:
             return data
@@ -1836,7 +1816,7 @@ class CompImageHDU(BinTableHDU):
             # self.compressed_data, and writes directly to it
             # compress_hdu returns the size of the heap for the written
             # compressed image table
-            heapsize, self.compressed_data = compression.compress_hdu(self)
+            heapsize, self.compressed_data = compress_hdu(self)
         finally:
             # if data was byteswapped return it to its original order
             if should_swap:
