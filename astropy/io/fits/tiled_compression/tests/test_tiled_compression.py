@@ -214,6 +214,10 @@ def original_int_hdu(canonical_data_base_path):
         yield hdul[0]
 
 
+# pytest-openfiles does not correctly check for open files when the files are
+# opened in a fixture, so we skip the check here.
+# https://github.com/astropy/pytest-openfiles/issues/32
+@pytest.mark.openfiles_ignore
 def test_canonical_data(original_int_hdu, canonical_int_hdus):
     hdr = canonical_int_hdus.header
     tile_size = (hdr["ZTILE2"], hdr["ZTILE1"])
