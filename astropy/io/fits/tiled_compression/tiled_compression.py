@@ -498,10 +498,45 @@ def _buffer_to_array(tile_buffer, header):
     return tile_data
 
 
+def _check_compressed_header(header):
+
+    # Check for overflows which might cause issues when calling C code
+
+    for kw in ["ZNAXIS", "ZVAL1", "ZVAL2", "ZBLANK", "BLANK"]:
+        if kw in header:
+            if np.intc(header[kw]) < 0:
+                raise OverflowError()
+
+    for i in range(1, header['ZNAXIS'] + 1):
+        for kw_name in ["ZNAXIS", "ZTILE"]:
+            kw = f"{kw_name}{i}"
+            if kw in header:
+                if np.int32(header[kw]) < 0:
+                    raise OverflowError()
+
+    for i in range(1, header['NAXIS'] + 1):
+        kw = f"NAXIS{i}"
+        if kw in header:
+            if np.int64(header[kw]) < 0:
+                raise OverflowError()
+
+    for kw in ["TNULL1", "PCOUNT", "THEAP"]:
+        if kw in header:
+            if np.int64(header[kw]) < 0:
+                raise OverflowError()
+
+    for kw in ["ZVAL3"]:
+        if kw in header:
+            if np.isinf(np.float32(header[kw])):
+                raise OverflowError()
+
+
 def decompress_hdu(hdu):
     """
     Drop-in replacement for decompress_hdu from compressionmodule.c
     """
+
+    _check_compressed_header(hdu._header)
 
     tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
     data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
@@ -533,6 +568,8 @@ def compress_hdu(hdu):
     """
     Drop-in replacement for compress_hdu from compressionmodule.c
     """
+
+    _check_compressed_header(hdu._header)
 
     # For now this is very inefficient, just a proof of concept!
 
