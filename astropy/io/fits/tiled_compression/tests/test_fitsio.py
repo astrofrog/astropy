@@ -8,60 +8,72 @@ cfitsio.
  else in the code this shouldn't cause us any issues. Please bear this in mind
  when editing this file.
 """
+import itertools
+import os
+
 import numpy as np
 import pytest
 
 from astropy.io import fits
 
-fitsio = pytest.importorskip("fitsio")
+if "ASTROPY_ALWAYS_TEST_FITSIO" in os.environ:
+    import fitsio
+else:
+    fitsio = pytest.importorskip("fitsio")
+
+
+def _expand(params):
+    """
+    Expands a list of N iterables of parameters into a flat list with all
+    combinations of all parameters.
+    """
+    expanded = []
+    for ele in params:
+        expanded += list(itertools.product(*ele))
+    return expanded
 
 
 @pytest.fixture(
     scope="module",
-    params=[
-        (10,),
-        (12, 12),
-        (15, 15),
-        (15, 15, 15),
-        # >3D Data are not currently supported with astropy
-        # (15, 15, 15, 15),
-    ],
-    ids=lambda x: f"shape: {x}",
+    params=_expand(
+        [
+            [((10,),), ((5,), (1,), (3,))],
+            [((12, 12),), ((1, 12), (4, 5), (6, 6))],
+            [((15, 15),), ((1, 15), (5, 1), (5, 5))],
+            [
+                ((15, 15, 15),),
+                ((5, 5, 1), (5, 7, 1), (1, 5, 4), (1, 1, 15), (15, 1, 5)),
+            ],
+            # >3D Data are not currently supported with astropy
+            # (15, 15, 15, 15),
+        ],
+    ),
+    ids=lambda x: f"shape: {x[0]} tile_dims: {x[1]}",
 )
-def base_original_data(request, compression_type_dtype):
-    if compression_type_dtype[0] == "HCOMPRESS_1" and len(request.param) != 2:
+def array_shapes_tile_dims(request, compression_type_dtype):
+    shape, tile_dim = request.param
+    # H_COMPRESS needs >=2D data and always 2D tiles
+    if compression_type_dtype[0] == "HCOMPRESS_1" and (
+        len(shape) < 2 or np.count_nonzero(np.array(tile_dim) != 1) != 2
+    ):
         pytest.xfail("HCOMPRESS is 2D only apparently")
-    size = np.product(request.param)
-    return np.arange(size).reshape(request.param)
+    return shape, tile_dim
 
 
-@pytest.fixture(
-    scope="module",
-    ids=lambda x: f"tiles per axis: {x}",
-    params=[3, 2, 1, (1, 3, -99), (1, 2, 3), (1, -99, -99)],
-)
-def tile_dims(request, base_original_data, compression_type_dtype):
-    compression_type = compression_type_dtype[0]
-    tile_scale_factor = np.array(request.param)
-    if tile_scale_factor.ndim > 0:
-        tile_scale_factor = tile_scale_factor[: base_original_data.ndim]
+@pytest.fixture(scope="module")
+def tile_dims(array_shapes_tile_dims):
+    return array_shapes_tile_dims[1]
 
-    if compression_type == "HCOMPRESS_1":
-        # If HCOMPRESS then we can only have 2D tiles so all other dims must
-        # have tile length of 1
-        if tile_scale_factor.ndim > 2:
-            tile_scale_factor[2:] = -99
 
-        if np.count_nonzero(tile_scale_factor != -99) != 2:
-            pytest.xfail("HCOMPRESS needs two non-unity tile dimensions.")
+@pytest.fixture(scope="module")
+def data_shape(array_shapes_tile_dims):
+    return array_shapes_tile_dims[0]
 
-    tile_scale_factor = np.where(
-        tile_scale_factor == -99, base_original_data.shape, tile_scale_factor
-    )
 
-    return tuple(
-        np.array(np.array(base_original_data.shape) / tile_scale_factor, dtype=int)
-    )
+@pytest.fixture(scope="module")
+def base_original_data(data_shape):
+    size = np.product(data_shape)
+    return np.arange(size).reshape(data_shape)
 
 
 @pytest.fixture(scope="module")
@@ -69,6 +81,7 @@ def fitsio_compressed_file_path(
     tmp_path_factory,
     compression_type_dtype,
     base_original_data,
+    data_shape,
     tile_dims,
 ):
     compression_type, dtype = compression_type_dtype
@@ -86,7 +99,10 @@ def fitsio_compressed_file_path(
 
 @pytest.fixture(scope="module")
 def astropy_compressed_file_path(
-    tmp_path_factory, compression_type_dtype, base_original_data
+    tmp_path_factory,
+    compression_type_dtype,
+    base_original_data,
+    data_shape,
 ):
     compression_type, dtype = compression_type_dtype
     if base_original_data.ndim > 2 and "u1" in dtype:
