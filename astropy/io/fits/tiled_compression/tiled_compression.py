@@ -7,6 +7,7 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
+from astropy.io.fits.hdu.base import BITPIX2DTYPE
 from astropy.io.fits.tiled_compression._compression import (
     compress_hcompress_1_c,
     compress_plio_1_c,
@@ -507,14 +508,14 @@ def _check_compressed_header(header):
             if np.intc(header[kw]) < 0:
                 raise OverflowError()
 
-    for i in range(1, header['ZNAXIS'] + 1):
+    for i in range(1, header["ZNAXIS"] + 1):
         for kw_name in ["ZNAXIS", "ZTILE"]:
             kw = f"{kw_name}{i}"
             if kw in header:
                 if np.int32(header[kw]) < 0:
                     raise OverflowError()
 
-    for i in range(1, header['NAXIS'] + 1):
+    for i in range(1, header["NAXIS"] + 1):
         kw = f"NAXIS{i}"
         if kw in header:
             if np.int64(header[kw]) < 0:
@@ -543,7 +544,7 @@ def decompress_hdu(hdu):
 
     settings = _header_to_settings(hdu._header)
 
-    data = np.zeros(data_shape, dtype="i4")
+    data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
     istart = 0
     jstart = 0
