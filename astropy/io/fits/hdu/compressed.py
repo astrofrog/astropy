@@ -17,6 +17,7 @@ from astropy.io.fits.column import KEYWORD_NAMES as TABLE_KEYWORD_NAMES
 from astropy.io.fits.column import TDEF_RE, ColDefs, Column
 from astropy.io.fits.fitsrec import FITS_rec
 from astropy.io.fits.header import Header
+from astropy.io.fits.tiled_compression import compress_hdu, decompress_hdu
 from astropy.io.fits.util import (
     _get_array_mmap,
     _is_int,
@@ -29,8 +30,6 @@ from astropy.utils.exceptions import AstropyUserWarning
 from .base import BITPIX2DTYPE, DELAYED, DTYPE2BITPIX, ExtensionHDU
 from .image import ImageHDU
 from .table import BinTableHDU
-
-from astropy.io.fits.tiled_compression import compress_hdu, decompress_hdu
 
 COMPRESSION_ENABLED = True
 
@@ -1782,17 +1781,6 @@ class CompImageHDU(BinTableHDU):
                 self.data - _pseudo_zero(self.data.dtype),
                 dtype=f"=i{self.data.dtype.itemsize}",
             )
-            should_swap = False
-        else:
-            should_swap = not self.data.dtype.isnative
-
-        if should_swap:
-            if self.data.flags.writeable:
-                self.data.byteswap(True)
-            else:
-                # For read-only arrays, there is no way around making
-                # a byteswapped copy of the data.
-                self.data = self.data.byteswap(False)
 
         try:
             nrows = self._header["NAXIS2"]
@@ -1818,9 +1806,6 @@ class CompImageHDU(BinTableHDU):
             # compressed image table
             heapsize, self.compressed_data = compress_hdu(self)
         finally:
-            # if data was byteswapped return it to its original order
-            if should_swap:
-                self.data.byteswap(True)
             self.data = old_data
 
         # CFITSIO will write the compressed data in big-endian order
