@@ -439,9 +439,17 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
     return ALGORITHMS[algorithm](**kwargs).encode(buf)
 
 
+def _tile_shape(header):
+    return tuple(header[f"ZTILE{idx}"] for idx in range(header["ZNAXIS"], 0, -1))
+
+
+def _data_shape(header):
+    return tuple(header[f"ZNAXIS{idx}"] for idx in range(header["ZNAXIS"], 0, -1))
+
+
 def _header_to_settings(header):
 
-    tile_shape = (header["ZTILE2"], header["ZTILE1"])
+    tile_shape = _tile_shape(header)
 
     settings = {}
 
@@ -471,7 +479,8 @@ def _buffer_to_array(tile_buffer, header):
     and using the FITS header translates it into a numpy array with the correct
     dtype, endianess and shape.
     """
-    tile_shape = (header["ZTILE2"], header["ZTILE1"])
+
+    tile_shape = _tile_shape(header)
 
     if header["ZCMPTYPE"].startswith("GZIP"):
         # This algorithm is taken from fitsio
@@ -539,28 +548,31 @@ def decompress_hdu(hdu):
 
     _check_compressed_header(hdu._header)
 
-    tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
-    data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
+    tile_shape = _tile_shape(hdu._header)
+    data_shape = _data_shape(hdu._header)
 
     settings = _header_to_settings(hdu._header)
 
     data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
-    istart = 0
-    jstart = 0
+    istart = np.zeros(data.ndim, dtype=int)
     for cdata in hdu.compressed_data["COMPRESSED_DATA"]:
         tile_buffer = decompress_tile(
             cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
         )
         tile_data = _buffer_to_array(tile_buffer, hdu._header)
-        data[
-            istart : istart + tile_shape[0],
-            jstart : jstart + tile_shape[1],
-        ] = tile_data
-        jstart += tile_shape[1]
-        if jstart >= data_shape[1]:
-            jstart = 0
-            istart += tile_shape[0]
+        slices = tuple(
+            [
+                slice(istart[idx], istart[idx] + tile_shape[idx])
+                for idx in range(len(istart))
+            ]
+        )
+        data[slices] = tile_data
+        istart[-1] += tile_shape[-1]
+        for idx in range(data.ndim - 1, 0, -1):
+            if istart[idx] >= data_shape[idx]:
+                istart[idx] = 0
+                istart[idx - 1] += tile_shape[idx - 1]
 
     return data
 
@@ -576,26 +588,44 @@ def compress_hdu(hdu):
 
     settings = _header_to_settings(hdu._header)
 
-    tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
-    data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
+    tile_shape = _tile_shape(hdu._header)
+    data_shape = _data_shape(hdu._header)
 
     compressed_bytes = []
 
-    for i in range(0, data_shape[0], tile_shape[0]):
-        for j in range(0, data_shape[1], tile_shape[1]):
-            # TODO: deal with data not being integer number of tiles
-            data = hdu.data[i : i + tile_shape[0], j : j + tile_shape[1]]
-            # The original compress_hdu assumed the data was in native endian, so we
-            # change this here:
-            if hdu._header["ZCMPTYPE"].startswith("GZIP"):
-                # This is apparently needed so that our heap data agrees with
-                # the C implementation!?
-                data = data.astype(data.dtype.newbyteorder(">"))
-            else:
-                if not data.dtype.isnative:
-                    data = data.astype(data.dtype.newbyteorder("="))
-            cbytes = compress_tile(data, algorithm=hdu._header["ZCMPTYPE"], **settings)
-            compressed_bytes.append(cbytes)
+    istart = np.zeros(len(data_shape), dtype=int)
+
+    while True:
+
+        slices = tuple(
+            [
+                slice(istart[idx], istart[idx] + tile_shape[idx])
+                for idx in range(len(istart))
+            ]
+        )
+
+        # TODO: deal with data not being integer number of tiles
+        data = hdu.data[slices]
+        # The original compress_hdu assumed the data was in native endian, so we
+        # change this here:
+        if hdu._header["ZCMPTYPE"].startswith("GZIP"):
+            # This is apparently needed so that our heap data agrees with
+            # the C implementation!?
+            data = data.astype(data.dtype.newbyteorder(">"))
+        else:
+            if not data.dtype.isnative:
+                data = data.astype(data.dtype.newbyteorder("="))
+        cbytes = compress_tile(data, algorithm=hdu._header["ZCMPTYPE"], **settings)
+        compressed_bytes.append(cbytes)
+
+        istart[-1] += tile_shape[-1]
+        for idx in range(data.ndim - 1, 0, -1):
+            if istart[idx] >= data_shape[idx]:
+                istart[idx] = 0
+                istart[idx - 1] += tile_shape[idx - 1]
+
+        if istart[0] >= data_shape[0]:
+            break
 
     heap_header = np.zeros(len(compressed_bytes) * 2, ">i4")
     for i in range(len(compressed_bytes)):
