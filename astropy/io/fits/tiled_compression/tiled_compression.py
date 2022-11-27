@@ -350,7 +350,7 @@ class HCompress1(Codec):
 
     codec_id = "FITS_HCOMPRESS1"
 
-    def __init__(self, scale: float, smooth: bool, bytepix: int, nx: int, ny: int):
+    def __init__(self, scale: int, smooth: bool, bytepix: int, nx: int, ny: int):
         self.scale = scale
         self.smooth = smooth
         self.bytepix = bytepix
@@ -455,7 +455,7 @@ def _header_to_settings(header):
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "HCOMPRESS_1":
         settings["bytepix"] = 4
-        settings["scale"] = header["ZVAL1"]
+        settings["scale"] = int(header["ZVAL1"])
         settings["smooth"] = header["ZVAL2"]
         settings["nx"] = header["ZTILE2"]
         settings["ny"] = header["ZTILE1"]
