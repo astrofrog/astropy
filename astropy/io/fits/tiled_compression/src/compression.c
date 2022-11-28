@@ -80,6 +80,7 @@ static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
   PyObject *result;
 
   int maxelem;
+  int npix;
   short *compressed_values;
   int compressed_length;
   int *decompressed_values;
@@ -94,14 +95,14 @@ static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
   compressed_values = (short *)malloc(maxelem);
 
   decompressed_values = (int *)str;
-  count /= 4;
+  npix = count / 4;
 
   // Zero the compressed values array
-  for (int i = 0; i < count * 2; i++) {
+  for (int i = 0; i < maxelem / 2; i++) {
     compressed_values[i] = 0;
   }
 
-  compressed_length = pl_p2li(decompressed_values, 1, compressed_values, (int)count);
+  compressed_length = pl_p2li(decompressed_values, 1, compressed_values, npix);
 
   buf = (char *)compressed_values;
 
