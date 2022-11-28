@@ -131,9 +131,9 @@ static PyObject *decompress_plio_1_c(PyObject *self, PyObject *args) {
 
   // NOTE: the second *4 shouldn't be needed but ran into segfaults with
   // smaller buffers.
-  decompressed_values = (int *)malloc(tilesize * 4 * 4);
+  decompressed_values = (int *)malloc(sizeof(int) * tilesize);
 
-  pl_l2pi(compressed_values, 1, decompressed_values, (int)count);
+  pl_l2pi(compressed_values, 1, decompressed_values, tilesize);
 
   buf = (char *)decompressed_values;
 
