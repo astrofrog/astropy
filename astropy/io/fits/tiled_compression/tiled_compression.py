@@ -653,11 +653,12 @@ def compress_hdu(hdu):
     for i in range(len(compressed_bytes)):
         heap_header[i * 2] = len(compressed_bytes[i])
         heap_header[1 + i * 2] = heap_header[: i * 2 : 2].sum()
-        # For PLIO_1, the size of each heap element is a factor of two lower than
-        # the real size - not clear if this is deliberate or bug somewhere.
 
-    for i in range(len(compressed_bytes)):
-        heap_header[i * 2] /= 2
+    # For PLIO_1, the size of each heap element is a factor of two lower than
+    # the real size - not clear if this is deliberate or bug somewhere.
+    if hdu._header['ZCMPTYPE'] == 'PLIO_1':
+        for i in range(len(compressed_bytes)):
+            heap_header[i * 2] /= 2
 
     compressed_bytes = b"".join(compressed_bytes)
 
