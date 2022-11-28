@@ -79,6 +79,7 @@ static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
   Py_ssize_t count;
   PyObject *result;
 
+  int maxelem;
   short *compressed_values;
   int compressed_length;
   int *decompressed_values;
@@ -87,7 +88,10 @@ static PyObject *compress_plio_1_c(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  compressed_values = (short *)malloc(count * 4);
+  // maxelem adapted from cfitsio's imcomp_calc_max_elem function
+  maxelem = count;
+
+  compressed_values = (short *)malloc(maxelem);
 
   decompressed_values = (int *)str;
   count /= 4;
@@ -147,6 +151,7 @@ static PyObject *compress_rice_1_c(PyObject *self, PyObject *args) {
 
   int blocksize, bytepix;
 
+  int maxelem;
   unsigned char *compressed_values;
   int compressed_length;
   signed char *decompressed_values_byte;
@@ -157,7 +162,10 @@ static PyObject *compress_rice_1_c(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  compressed_values = (unsigned char *)malloc(count * 4);
+  // maxelem adapted from cfitsio's imcomp_calc_max_elem function
+  maxelem = count + count / bytepix / blocksize + 2 + 4;
+
+  compressed_values = (unsigned char *)malloc(maxelem);
 
   if (bytepix == 1) {
     decompressed_values_byte = (signed char *)str;
@@ -225,6 +233,7 @@ static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args) {
   int bytepix, nx, ny, scale;
   int status=0;  // Important to initialize this to zero otherwise will fail silently
 
+  int maxelem;
   char *compressed_values;
   int *decompressed_values_int;
   long long *decompressed_values_longlong;
@@ -233,7 +242,10 @@ static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  compressed_values = (char *)malloc(count * 4);
+  // maxelem adapted from cfitsio's imcomp_calc_max_elem function
+  maxelem = count / 4 * 2.2 + 26;
+
+  compressed_values = (char *)malloc(maxelem);
 
   if (bytepix == 4) {
     decompressed_values_int = (int *)str;
