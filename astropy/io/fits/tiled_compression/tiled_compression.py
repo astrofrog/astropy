@@ -647,11 +647,24 @@ def compress_hdu(hdu):
         if istart[0] >= data_shape[0]:
             break
 
-    heap_header = np.zeros(len(compressed_bytes) * 2, ">i4")
+    header_len = len(compressed_bytes) * 2
+
+    heap_header = np.zeros(header_len, ">i4")
     for i in range(len(compressed_bytes)):
         heap_header[i * 2] = len(compressed_bytes[i])
         heap_header[1 + i * 2] = heap_header[: i * 2 : 2].sum()
+        # For PLIO_1, the size of each heap element is a factor of two lower than
+        # the real size - not clear if this is deliberate or bug somewhere.
 
-    heap = heap_header.tobytes() + b"".join(compressed_bytes)
+    for i in range(len(compressed_bytes)):
+        heap_header[i * 2] /= 2
 
-    return heap_header[::2].sum(), np.frombuffer(heap, dtype=np.uint8)
+    compressed_bytes = b"".join(compressed_bytes)
+
+    # For PLIO_1, it looks like the compressed data is byteswapped
+    if hdu._header['ZCMPTYPE'] == 'PLIO_1':
+        compressed_bytes = np.frombuffer(compressed_bytes, dtype='<i2').astype('>i2').tobytes()
+
+    heap = heap_header.tobytes() + compressed_bytes
+
+    return len(compressed_bytes), np.frombuffer(heap, dtype=np.uint8)
