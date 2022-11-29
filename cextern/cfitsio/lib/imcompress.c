@@ -21,98 +21,6 @@ char results[999][30];
 
 float *fits_rand_value = 0;
 
-
-static int unquantize_i1r4(long row,
-            unsigned char *input,         /* I - array of values to be converted     */
-            long ntodo,           /* I - number of elements in the array     */
-            double scale,         /* I - FITS TSCALn or BSCALE value         */
-            double zero,          /* I - FITS TZEROn or BZERO  value         */
-            int dither_method,    /* I - which subtractive dither method to use */
-            int nullcheck,        /* I - null checking code; 0 = don't check */
-                                  /*     1:set null pixels = nullval         */
-                                  /*     2: if null pixel, set nullarray = 1 */
-            unsigned char tnull,          /* I - value of FITS TNULLn keyword if any */
-            float nullval,        /* I - set null pixels, if nullcheck = 1   */
-            char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
-            int  *anynull,        /* O - set to 1 if any pixels are null     */
-            float *output,        /* O - array of converted pixels           */
-            int *status);          /* IO - error status                       */
-static int unquantize_i2r4(long row,
-            short *input,         /* I - array of values to be converted     */
-            long ntodo,           /* I - number of elements in the array     */
-            double scale,         /* I - FITS TSCALn or BSCALE value         */
-            double zero,          /* I - FITS TZEROn or BZERO  value         */
-            int dither_method,    /* I - which subtractive dither method to use */
-            int nullcheck,        /* I - null checking code; 0 = don't check */
-                                  /*     1:set null pixels = nullval         */
-                                  /*     2: if null pixel, set nullarray = 1 */
-            short tnull,          /* I - value of FITS TNULLn keyword if any */
-            float nullval,        /* I - set null pixels, if nullcheck = 1   */
-            char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
-            int  *anynull,        /* O - set to 1 if any pixels are null     */
-            float *output,        /* O - array of converted pixels           */
-            int *status);          /* IO - error status                       */
-static int unquantize_i4r4(long row,
-            INT32BIT *input,      /* I - array of values to be converted     */
-            long ntodo,           /* I - number of elements in the array     */
-            double scale,         /* I - FITS TSCALn or BSCALE value         */
-            double zero,          /* I - FITS TZEROn or BZERO  value         */
-            int dither_method,    /* I - which subtractive dither method to use */
-            int nullcheck,        /* I - null checking code; 0 = don't check */
-                                  /*     1:set null pixels = nullval         */
-                                  /*     2: if null pixel, set nullarray = 1 */
-            INT32BIT tnull,       /* I - value of FITS TNULLn keyword if any */
-            float nullval,        /* I - set null pixels, if nullcheck = 1   */
-            char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
-            int  *anynull,        /* O - set to 1 if any pixels are null     */
-            float *output,        /* O - array of converted pixels           */
-            int *status);          /* IO - error status                       */
-static int unquantize_i1r8(long row,
-            unsigned char *input,         /* I - array of values to be converted     */
-            long ntodo,           /* I - number of elements in the array     */
-            double scale,         /* I - FITS TSCALn or BSCALE value         */
-            double zero,          /* I - FITS TZEROn or BZERO  value         */
-            int dither_method,    /* I - which subtractive dither method to use */
-            int nullcheck,        /* I - null checking code; 0 = don't check */
-                                  /*     1:set null pixels = nullval         */
-                                  /*     2: if null pixel, set nullarray = 1 */
-            unsigned char tnull,          /* I - value of FITS TNULLn keyword if any */
-            double nullval,        /* I - set null pixels, if nullcheck = 1   */
-            char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
-            int  *anynull,        /* O - set to 1 if any pixels are null     */
-            double *output,        /* O - array of converted pixels           */
-            int *status);          /* IO - error status                       */
-static int unquantize_i2r8(long row,
-            short *input,         /* I - array of values to be converted     */
-            long ntodo,           /* I - number of elements in the array     */
-            double scale,         /* I - FITS TSCALn or BSCALE value         */
-            double zero,          /* I - FITS TZEROn or BZERO  value         */
-            int dither_method,    /* I - which subtractive dither method to use */
-            int nullcheck,        /* I - null checking code; 0 = don't check */
-                                  /*     1:set null pixels = nullval         */
-                                  /*     2: if null pixel, set nullarray = 1 */
-            short tnull,          /* I - value of FITS TNULLn keyword if any */
-            double nullval,        /* I - set null pixels, if nullcheck = 1   */
-            char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
-            int  *anynull,        /* O - set to 1 if any pixels are null     */
-            double *output,        /* O - array of converted pixels           */
-            int *status);          /* IO - error status                       */
-static int unquantize_i4r8(long row,
-            INT32BIT *input,      /* I - array of values to be converted     */
-            long ntodo,           /* I - number of elements in the array     */
-            double scale,         /* I - FITS TSCALn or BSCALE value         */
-            double zero,          /* I - FITS TZEROn or BZERO  value         */
-            int dither_method,    /* I - which subtractive dither method to use */
-            int nullcheck,        /* I - null checking code; 0 = don't check */
-                                  /*     1:set null pixels = nullval         */
-                                  /*     2: if null pixel, set nullarray = 1 */
-            INT32BIT tnull,       /* I - value of FITS TNULLn keyword if any */
-            double nullval,        /* I - set null pixels, if nullcheck = 1   */
-            char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
-            int  *anynull,        /* O - set to 1 if any pixels are null     */
-            double *output,        /* O - array of converted pixels           */
-            int *status);          /* IO - error status                       */
-
 int fits_init_randoms(void) {
 
 /* initialize an array of random numbers */
@@ -169,7 +77,7 @@ int fits_init_randoms(void) {
 }
 
 /*--------------------------------------------------------------------------*/
-static int unquantize_i1r4(long row, /* tile number = row number in table  */
+int unquantize_i1r4(long row, /* tile number = row number in table  */
             unsigned char *input, /* I - array of values to be converted     */
             long ntodo,           /* I - number of elements in the array     */
             double scale,         /* I - FITS TSCALn or BSCALE value         */
@@ -251,7 +159,7 @@ static int unquantize_i1r4(long row, /* tile number = row number in table  */
     return(*status);
 }
 /*--------------------------------------------------------------------------*/
-static int unquantize_i2r4(long row, /* seed for random values  */
+int unquantize_i2r4(long row, /* seed for random values  */
             short *input,         /* I - array of values to be converted     */
             long ntodo,           /* I - number of elements in the array     */
             double scale,         /* I - FITS TSCALn or BSCALE value         */
@@ -333,8 +241,8 @@ static int unquantize_i2r4(long row, /* seed for random values  */
     return(*status);
 }
 /*--------------------------------------------------------------------------*/
-static int unquantize_i4r4(long row, /* tile number = row number in table    */
-            INT32BIT *input,      /* I - array of values to be converted     */
+int unquantize_i4r4(long row, /* tile number = row number in table    */
+            int *input,      /* I - array of values to be converted     */
             long ntodo,           /* I - number of elements in the array     */
             double scale,         /* I - FITS TSCALn or BSCALE value         */
             double zero,          /* I - FITS TZEROn or BZERO  value         */
@@ -342,7 +250,7 @@ static int unquantize_i4r4(long row, /* tile number = row number in table    */
             int nullcheck,        /* I - null checking code; 0 = don't check */
                                   /*     1:set null pixels = nullval         */
                                   /*     2: if null pixel, set nullarray = 1 */
-            INT32BIT tnull,       /* I - value of FITS TNULLn keyword if any */
+            int tnull,       /* I - value of FITS TNULLn keyword if any */
             float nullval,        /* I - set null pixels, if nullcheck = 1   */
             char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
             int  *anynull,        /* O - set to 1 if any pixels are null     */
@@ -411,7 +319,7 @@ static int unquantize_i4r4(long row, /* tile number = row number in table    */
     return(*status);
 }
 /*--------------------------------------------------------------------------*/
-static int unquantize_i1r8(long row, /* tile number = row number in table  */
+int unquantize_i1r8(long row, /* tile number = row number in table  */
             unsigned char *input, /* I - array of values to be converted     */
             long ntodo,           /* I - number of elements in the array     */
             double scale,         /* I - FITS TSCALn or BSCALE value         */
@@ -493,7 +401,7 @@ static int unquantize_i1r8(long row, /* tile number = row number in table  */
     return(*status);
 }
 /*--------------------------------------------------------------------------*/
-static int unquantize_i2r8(long row, /* tile number = row number in table  */
+int unquantize_i2r8(long row, /* tile number = row number in table  */
             short *input,         /* I - array of values to be converted     */
             long ntodo,           /* I - number of elements in the array     */
             double scale,         /* I - FITS TSCALn or BSCALE value         */
@@ -574,8 +482,8 @@ static int unquantize_i2r8(long row, /* tile number = row number in table  */
     return(*status);
 }
 /*--------------------------------------------------------------------------*/
-static int unquantize_i4r8(long row, /* tile number = row number in table    */
-            INT32BIT *input,      /* I - array of values to be converted     */
+int unquantize_i4r8(long row, /* tile number = row number in table    */
+            int *input,      /* I - array of values to be converted     */
             long ntodo,           /* I - number of elements in the array     */
             double scale,         /* I - FITS TSCALn or BSCALE value         */
             double zero,          /* I - FITS TZEROn or BZERO  value         */
@@ -583,7 +491,7 @@ static int unquantize_i4r8(long row, /* tile number = row number in table    */
             int nullcheck,        /* I - null checking code; 0 = don't check */
                                   /*     1:set null pixels = nullval         */
                                   /*     2: if null pixel, set nullarray = 1 */
-            INT32BIT tnull,       /* I - value of FITS TNULLn keyword if any */
+            int tnull,       /* I - value of FITS TNULLn keyword if any */
             double nullval,        /* I - set null pixels, if nullcheck = 1   */
             char *nullarray,      /* I - bad pixel array, if nullcheck = 2   */
             int  *anynull,        /* O - set to 1 if any pixels are null     */

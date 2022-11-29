@@ -55,9 +55,3 @@ extern int Fitsio_Pthread_Status;
 #define SUBTRACTIVE_DITHER_2 2
 
 int fits_init_randoms(void);
-
-#define INT32BIT int  /* 32-bit integer datatype.  Currently this       */
-                      /* datatype is an 'int' on all useful platforms   */
-                      /* however, it is possible that that are cases    */
-                      /* where 'int' is a 2-byte integer, in which case */
-                      /* INT32BIT would need to be defined as 'long'.   */
