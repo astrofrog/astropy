@@ -16,10 +16,17 @@ import pytest
 
 from astropy.io import fits
 
+# This is so that tox can force this file to be run, and not be silently
+# skipped on CI, but in all other test runs it's skipped.
 if "ASTROPY_ALWAYS_TEST_FITSIO" in os.environ:
     import fitsio
 else:
     fitsio = pytest.importorskip("fitsio")
+
+
+@pytest.fixture(scope="session")
+def numpy_rng():
+    return np.random.default_rng()
 
 
 def _expand(params):
@@ -44,16 +51,24 @@ def _expand(params):
                 ((15, 15, 15),),
                 ((5, 5, 1), (5, 7, 1), (1, 5, 4), (1, 1, 15), (15, 1, 5)),
             ],
-            # >3D Data are not currently supported with astropy
-            # (15, 15, 15, 15),
+            # >3D Data are not currently supported by cfitsio
+            # [
+            #     ((15, 15, 15, 15),),
+            #     (
+            #         (5, 5, 5, 5),
+            #         (1, 5, 1, 5),
+            #         (3, 1, 4, 5),
+            #     ),
+            # ],
         ],
     ),
     ids=lambda x: f"shape: {x[0]} tile_dims: {x[1]}",
 )
-def array_shapes_tile_dims(request, compression_type_dtype):
+def array_shapes_tile_dims(request, comp_type_dtype):
     shape, tile_dim = request.param
+    compression_type = comp_type_dtype[0]
     # H_COMPRESS needs >=2D data and always 2D tiles
-    if compression_type_dtype[0] == "HCOMPRESS_1" and (
+    if compression_type == "HCOMPRESS_1" and (
         len(shape) < 2 or np.count_nonzero(np.array(tile_dim) != 1) != 2
     ):
         pytest.xfail("HCOMPRESS is 2D only apparently")
@@ -71,20 +86,24 @@ def data_shape(array_shapes_tile_dims):
 
 
 @pytest.fixture(scope="module")
-def base_original_data(data_shape):
-    size = np.product(data_shape)
-    return np.arange(size).reshape(data_shape)
+def base_original_data(data_shape, dtype, numpy_rng, compression_type):
+    random = numpy_rng.uniform(high=255, size=data_shape)
+    # There seems to be a bug with the fitsio library where HCOMPRESS doesn't
+    # work with int16 random data, so use a bit for structured test data.
+    if compression_type.startswith("HCOMPRESS") and "i2" in dtype or "u1" in dtype:
+        random = np.arange(np.product(data_shape)).reshape(data_shape)
+    return random.astype(dtype)
 
 
 @pytest.fixture(scope="module")
 def fitsio_compressed_file_path(
     tmp_path_factory,
-    compression_type_dtype,
+    comp_type_dtype,
     base_original_data,
-    data_shape,
+    data_shape,  # For debuging
     tile_dims,
 ):
-    compression_type, dtype = compression_type_dtype
+    compression_type, dtype = comp_type_dtype
     if base_original_data.ndim > 2 and "u1" in dtype:
         pytest.xfail("These don't work")
     tmp_path = tmp_path_factory.mktemp("fitsio")
@@ -99,12 +118,12 @@ def fitsio_compressed_file_path(
 
 @pytest.fixture(scope="module")
 def astropy_compressed_file_path(
+    comp_type_dtype,
     tmp_path_factory,
-    compression_type_dtype,
     base_original_data,
-    data_shape,
+    data_shape,  # For debuging
 ):
-    compression_type, dtype = compression_type_dtype
+    compression_type, dtype = comp_type_dtype
     if base_original_data.ndim > 2 and "u1" in dtype:
         pytest.xfail("These don't work")
     original_data = base_original_data.astype(dtype)
@@ -118,9 +137,11 @@ def astropy_compressed_file_path(
 
 
 def test_decompress(
-    fitsio_compressed_file_path, base_original_data, compression_type_dtype
+    fitsio_compressed_file_path,
+    base_original_data,
+    compression_type,
+    dtype,
 ):
-    compression_type, dtype = compression_type_dtype
 
     with fits.open(fitsio_compressed_file_path) as hdul:
         data = hdul[1].data
@@ -133,10 +154,11 @@ def test_decompress(
 
 
 def test_compress(
-    astropy_compressed_file_path, base_original_data, compression_type_dtype
+    astropy_compressed_file_path,
+    base_original_data,
+    compression_type,
+    dtype,
 ):
-    compression_type, dtype = compression_type_dtype
-
     fits = fitsio.FITS(astropy_compressed_file_path, "r")
     header = fits[1].read_header()
     data = fits[1].read()
