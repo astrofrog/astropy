@@ -34,6 +34,7 @@ __all__ = [
     "decompress_hdu",
 ]
 
+DITHER_METHODS = {"NO_DITHER": -1, "SUBTRACTIVE_DITHER_1": 1, "SUBTRACTIVE_DITHER_2": 2}
 
 # We define our compression classes in the form of a numcodecs class. We make
 # the dependency on numcodecs optional as we can use them internally without it
@@ -746,7 +747,9 @@ def decompress_hdu(hdu):
     data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
     istart = np.zeros(data.ndim, dtype=int)
-    for cdata in hdu.compressed_data["COMPRESSED_DATA"]:
+    for irow, row in enumerate(hdu.compressed_data):
+
+        cdata = row["COMPRESSED_DATA"]
         tile_buffer = decompress_tile(
             cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
         )
@@ -768,6 +771,15 @@ def decompress_hdu(hdu):
         tile_data = _buffer_to_array(
             tile_buffer, hdu._header, tile_shape=actual_tile_shape
         )
+
+        # TODO: have a more robust way of determining whether we need to
+        # dequantize
+        if hdu._header["ZBITPIX"] < 0 and tile_data.dtype.kind != "f":
+            dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
+            q = Quantize(irow, dither_method, None, hdu._header["ZBITPIX"])
+            tile_data = np.asarray(
+                q.decode_quantized(tile_data, row["ZSCALE"], row["ZZERO"])
+            )
 
         data[tile_slices] = tile_data
         istart[-1] += tile_shape[-1]
