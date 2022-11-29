@@ -79,8 +79,12 @@ def data_shape(array_shapes_tile_dims):
 
 
 @pytest.fixture(scope="module")
-def base_original_data(data_shape, dtype, numpy_rng):
+def base_original_data(data_shape, dtype, numpy_rng, compression_type):
     random = numpy_rng.uniform(high=255, size=data_shape)
+    # There seems to be a bug with the fitsio library where HCOMPRESS doesn't
+    # work with int16 random data, so use a bit for structured test data.
+    if compression_type.startswith("HCOMPRESS") and "i2" in dtype:
+        random = np.arange(np.product(data_shape)).reshape(data_shape)
     return random.astype(dtype)
 
 
