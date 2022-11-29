@@ -6,6 +6,7 @@
 #include <fits_hdecompress.h>
 #include <pliocomp.h>
 #include <ricecomp.h>
+#include <quantize.h>
 
 // TODO: use better estimates for compressed buffer sizes, as done in
 //       imcomp_calc_max_elem in cfitsio. For now we assume the
@@ -31,6 +32,8 @@ static char compress_rice_1_c_docstring[] = "Compress data using RICE_1";
 static char decompress_rice_1_c_docstring[] = "Decompress data using RICE_1";
 static char compress_hcompress_1_c_docstring[] = "Compress data using HCOMPRESS_1";
 static char decompress_hcompress_1_c_docstring[] = "Decompress data using HCOMPRESS_1";
+static char quantize_float_c_docstring[] = "Quantize float data";
+static char quantize_double_c_docstring[] = "Quantize float data";
 
 /* Declare the C functions here. */
 static PyObject *compress_plio_1_c(PyObject *self, PyObject *args);
@@ -39,6 +42,8 @@ static PyObject *compress_rice_1_c(PyObject *self, PyObject *args);
 static PyObject *decompress_rice_1_c(PyObject *self, PyObject *args);
 static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args);
 static PyObject *decompress_hcompress_1_c(PyObject *self, PyObject *args);
+static PyObject *quantize_float_c(PyObject *self, PyObject *args);
+static PyObject *quantize_double_c(PyObject *self, PyObject *args);
 
 /* Define the methods that will be available on the module. */
 static PyMethodDef module_methods[] = {
@@ -48,6 +53,8 @@ static PyMethodDef module_methods[] = {
     {"decompress_rice_1_c", decompress_rice_1_c, METH_VARARGS, decompress_rice_1_c_docstring},
     {"compress_hcompress_1_c", compress_hcompress_1_c, METH_VARARGS, compress_hcompress_1_c_docstring},
     {"decompress_hcompress_1_c", decompress_hcompress_1_c, METH_VARARGS, decompress_hcompress_1_c_docstring},
+    {"quantize_float_c", quantize_float_c, METH_VARARGS, quantize_float_c_docstring},
+    {"quantize_double_c", quantize_double_c, METH_VARARGS, quantize_double_c_docstring},
     {NULL, NULL, 0, NULL}
 };
 
@@ -295,5 +302,87 @@ static PyObject *decompress_hcompress_1_c(PyObject *self, PyObject *args) {
 
   result = Py_BuildValue("y#", dbytes, nx * ny * bytepix);
   free(dbytes);
+  return result;
+}
+
+static PyObject *quantize_float_c(PyObject *self, PyObject *args) {
+
+  const char *input_bytes;
+  Py_ssize_t nbytes;
+  PyObject *result;
+
+  float *input_data;
+
+  long row, nx, ny;
+  int nullcheck;
+  float in_null_value;
+  float qlevel;
+  int dither_method;
+
+  int *quantized_data;
+  char *quantized_bytes;
+  double bscale, bzero;
+  int iminval, imaxval;
+
+  if (!PyArg_ParseTuple(args, "y#lllidfi",
+                        &input_bytes, &nbytes, &row,
+                        &nx, &ny, &nullcheck, &in_null_value, &qlevel,
+                        &dither_method)) {
+    return NULL;
+  }
+
+  input_data = (double *)input_bytes;
+  quantized_data = (int *)malloc(nx * ny * sizeof(int));
+
+  fits_quantize_float(row, input_data, nx, ny, nullcheck,
+                      in_null_value, qlevel, dither_method,
+                      quantized_data, &bscale, &bzero, &iminval, &imaxval);
+
+  quantized_bytes = (char *)quantized_data;
+
+  result = Py_BuildValue("y#ddii", quantized_bytes, nx * ny * sizeof(int),
+                                   bscale, bzero, iminval, imaxval);
+  free(quantized_bytes);
+  return result;
+}
+
+static PyObject *quantize_double_c(PyObject *self, PyObject *args) {
+
+  const char *input_bytes;
+  Py_ssize_t nbytes;
+  PyObject *result;
+
+  double *input_data;
+
+  long row, nx, ny;
+  int nullcheck;
+  double in_null_value;
+  float qlevel;
+  int dither_method;
+
+  int *quantized_data;
+  char *quantized_bytes;
+  double bscale, bzero;
+  int iminval, imaxval;
+
+  if (!PyArg_ParseTuple(args, "y#lllidfi",
+                        &input_bytes, &nbytes, &row,
+                        &nx, &ny, &nullcheck, &in_null_value, &qlevel,
+                        &dither_method)) {
+    return NULL;
+  }
+
+  input_data = (double *)input_bytes;
+  quantized_data = (int *)malloc(nx * ny * sizeof(int));
+
+  fits_quantize_double(row, input_data, nx, ny, nullcheck,
+                       in_null_value, qlevel, dither_method,
+                       quantized_data, &bscale, &bzero, &iminval, &imaxval);
+
+  quantized_bytes = (char *)quantized_data;
+
+  result = Py_BuildValue("y#ddii", quantized_bytes, nx * ny * sizeof(int),
+                                   bscale, bzero, iminval, imaxval);
+  free(quantized_bytes);
   return result;
 }
