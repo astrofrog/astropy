@@ -119,9 +119,9 @@ def astropy_compressed_file_path(
     _map = {"qlevel": "quantize_level"}
     param = {_map[k]: v for k, v in param.items()}
 
-    # TODO: Support non-quantized GZIP writes
+    # Map quantize_level
     if param.get("quantize_level", "missing") is None:
-        pytest.xfail("CompImageHDU can't currently save non-quantized data")
+        param["quantize_level"] = 0.0
 
     hdu = fits.CompImageHDU(
         data=original_data, compression_type=compression_type, **param
