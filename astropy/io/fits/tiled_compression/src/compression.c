@@ -4,10 +4,10 @@
 #include <Python.h>
 #include <fits_hcompress.h>
 #include <fits_hdecompress.h>
-#include <pliocomp.h>
-#include <ricecomp.h>
-#include <quantize.h>
 #include <imcompress.h>
+#include <pliocomp.h>
+#include <quantize.h>
+#include <ricecomp.h>
 
 // TODO: use better estimates for compressed buffer sizes, as done in
 //       imcomp_calc_max_elem in cfitsio. For now we assume the
@@ -31,8 +31,10 @@ static char compress_plio_1_c_docstring[] = "Compress data using PLIO_1";
 static char decompress_plio_1_c_docstring[] = "Decompress data using PLIO_1";
 static char compress_rice_1_c_docstring[] = "Compress data using RICE_1";
 static char decompress_rice_1_c_docstring[] = "Decompress data using RICE_1";
-static char compress_hcompress_1_c_docstring[] = "Compress data using HCOMPRESS_1";
-static char decompress_hcompress_1_c_docstring[] = "Decompress data using HCOMPRESS_1";
+static char compress_hcompress_1_c_docstring[] =
+    "Compress data using HCOMPRESS_1";
+static char decompress_hcompress_1_c_docstring[] =
+    "Decompress data using HCOMPRESS_1";
 static char quantize_float_c_docstring[] = "Quantize float data";
 static char quantize_double_c_docstring[] = "Quantize float data";
 static char unquantize_float_c_docstring[] = "Unquantize data to float";
@@ -331,9 +333,8 @@ static PyObject *quantize_float_c(PyObject *self, PyObject *args) {
   double bscale, bzero;
   int iminval, imaxval;
 
-  if (!PyArg_ParseTuple(args, "y#lllidfi",
-                        &input_bytes, &nbytes, &row,
-                        &nx, &ny, &nullcheck, &in_null_value, &qlevel,
+  if (!PyArg_ParseTuple(args, "y#lllidfi", &input_bytes, &nbytes, &row, &nx,
+                        &ny, &nullcheck, &in_null_value, &qlevel,
                         &dither_method)) {
     return NULL;
   }
@@ -341,9 +342,9 @@ static PyObject *quantize_float_c(PyObject *self, PyObject *args) {
   input_data = (float *)input_bytes;
   quantized_data = (int *)malloc(nx * ny * sizeof(int));
 
-  fits_quantize_float(row, input_data, nx, ny, nullcheck,
-                      in_null_value, qlevel, dither_method,
-                      quantized_data, &bscale, &bzero, &iminval, &imaxval);
+  fits_quantize_float(row, input_data, nx, ny, nullcheck, in_null_value, qlevel,
+                      dither_method, quantized_data, &bscale, &bzero, &iminval,
+                      &imaxval);
 
   quantized_bytes = (char *)quantized_data;
 
@@ -372,9 +373,8 @@ static PyObject *quantize_double_c(PyObject *self, PyObject *args) {
   double bscale, bzero;
   int iminval, imaxval;
 
-  if (!PyArg_ParseTuple(args, "y#lllidfi",
-                        &input_bytes, &nbytes, &row,
-                        &nx, &ny, &nullcheck, &in_null_value, &qlevel,
+  if (!PyArg_ParseTuple(args, "y#lllidfi", &input_bytes, &nbytes, &row, &nx,
+                        &ny, &nullcheck, &in_null_value, &qlevel,
                         &dither_method)) {
     return NULL;
   }
@@ -382,9 +382,9 @@ static PyObject *quantize_double_c(PyObject *self, PyObject *args) {
   input_data = (double *)input_bytes;
   quantized_data = (int *)malloc(nx * ny * sizeof(int));
 
-  fits_quantize_double(row, input_data, nx, ny, nullcheck,
-                       in_null_value, qlevel, dither_method,
-                       quantized_data, &bscale, &bzero, &iminval, &imaxval);
+  fits_quantize_double(row, input_data, nx, ny, nullcheck, in_null_value,
+                       qlevel, dither_method, quantized_data, &bscale, &bzero,
+                       &iminval, &imaxval);
 
   quantized_bytes = (char *)quantized_data;
 
@@ -407,18 +407,16 @@ static PyObject *unquantize_float_c(PyObject *self, PyObject *args) {
   int dither_method;
 
   double bscale, bzero;
-  int bytepix;  // int size
-  int status=0;
+  int bytepix; // int size
+  int status = 0;
 
   int *anynull;
   float *output_data;
   char *output_bytes;
 
-  if (!PyArg_ParseTuple(args, "y#llddiiifi",
-                        &input_bytes, &nbytes, &row,
-                        &npix, &bscale, &bzero, &dither_method,
-                        &nullcheck, &tnull, &nullval, &bytepix
-                        )) {
+  if (!PyArg_ParseTuple(args, "y#llddiiifi", &input_bytes, &nbytes, &row, &npix,
+                        &bscale, &bzero, &dither_method, &nullcheck, &tnull,
+                        &nullval, &bytepix)) {
     return NULL;
   }
 
@@ -428,30 +426,25 @@ anynull = (int *)malloc(npix * sizeof(int));
 output_data = (float *)malloc(npix * sizeof(float));
 
 if (bytepix == 1) {
-    unquantize_i1r4(row, (unsigned char*)input_bytes,
-                    npix, bscale, bzero, dither_method,
-                    nullcheck, (unsigned char)tnull, nullval,
+    unquantize_i1r4(row, (unsigned char *)input_bytes, npix, bscale, bzero,
+                    dither_method, nullcheck, (unsigned char)tnull, nullval,
                     NULL, anynull, output_data, &status);
 } else if (bytepix == 2) {
-    unquantize_i2r4(row, (short*)input_bytes,
-                    npix, bscale, bzero, dither_method,
-                    nullcheck, (short)tnull, nullval,
-                    NULL, anynull, output_data, &status);
+    unquantize_i2r4(row, (short *)input_bytes, npix, bscale, bzero,
+                    dither_method, nullcheck, (short)tnull, nullval, NULL,
+                    anynull, output_data, &status);
 } else if (bytepix == 4) {
-    unquantize_i4r4(row, (int*)input_bytes,
-                    npix, bscale, bzero, dither_method,
-                    nullcheck, (int)tnull, nullval,
-                    NULL, anynull, output_data, &status);
+    unquantize_i4r4(row, (int *)input_bytes, npix, bscale, bzero, dither_method,
+                    nullcheck, (int)tnull, nullval, NULL, anynull, output_data,
+                    &status);
 }
 
 output_bytes = (char *)output_data;
-
 
   result = Py_BuildValue("y#", output_bytes, npix * sizeof(float));
   free(output_bytes);
   return result;
 }
-
 
 static PyObject *unquantize_double_c(PyObject *self, PyObject *args) {
 
@@ -466,18 +459,16 @@ static PyObject *unquantize_double_c(PyObject *self, PyObject *args) {
   int dither_method;
 
   double bscale, bzero;
-  int bytepix;  // int size
-  int status=0;
+  int bytepix; // int size
+  int status = 0;
 
   int *anynull;
   double *output_data;
   char *output_bytes;
 
-  if (!PyArg_ParseTuple(args, "y#llddiiidi",
-                        &input_bytes, &nbytes, &row,
-                        &npix, &bscale, &bzero, &dither_method,
-                        &nullcheck, &tnull, &nullval, &bytepix
-                        )) {
+  if (!PyArg_ParseTuple(args, "y#llddiiidi", &input_bytes, &nbytes, &row, &npix,
+                        &bscale, &bzero, &dither_method, &nullcheck, &tnull,
+                        &nullval, &bytepix)) {
     return NULL;
   }
 
@@ -487,20 +478,17 @@ anynull = (int *)malloc(npix * sizeof(int));
 output_data = (double *)malloc(npix * sizeof(double));
 
 if (bytepix == 1) {
-    unquantize_i1r8(row, (unsigned char*)input_bytes,
-                    npix, bscale, bzero, dither_method,
-                    nullcheck, (unsigned char)tnull, nullval,
+    unquantize_i1r8(row, (unsigned char *)input_bytes, npix, bscale, bzero,
+                    dither_method, nullcheck, (unsigned char)tnull, nullval,
                     NULL, anynull, output_data, &status);
 } else if (bytepix == 2) {
-    unquantize_i2r8(row, (short*)input_bytes,
-                    npix, bscale, bzero, dither_method,
-                    nullcheck, (short)tnull, nullval,
-                    NULL, anynull, output_data, &status);
+    unquantize_i2r8(row, (short *)input_bytes, npix, bscale, bzero,
+                    dither_method, nullcheck, (short)tnull, nullval, NULL,
+                    anynull, output_data, &status);
 } else if (bytepix == 4) {
-    unquantize_i4r8(row, (int*)input_bytes,
-                    npix, bscale, bzero, dither_method,
-                    nullcheck, (int)tnull, nullval,
-                    NULL, anynull, output_data, &status);
+    unquantize_i4r8(row, (int *)input_bytes, npix, bscale, bzero, dither_method,
+                    nullcheck, (int)tnull, nullval, NULL, anynull, output_data,
+                    &status);
 }
 
 output_bytes = (char *)output_data;
