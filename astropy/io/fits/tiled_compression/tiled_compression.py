@@ -7,6 +7,7 @@ from gzip import decompress as gzip_decompress
 
 import numpy as np
 
+from astropy.io.fits.hdu.base import BITPIX2DTYPE
 from astropy.io.fits.tiled_compression._compression import (
     compress_hcompress_1_c,
     compress_plio_1_c,
@@ -349,7 +350,7 @@ class HCompress1(Codec):
 
     codec_id = "FITS_HCOMPRESS1"
 
-    def __init__(self, scale: float, smooth: bool, bytepix: int, nx: int, ny: int):
+    def __init__(self, scale: int, smooth: bool, bytepix: int, nx: int, ny: int):
         self.scale = scale
         self.smooth = smooth
         self.bytepix = bytepix
@@ -438,9 +439,17 @@ def compress_tile(buf, *, algorithm: str, **kwargs):
     return ALGORITHMS[algorithm](**kwargs).encode(buf)
 
 
+def _tile_shape(header):
+    return tuple(header[f"ZTILE{idx}"] for idx in range(header["ZNAXIS"], 0, -1))
+
+
+def _data_shape(header):
+    return tuple(header[f"ZNAXIS{idx}"] for idx in range(header["ZNAXIS"], 0, -1))
+
+
 def _header_to_settings(header):
 
-    tile_shape = (header["ZTILE2"], header["ZTILE1"])
+    tile_shape = _tile_shape(header)
 
     settings = {}
 
@@ -454,7 +463,7 @@ def _header_to_settings(header):
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "HCOMPRESS_1":
         settings["bytepix"] = 4
-        settings["scale"] = header["ZVAL1"]
+        settings["scale"] = int(header["ZVAL1"])
         settings["smooth"] = header["ZVAL2"]
         settings["nx"] = header["ZTILE2"]
         settings["ny"] = header["ZTILE1"]
@@ -462,7 +471,7 @@ def _header_to_settings(header):
     return settings
 
 
-def _buffer_to_array(tile_buffer, header):
+def _buffer_to_array(tile_buffer, header, tile_shape=None):
     """
     Convert a buffer to an array using the header.
 
@@ -470,7 +479,9 @@ def _buffer_to_array(tile_buffer, header):
     and using the FITS header translates it into a numpy array with the correct
     dtype, endianess and shape.
     """
-    tile_shape = (header["ZTILE2"], header["ZTILE1"])
+
+    if tile_shape is None:
+        tile_shape = _tile_shape(header)
 
     if header["ZCMPTYPE"].startswith("GZIP"):
         # This algorithm is taken from fitsio
@@ -489,6 +500,12 @@ def _buffer_to_array(tile_buffer, header):
             dtype = ">u1"
         tile_data = np.asarray(tile_buffer).view(dtype).reshape(tile_shape)
     else:
+
+        # For RICE_1 compression the tiles that are on the edge can end up
+        # being padded, so we truncate excess values
+        if header["ZCMPTYPE"] in ("RICE_1", "PLIO_1"):
+            tile_buffer = tile_buffer[: np.product(tile_shape)]
+
         if tile_buffer.format == "b":
             # NOTE: this feels like a Numpy bug - need to investigate
             tile_data = np.asarray(tile_buffer, dtype=np.uint8).reshape(tile_shape)
@@ -498,33 +515,138 @@ def _buffer_to_array(tile_buffer, header):
     return tile_data
 
 
+def _check_compressed_header(header):
+
+    # Check for overflows which might cause issues when calling C code
+
+    for kw in ["ZNAXIS", "ZVAL1", "ZVAL2", "ZBLANK", "BLANK"]:
+        if kw in header:
+            if header[kw] > 0 and np.intc(header[kw]) < 0:
+                raise OverflowError()
+
+    for i in range(1, header["ZNAXIS"] + 1):
+        for kw_name in ["ZNAXIS", "ZTILE"]:
+            kw = f"{kw_name}{i}"
+            if kw in header:
+                if header[kw] > 0 and np.int32(header[kw]) < 0:
+                    raise OverflowError()
+
+    for i in range(1, header["NAXIS"] + 1):
+        kw = f"NAXIS{i}"
+        if kw in header:
+            if header[kw] > 0 and np.int64(header[kw]) < 0:
+                raise OverflowError()
+
+    for kw in ["TNULL1", "PCOUNT", "THEAP"]:
+        if kw in header:
+            if header[kw] > 0 and np.int64(header[kw]) < 0:
+                raise OverflowError()
+
+    for kw in ["ZVAL3"]:
+        if kw in header:
+            if np.isinf(np.float32(header[kw])):
+                raise OverflowError()
+
+    # Validate data types
+
+    for kw in ["ZSCALE", "ZZERO", "TZERO1", "TSCAL1"]:
+        if kw in header:
+            if not np.isreal(header[kw]):
+                raise TypeError(f"{kw} should be floating-point")
+
+    for kw in ["TTYPE1", "TFORM1", "ZCMPTYPE", "ZNAME1", "ZQUANTIZ"]:
+        if kw in header:
+            if not isinstance(header[kw], str):
+                raise TypeError(f"{kw} should be a string")
+
+    for kw in ["ZDITHER0"]:
+        if kw in header:
+            if not np.isreal(header[kw]) or not float(header[kw]).is_integer():
+                raise TypeError(f"{kw} should be an integer")
+
+    if "TFORM1" in header:
+        for valid in ["1PB", "1PI", "1PJ", "1QB", "1QI", "1QJ"]:
+            if header["TFORM1"].startswith(valid):
+                break
+        else:
+            raise RuntimeError(f"Invalid TFORM1: {header['TFORM1']}")
+
+    # Check values
+
+    for kw in ["TFIELDS", "PCOUNT"] + [
+        f"NAXIS{idx + 1}" for idx in range(header["NAXIS"])
+    ]:
+        if kw in header:
+            if header[kw] < 0:
+                raise ValueError(f"{kw} should not be negative.")
+
+    for kw in ["ZNAXIS", "TFIELDS"]:
+        if kw in header:
+            if header[kw] < 0 or header[kw] > 999:
+                raise ValueError(f"{kw} should be in the range 0 to 999")
+
+    if header["ZBITPIX"] not in [8, 16, 32, 64, -32, -64]:
+        raise ValueError(f"Invalid value for BITPIX: {header['ZBITPIX']}")
+
+    if header["ZCMPTYPE"] not in [
+        "GZIP_1",
+        "GZIP_2",
+        "PLIO_1",
+        "RICE_1",
+        "HCOMPRESS_1",
+    ]:
+        raise ValueError(f"Unrecognized compression type: {header['ZCMPTYPE']}")
+
+    # Check that certain keys are present
+
+    header["ZNAXIS"]
+    header["ZBITPIX"]
+
+
 def decompress_hdu(hdu):
     """
     Drop-in replacement for decompress_hdu from compressionmodule.c
     """
 
-    tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
-    data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
+    _check_compressed_header(hdu._header)
+
+    tile_shape = _tile_shape(hdu._header)
+    data_shape = _data_shape(hdu._header)
 
     settings = _header_to_settings(hdu._header)
 
-    data = np.zeros(data_shape, dtype="i4")
+    data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
-    istart = 0
-    jstart = 0
+    istart = np.zeros(data.ndim, dtype=int)
     for cdata in hdu.compressed_data["COMPRESSED_DATA"]:
         tile_buffer = decompress_tile(
             cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
         )
-        tile_data = _buffer_to_array(tile_buffer, hdu._header)
-        data[
-            istart : istart + tile_shape[0],
-            jstart : jstart + tile_shape[1],
-        ] = tile_data
-        jstart += tile_shape[1]
-        if jstart >= data_shape[1]:
-            jstart = 0
-            istart += tile_shape[0]
+
+        # In the following, we don't need to special case tiles near the edge
+        # as Numpy will automatically ignore parts of the slices that are out
+        # of bounds.
+        tile_slices = tuple(
+            [
+                slice(istart[idx], istart[idx] + tile_shape[idx])
+                for idx in range(len(istart))
+            ]
+        )
+
+        # For tiles near the edge, the tile shape from the header might not be
+        # correct so we have to pass the shape manually.
+        actual_tile_shape = data[tile_slices].shape
+
+        tile_data = _buffer_to_array(
+            tile_buffer, hdu._header, tile_shape=actual_tile_shape
+        )
+
+        data[tile_slices] = tile_data
+        istart[-1] += tile_shape[-1]
+        for idx in range(data.ndim - 1, 0, -1):
+            if istart[idx] >= data_shape[idx]:
+                istart[idx] = 0
+                istart[idx - 1] += tile_shape[idx - 1]
 
     return data
 
@@ -534,36 +656,78 @@ def compress_hdu(hdu):
     Drop-in replacement for compress_hdu from compressionmodule.c
     """
 
+    if not isinstance(hdu.data, np.ndarray):
+        raise TypeError("CompImageHDU.data must be a numpy.ndarray")
+
+    _check_compressed_header(hdu._header)
+
     # For now this is very inefficient, just a proof of concept!
 
     settings = _header_to_settings(hdu._header)
 
-    tile_shape = (hdu._header["ZTILE2"], hdu._header["ZTILE1"])
-    data_shape = (hdu._header["ZNAXIS1"], hdu._header["ZNAXIS2"])
+    tile_shape = _tile_shape(hdu._header)
+    data_shape = _data_shape(hdu._header)
 
     compressed_bytes = []
 
-    for i in range(0, data_shape[0], tile_shape[0]):
-        for j in range(0, data_shape[1], tile_shape[1]):
-            # TODO: deal with data not being integer number of tiles
-            data = hdu.data[i : i + tile_shape[0], j : j + tile_shape[1]]
-            # The original compress_hdu assumed the data was in native endian, so we
-            # change this here:
-            if hdu._header["ZCMPTYPE"].startswith("GZIP"):
-                # This is apparently needed so that our heap data agrees with
-                # the C implementation!?
-                data = data.astype(data.dtype.newbyteorder(">"))
-            else:
-                if not data.dtype.isnative:
-                    data = data.astype(data.dtype.newbyteorder("="))
-            cbytes = compress_tile(data, algorithm=hdu._header["ZCMPTYPE"], **settings)
-            compressed_bytes.append(cbytes)
+    istart = np.zeros(len(data_shape), dtype=int)
 
-    heap_header = np.zeros(len(compressed_bytes) * 2, ">i4")
+    while True:
+
+        # In the following, we don't need to special case tiles near the edge
+        # as Numpy will automatically ignore parts of the slices that are out
+        # of bounds.
+        slices = tuple(
+            [
+                slice(istart[idx], istart[idx] + tile_shape[idx])
+                for idx in range(len(istart))
+            ]
+        )
+
+        # TODO: deal with data not being integer number of tiles
+        data = hdu.data[slices]
+        # The original compress_hdu assumed the data was in native endian, so we
+        # change this here:
+        if hdu._header["ZCMPTYPE"].startswith("GZIP"):
+            # This is apparently needed so that our heap data agrees with
+            # the C implementation!?
+            data = data.astype(data.dtype.newbyteorder(">"))
+        else:
+            if not data.dtype.isnative:
+                data = data.astype(data.dtype.newbyteorder("="))
+        cbytes = compress_tile(data, algorithm=hdu._header["ZCMPTYPE"], **settings)
+        compressed_bytes.append(cbytes)
+
+        istart[-1] += tile_shape[-1]
+        for idx in range(data.ndim - 1, 0, -1):
+            if istart[idx] >= data_shape[idx]:
+                istart[idx] = 0
+                istart[idx - 1] += tile_shape[idx - 1]
+
+        if istart[0] >= data_shape[0]:
+            break
+
+    header_len = len(compressed_bytes) * 2
+
+    heap_header = np.zeros(header_len, ">i4")
     for i in range(len(compressed_bytes)):
         heap_header[i * 2] = len(compressed_bytes[i])
         heap_header[1 + i * 2] = heap_header[: i * 2 : 2].sum()
 
-    heap = heap_header.tobytes() + b"".join(compressed_bytes)
+    # For PLIO_1, the size of each heap element is a factor of two lower than
+    # the real size - not clear if this is deliberate or bug somewhere.
+    if hdu._header["ZCMPTYPE"] == "PLIO_1":
+        for i in range(len(compressed_bytes)):
+            heap_header[i * 2] /= 2
 
-    return heap_header[::2].sum(), np.frombuffer(heap, dtype=np.uint8)
+    compressed_bytes = b"".join(compressed_bytes)
+
+    # For PLIO_1, it looks like the compressed data is byteswapped
+    if hdu._header["ZCMPTYPE"] == "PLIO_1":
+        compressed_bytes = (
+            np.frombuffer(compressed_bytes, dtype="<i2").astype(">i2").tobytes()
+        )
+
+    heap = heap_header.tobytes() + compressed_bytes
+
+    return len(compressed_bytes), np.frombuffer(heap, dtype=np.uint8)
