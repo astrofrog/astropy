@@ -565,7 +565,10 @@ def _check_compressed_header(header):
                 raise TypeError(f"{kw} should be an integer")
 
     if "TFORM1" in header:
-        if header["TFORM1"] not in ["1PB", "1PI", "1PJ", "1QB", "1QI", "1QJ"]:
+        for valid in ["1PB", "1PI", "1PJ", "1QB", "1QI", "1QJ"]:
+            if header["TFORM1"].startswith(valid):
+                break
+        else:
             raise RuntimeError(f"Invalid TFORM1: {header['TFORM1']}")
 
     # Check values
