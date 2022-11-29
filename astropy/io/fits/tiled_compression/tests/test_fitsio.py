@@ -51,7 +51,7 @@ def _expand(params):
                 ((15, 15, 15),),
                 ((5, 5, 1), (5, 7, 1), (1, 5, 4), (1, 1, 15), (15, 1, 5)),
             ],
-            # >3D Data are not currently supported with astropy
+            # >3D Data are not currently supported by cfitsio
             # [
             #     ((15, 15, 15, 15),),
             #     (
