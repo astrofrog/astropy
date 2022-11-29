@@ -194,7 +194,6 @@ class Quantize(Codec):
         if status == 0:
             raise QuantizationFailedException()
         else:
-            print(status, qbytes)
             return np.frombuffer(qbytes, dtype=np.int32).data, scale, zero
 
 
@@ -759,9 +758,15 @@ def decompress_hdu(hdu):
     for irow, row in enumerate(hdu.compressed_data):
 
         cdata = row["COMPRESSED_DATA"]
-        tile_buffer = decompress_tile(
-            cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
-        )
+
+        if len(cdata) == 0:
+            tile_buffer = decompress_tile(
+                row["GZIP_COMPRESSED_DATA"], algorithm="GZIP_1"
+            )
+        else:
+            tile_buffer = decompress_tile(
+                cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
+            )
 
         # In the following, we don't need to special case tiles near the edge
         # as Numpy will automatically ignore parts of the slices that are out
@@ -788,7 +793,7 @@ def decompress_hdu(hdu):
             q = Quantize(irow, dither_method, None, hdu._header["ZBITPIX"])
             tile_data = np.asarray(
                 q.decode_quantized(tile_data, row["ZSCALE"], row["ZZERO"])
-            )
+            ).reshape(actual_tile_shape)
 
         data[tile_slices] = tile_data
         istart[-1] += tile_shape[-1]
@@ -845,16 +850,15 @@ def compress_hdu(hdu):
             # TODO: use NOISEBIT quantize level
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
             q = Quantize(irow, dither_method, 10, hdu._header["ZBITPIX"])
-            print(data.dtype, data.shape)
+            original_shape = data.shape
             try:
-                tile_data, scale, zero = q.encode_quantized(data)
+                data, scale, zero = q.encode_quantized(data)
             except QuantizationFailedException:
-                tile_data = np.asarray(tile_data)
                 scales.append(0)
                 zeros.append(0)
                 lossless.append(True)
             else:
-                tile_data = np.asarray(tile_data)
+                data = np.asarray(data).reshape(original_shape)
                 scales.append(scale)
                 zeros.append(zero)
                 lossless.append(False)
@@ -865,7 +869,7 @@ def compress_hdu(hdu):
 
         # The original compress_hdu assumed the data was in native endian, so we
         # change this here:
-        if hdu._header["ZCMPTYPE"].startswith("GZIP") or store_lossless:
+        if hdu._header["ZCMPTYPE"].startswith("GZIP") or lossless[-1]:
             # This is apparently needed so that our heap data agrees with
             # the C implementation!?
             data = data.astype(data.dtype.newbyteorder(">"))
@@ -873,13 +877,14 @@ def compress_hdu(hdu):
             if not data.dtype.isnative:
                 data = data.astype(data.dtype.newbyteorder("="))
 
-        if store_lossless:
+        if lossless[-1]:
             cbytes = compress_tile(data, algorithm="GZIP_1")
         else:
             cbytes = compress_tile(data, algorithm=hdu._header["ZCMPTYPE"], **settings)
         compressed_bytes.append(cbytes)
 
         istart[-1] += tile_shape[-1]
+
         for idx in range(data.ndim - 1, 0, -1):
             if istart[idx] >= data_shape[idx]:
                 istart[idx] = 0
@@ -896,13 +901,11 @@ def compress_hdu(hdu):
         table["ZSCALE"] = np.array(scales)
         table["ZZERO"] = np.array(zeros)
 
-    for i in range(len(compressed_bytes)):
-        table["COMPRESSED_DATA"][i, 0] = len(compressed_bytes[i])
+    for irow, cbytes in enumerate(compressed_bytes):
+        table["COMPRESSED_DATA"][irow, 0] = len(cbytes)
 
     table["COMPRESSED_DATA"][0, 1] = 0
     table["COMPRESSED_DATA"][1:, 1] = np.cumsum(table["COMPRESSED_DATA"][:-1, 0])
-
-    # print()
 
     for irow in range(len(compressed_bytes)):
         if lossless[irow]:
@@ -922,6 +925,12 @@ def compress_hdu(hdu):
             np.frombuffer(compressed_bytes, dtype="<i2").astype(">i2").tobytes()
         )
 
+    table_bytes = table.tobytes()
+
+    if len(table_bytes) != hdu._theap:
+        raise Exception(
+            f"Unexpected compressed table size (expected {hdu._theap}, got {len(table_bytes)})"
+        )
     heap = table.tobytes() + compressed_bytes
 
     return len(compressed_bytes), np.frombuffer(heap, dtype=np.uint8)
