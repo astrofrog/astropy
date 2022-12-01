@@ -143,9 +143,6 @@ def test_compress_hdu(tmp_path, compression_type_dtype):
     # of compress_hdu with the C implementation - once we get rid of the C
     # implementation we should update this test.
 
-    if compression_type == "PLIO_1":
-        pytest.xfail()
-
     original_data = np.arange(144).reshape((12, 12)).astype(dtype)
 
     header = fits.Header()
