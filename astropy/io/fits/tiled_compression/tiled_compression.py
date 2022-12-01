@@ -120,7 +120,8 @@ class Quantize(Codec):
         buf
             The unquantized buffer.
         """
-        qbytes = np.asarray(buf).newbyteorder(">").byteswap()
+        qbytes = np.asarray(buf)
+        qbytes = qbytes.astype(qbytes.dtype.newbyteorder("="))
         # TODO: figure out if we need to support null checking
         if self.bitpix == -32:
             ubytes = unquantize_float_c(
@@ -166,8 +167,8 @@ class Quantize(Codec):
         buf
             A buffer with quantized data.
         """
-
         uarray = np.asarray(buf)
+        uarray = uarray.astype(uarray.dtype.newbyteorder("="))
         # TODO: figure out if we need to support null checking
         if uarray.dtype.itemsize == 4:
             qbytes, status, scale, zero = quantize_float_c(
@@ -745,6 +746,14 @@ def _check_compressed_header(header):
     header["ZBITPIX"]
 
 
+def _get_compression_setting(header, name):
+    for i in range(1, 1000):
+        if f"ZNAME{i}" not in header:
+            break
+        if header[f"ZNAME{i}"].lower() == name.lower():
+            return header[f"ZVAL{i}"]
+
+
 def decompress_hdu(hdu):
     """
     Drop-in replacement for decompress_hdu from compressionmodule.c
@@ -759,7 +768,7 @@ def decompress_hdu(hdu):
 
     data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
-    lossless = "ZSCALE" not in hdu.compressed_data.dtype.names
+    all_lossless = "ZSCALE" not in hdu.compressed_data.dtype.names
 
     istart = np.zeros(data.ndim, dtype=int)
     for irow, row in enumerate(hdu.compressed_data):
@@ -804,12 +813,15 @@ def decompress_hdu(hdu):
                 tile_buffer,
                 hdu._header,
                 tile_shape=actual_tile_shape,
-                lossless=lossless,
+                lossless=lossless or all_lossless,
             )
 
-        if not lossless:
+        if not lossless and not all_lossless:
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
-            q = Quantize(irow, dither_method, None, hdu._header["ZBITPIX"])
+            dither_seed = hdu._header.get("ZDITHER0", 0)
+            q = Quantize(
+                irow + dither_seed, dither_method, None, hdu._header["ZBITPIX"]
+            )
             tile_data = np.asarray(
                 q.decode_quantized(tile_data, row["ZSCALE"], row["ZZERO"])
             ).reshape(actual_tile_shape)
@@ -849,6 +861,8 @@ def compress_hdu(hdu):
     irow = 0
     istart = np.zeros(len(data_shape), dtype=int)
 
+    noisebit = _get_compression_setting(hdu._header, "noisebit")
+
     while True:
 
         # In the following, we don't need to special case tiles near the edge
@@ -863,10 +877,13 @@ def compress_hdu(hdu):
 
         data = hdu.data[slices]
 
-        if data.dtype.kind == "f" and hdu._header.get("NOISEBIT", 0) > 0:
+        all_lossless = "ZSCALE" not in hdu.columns.dtype.names
+
+        if data.dtype.kind == "f" and not all_lossless:
             # TODO: use NOISEBIT quantize level
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
-            q = Quantize(irow, dither_method, 10, hdu._header["ZBITPIX"])
+            dither_seed = hdu._header.get("ZDITHER0", 0)
+            q = Quantize(irow + dither_seed, dither_method, 10, hdu._header["ZBITPIX"])
             original_shape = data.shape
             try:
                 data, scale, zero = q.encode_quantized(data)
