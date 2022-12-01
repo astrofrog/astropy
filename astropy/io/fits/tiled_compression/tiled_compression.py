@@ -278,16 +278,16 @@ class Gzip2(Codec):
 
     Parameters
     ----------
-    itemsize
-        The number of buffer per value (e.g. 2 for a 16-bit integer)
+    tilesize
+        The number of elements in each tile
 
     """
 
     codec_id = "FITS_GZIP2"
 
-    def __init__(self, itemsize: int):
+    def __init__(self, tilesize: int):
         super().__init__()
-        self.itemsize = itemsize
+        self.tilesize = tilesize
 
     def decode(self, buf):
         """
@@ -307,7 +307,8 @@ class Gzip2(Codec):
         # Start off by unshuffling buffer
         unshuffled_buffer = gzip_decompress(cbytes)
         array = np.frombuffer(unshuffled_buffer, dtype=np.uint8)
-        return array.reshape((self.itemsize, -1)).T.ravel().data
+        itemsize = len(array) // int(self.tilesize)
+        return array.reshape((itemsize, -1)).T.ravel().data
 
     def encode(self, buf):
         """
@@ -325,7 +326,8 @@ class Gzip2(Codec):
         """
         # Start off by shuffling buffer
         array = np.asarray(buf).ravel().view(np.uint8)
-        shuffled_buffer = array.reshape((-1, self.itemsize)).T.ravel().tobytes()
+        itemsize = len(array) // int(self.tilesize)
+        shuffled_buffer = array.reshape((-1, itemsize)).T.ravel().tobytes()
         return gzip_compress(shuffled_buffer)
 
 
@@ -580,7 +582,7 @@ def _header_to_settings(header):
     settings = {}
 
     if header["ZCMPTYPE"] == "GZIP_2":
-        settings["itemsize"] = abs(header["ZBITPIX"]) // 8
+        settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "PLIO_1":
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "RICE_1":
