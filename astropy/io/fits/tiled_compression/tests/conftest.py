@@ -45,7 +45,7 @@ ALL_FLOAT_DTYPES = ["".join(ele) for ele in _expand([("<", ">"), ("f",), ("4", "
         # GZIP supports lossless non-quantized floating point data
         [
             ("GZIP_1", "GZIP_2"),
-            ({"qlevel": None},),
+            ({"qlevel": None}, {"qlevel": 10}),
             ALL_FLOAT_DTYPES,
         ],
     ),

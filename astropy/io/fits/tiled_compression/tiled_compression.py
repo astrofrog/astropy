@@ -120,11 +120,11 @@ class Quantize(Codec):
         buf
             The unquantized buffer.
         """
-        qbytes = np.asarray(buf)
+        qbytes = np.asarray(buf).newbyteorder(">").byteswap()
         # TODO: figure out if we need to support null checking
         if self.bitpix == -32:
             ubytes = unquantize_float_c(
-                qbytes,
+                qbytes.tobytes(),
                 self.row,
                 qbytes.size,
                 scale,
@@ -137,7 +137,7 @@ class Quantize(Codec):
             )
         elif self.bitpix == -64:
             ubytes = unquantize_double_c(
-                qbytes,
+                qbytes.tobytes(),
                 self.row,
                 qbytes.size,
                 scale,
@@ -603,7 +603,9 @@ def _header_to_settings(header):
     return settings
 
 
-def _buffer_to_array(tile_buffer, header, tile_shape=None, algorithm=None):
+def _buffer_to_array(
+    tile_buffer, header, tile_shape=None, algorithm=None, lossless=False
+):
     """
     Convert a buffer to an array using the header.
 
@@ -626,12 +628,12 @@ def _buffer_to_array(tile_buffer, header, tile_shape=None, algorithm=None):
         if tilebytesize == tilelen * 2:
             dtype = ">i2"
         elif tilebytesize == tilelen * 4:
-            if header["ZBITPIX"] < 0:
+            if header["ZBITPIX"] < 0 and lossless:
                 dtype = ">f4"
             else:
                 dtype = ">i4"
         elif tilebytesize == tilelen * 8:
-            if header["ZBITPIX"] < 0:
+            if header["ZBITPIX"] < 0 and lossless:
                 dtype = ">f8"
             else:
                 dtype = ">i8"
@@ -757,6 +759,8 @@ def decompress_hdu(hdu):
 
     data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
+    lossless = "ZSCALE" not in hdu.compressed_data.dtype.names
+
     istart = np.zeros(data.ndim, dtype=int)
     for irow, row in enumerate(hdu.compressed_data):
 
@@ -793,15 +797,17 @@ def decompress_hdu(hdu):
                 hdu._header,
                 tile_shape=actual_tile_shape,
                 algorithm="GZIP_1",
+                lossless=True,
             )
         else:
             tile_data = _buffer_to_array(
-                tile_buffer, hdu._header, tile_shape=actual_tile_shape
+                tile_buffer,
+                hdu._header,
+                tile_shape=actual_tile_shape,
+                lossless=lossless,
             )
 
-        # TODO: have a more robust way of determining whether we need to
-        # dequantize
-        if hdu._header["ZBITPIX"] < 0 and tile_data.dtype.kind != "f":
+        if not lossless:
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
             q = Quantize(irow, dither_method, None, hdu._header["ZBITPIX"])
             tile_data = np.asarray(
