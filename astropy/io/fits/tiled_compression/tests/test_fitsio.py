@@ -116,7 +116,7 @@ def astropy_compressed_file_path(
     tmp_path = tmp_path_factory.mktemp("astropy")
     filename = tmp_path / f"{compression_type}_{dtype}.fits"
     # Convert fitsio kwargs to astropy kwargs
-    _map = {"qlevel": "quantize_level"}
+    _map = {"qlevel": "quantize_level", "qmethod": "quantize_method"}
     param = {_map[k]: v for k, v in param.items()}
 
     # Map quantize_level
@@ -145,7 +145,15 @@ def test_decompress(
         assert hdul[1].data.dtype.kind == np.dtype(dtype).kind
         assert hdul[1].data.dtype.itemsize == np.dtype(dtype).itemsize
         # assert hdul[1].data.dtype.byteorder == np.dtype(dtype).byteorder
-    np.testing.assert_allclose(data, base_original_data)
+
+    # The data might not always match the original data exactly in the case of
+    # lossy compression so instead of comparing the array read by astropy to the
+    # original data, we compare it to the data read in by fitsio (as those
+    # should match)
+
+    fts = fitsio.FITS(fitsio_compressed_file_path)
+    data2 = fts[1].read()
+    np.testing.assert_allclose(data, data2)
 
 
 def test_compress(
@@ -154,12 +162,20 @@ def test_compress(
     compression_type,
     dtype,
 ):
-    fits = fitsio.FITS(astropy_compressed_file_path, "r")
-    header = fits[1].read_header()
-    data = fits[1].read()
+
+    fts = fitsio.FITS(astropy_compressed_file_path, "r")
+    header = fts[1].read_header()
+    data = fts[1].read()
 
     assert header["ZCMPTYPE"] == compression_type
     assert data.dtype.kind == np.dtype(dtype).kind
     assert data.dtype.itemsize == np.dtype(dtype).itemsize
     # assert data.dtype.byteorder == np.dtype(dtype).byteorder
-    np.testing.assert_allclose(data, base_original_data)
+
+    # The data might not always match the original data exactly in the case of
+    # lossy compression so instead of comparing the array read by fitsio to the
+    # original data, we compare it to the data read in by astropy (as those
+    # should match)
+
+    with fits.open(astropy_compressed_file_path) as hdul:
+        np.testing.assert_allclose(data, hdul[1].data)
