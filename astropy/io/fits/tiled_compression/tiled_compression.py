@@ -123,6 +123,9 @@ class Quantize(Codec):
         qbytes = np.asarray(buf)
         qbytes = qbytes.astype(qbytes.dtype.newbyteorder("="))
         # TODO: figure out if we need to support null checking
+        if self.dither_method == -1:
+            # For NO_DITHER we should just use the scale and zero directly
+            return qbytes * scale + zero
         if self.bitpix == -32:
             ubytes = unquantize_float_c(
                 qbytes.tobytes(),
@@ -880,10 +883,12 @@ def compress_hdu(hdu):
         all_lossless = "ZSCALE" not in hdu.columns.dtype.names
 
         if data.dtype.kind == "f" and not all_lossless:
-            # TODO: use NOISEBIT quantize level
+            noisebit = _get_compression_setting(hdu._header, "noisebit")
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
             dither_seed = hdu._header.get("ZDITHER0", 0)
-            q = Quantize(irow + dither_seed, dither_method, 10, hdu._header["ZBITPIX"])
+            q = Quantize(
+                irow + dither_seed, dither_method, noisebit, hdu._header["ZBITPIX"]
+            )
             original_shape = data.shape
             try:
                 data, scale, zero = q.encode_quantized(data)
