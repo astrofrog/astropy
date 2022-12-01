@@ -51,7 +51,11 @@ ALL_FLOAT_DTYPES = ["".join(ele) for ele in _expand([("<", ">"), ("f",), ("4", "
         # For now test more quantization parameters with GZIP_1 only
         [
             ("GZIP_1",),
-            ({"qlevel": 10, "qmethod": 1},),
+            (
+                {"qlevel": 5, "qmethod": -1},
+                {"qlevel": 10, "qmethod": 1},
+                {"qlevel": 20, "qmethod": 2},
+            ),
             ALL_FLOAT_DTYPES,
         ],
     ),
