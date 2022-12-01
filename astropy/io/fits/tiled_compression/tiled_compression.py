@@ -857,7 +857,7 @@ def compress_hdu(hdu):
 
         data = hdu.data[slices]
 
-        if data.dtype.kind == "f":
+        if data.dtype.kind == "f" and hdu._header.get("NOISEBIT", 0) > 0:
             # TODO: use NOISEBIT quantize level
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
             q = Quantize(irow, dither_method, 10, hdu._header["ZBITPIX"])
