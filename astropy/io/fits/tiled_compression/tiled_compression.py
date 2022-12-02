@@ -587,13 +587,13 @@ def _header_to_settings(header):
     elif header["ZCMPTYPE"] == "PLIO_1":
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] in ("RICE_1", "RICE_ONE"):
-        settings["blocksize"] = header.get("ZVAL1", 32)
-        settings["bytepix"] = header.get("ZVAL2", 4)
+        settings["blocksize"] = _get_compression_setting(header, 'BLOCKSIZE', 32)
+        settings["bytepix"] = _get_compression_setting(header, 'BYTEPIX', 4)
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "HCOMPRESS_1":
         settings["bytepix"] = 4
-        settings["scale"] = int(header["ZVAL1"])
-        settings["smooth"] = header["ZVAL2"]
+        settings["scale"] = int(_get_compression_setting(header, 'SCALE', 0))
+        settings["smooth"] = _get_compression_setting(header, 'SMOOTH', 0)
         # HCOMPRESS requires 2D tiles, so to find the shape of the 2D tile we
         # need to ignore all length 1 tile dimensions
         # Also cfitsio expects the tile shape in C order, so reverse it
@@ -746,12 +746,13 @@ def _check_compressed_header(header):
     header["ZBITPIX"]
 
 
-def _get_compression_setting(header, name):
+def _get_compression_setting(header, name, default):
     for i in range(1, 1000):
         if f"ZNAME{i}" not in header:
             break
         if header[f"ZNAME{i}"].lower() == name.lower():
             return header[f"ZVAL{i}"]
+    return default
 
 
 def decompress_hdu(hdu):
@@ -768,7 +769,7 @@ def decompress_hdu(hdu):
 
     data = np.zeros(data_shape, dtype=BITPIX2DTYPE[hdu._header["ZBITPIX"]])
 
-    all_lossless = "ZSCALE" not in hdu.compressed_data.dtype.names
+    quantize = "ZSCALE" in hdu.compressed_data.dtype.names
 
     istart = np.zeros(data.ndim, dtype=int)
     for irow, row in enumerate(hdu.compressed_data):
@@ -803,12 +804,6 @@ def decompress_hdu(hdu):
             tile_buffer = decompress_tile(
                 row["GZIP_COMPRESSED_DATA"], algorithm="GZIP_1"
             )
-        else:
-            tile_buffer = decompress_tile(
-                cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
-            )
-
-        if lossless:
             tile_data = _buffer_to_array(
                 tile_buffer,
                 hdu._header,
@@ -817,22 +812,24 @@ def decompress_hdu(hdu):
                 lossless=True,
             )
         else:
+            tile_buffer = decompress_tile(
+                cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
+            )
             tile_data = _buffer_to_array(
                 tile_buffer,
                 hdu._header,
                 tile_shape=actual_tile_shape,
-                lossless=lossless or all_lossless,
+                lossless=lossless or not quantize,
             )
-
-        if not lossless and not all_lossless:
-            dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
-            dither_seed = hdu._header.get("ZDITHER0", 0)
-            q = Quantize(
-                irow + dither_seed, dither_method, None, hdu._header["ZBITPIX"]
-            )
-            tile_data = np.asarray(
-                q.decode_quantized(tile_data, row["ZSCALE"], row["ZZERO"])
-            ).reshape(actual_tile_shape)
+            if quantize:
+                dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
+                dither_seed = hdu._header.get("ZDITHER0", 0)
+                q = Quantize(
+                    irow + dither_seed, dither_method, None, hdu._header["ZBITPIX"]
+                )
+                tile_data = np.asarray(
+                    q.decode_quantized(tile_data, row["ZSCALE"], row["ZZERO"])
+                ).reshape(actual_tile_shape)
 
         data[tile_slices] = tile_data
         istart[-1] += tile_shape[-1]
@@ -869,7 +866,7 @@ def compress_hdu(hdu):
     irow = 0
     istart = np.zeros(len(data_shape), dtype=int)
 
-    noisebit = _get_compression_setting(hdu._header, "noisebit")
+    noisebit = _get_compression_setting(hdu._header, "noisebit", 0)
 
     while True:
 
@@ -885,10 +882,10 @@ def compress_hdu(hdu):
 
         data = hdu.data[slices]
 
-        all_lossless = "ZSCALE" not in hdu.columns.dtype.names
+        quantize = "ZSCALE" in hdu.columns.dtype.names
 
-        if data.dtype.kind == "f" and not all_lossless:
-            noisebit = _get_compression_setting(hdu._header, "noisebit")
+        if data.dtype.kind == "f" and quantize:
+            noisebit = _get_compression_setting(hdu._header, "noisebit", 0)
             dither_method = DITHER_METHODS[hdu._header.get("ZQUANTIZ", "NO_DITHER")]
             dither_seed = hdu._header.get("ZDITHER0", 0)
             q = Quantize(
