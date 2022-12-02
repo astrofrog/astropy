@@ -327,7 +327,7 @@ class Gzip2(Codec):
         array = np.asarray(buf).ravel()
         itemsize = array.dtype.itemsize
         array = array.view(np.uint8)
-        shuffled_buffer = array.reshape((-1, self.itemsize)).T.ravel().tobytes()
+        shuffled_buffer = array.reshape((-1, itemsize)).T.ravel().tobytes()
         return gzip_compress(shuffled_buffer)
 
 
@@ -798,7 +798,7 @@ def decompress_hdu(hdu):
             # Decompress with GZIP_1 just to find the total number of
             # elements in the uncompressed data
             tile_data = np.asarray(
-                decompress_tile(row["COMPRESSED_DATA"][0], algorithm="GZIP_1")
+                decompress_tile(row["COMPRESSED_DATA"], algorithm="GZIP_1")
             )
             settings["itemsize"] = tile_data.size // int(np.product(actual_tile_shape))
 
@@ -925,6 +925,8 @@ def compress_hdu(hdu):
         else:
             if not data.dtype.isnative:
                 data = data.astype(data.dtype.newbyteorder("="))
+
+        print(data, data.dtype)
 
         if lossless[-1]:
             cbytes = compress_tile(data, algorithm="GZIP_1")
