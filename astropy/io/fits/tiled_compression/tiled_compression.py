@@ -278,16 +278,16 @@ class Gzip2(Codec):
 
     Parameters
     ----------
-    tilesize
-        The number of elements in each tile
+    itemsize
+        The number of buffer per value (e.g. 2 for a 16-bit integer)
 
     """
 
     codec_id = "FITS_GZIP2"
 
-    def __init__(self, tilesize: int):
+    def __init__(self, itemsize: int):
         super().__init__()
-        self.tilesize = tilesize
+        self.itemsize = itemsize
 
     def decode(self, buf):
         """
@@ -307,8 +307,7 @@ class Gzip2(Codec):
         # Start off by unshuffling buffer
         unshuffled_buffer = gzip_decompress(cbytes)
         array = np.frombuffer(unshuffled_buffer, dtype=np.uint8)
-        itemsize = len(array) // int(self.tilesize)
-        return array.reshape((itemsize, -1)).T.ravel().data
+        return array.reshape((self.itemsize, -1)).T.ravel().data
 
     def encode(self, buf):
         """
@@ -325,9 +324,10 @@ class Gzip2(Codec):
             The decompressed buffer.
         """
         # Start off by shuffling buffer
-        array = np.asarray(buf).ravel().view(np.uint8)
-        itemsize = len(array) // int(self.tilesize)
-        shuffled_buffer = array.reshape((-1, itemsize)).T.ravel().tobytes()
+        array = np.asarray(buf).ravel()
+        itemsize = array.dtype.itemsize
+        array = array.view(np.uint8)
+        shuffled_buffer = array.reshape((-1, self.itemsize)).T.ravel().tobytes()
         return gzip_compress(shuffled_buffer)
 
 
@@ -582,7 +582,7 @@ def _header_to_settings(header):
     settings = {}
 
     if header["ZCMPTYPE"] == "GZIP_2":
-        settings["tilesize"] = np.product(tile_shape)
+        settings["itemsize"] = abs(header["ZBITPIX"]) // 8
     elif header["ZCMPTYPE"] == "PLIO_1":
         settings["tilesize"] = np.product(tile_shape)
     elif header["ZCMPTYPE"] == "RICE_1":
@@ -778,19 +778,6 @@ def decompress_hdu(hdu):
     istart = np.zeros(data.ndim, dtype=int)
     for irow, row in enumerate(hdu.compressed_data):
 
-        cdata = row["COMPRESSED_DATA"]
-
-        lossless = len(cdata) == 0
-
-        if lossless:
-            tile_buffer = decompress_tile(
-                row["GZIP_COMPRESSED_DATA"], algorithm="GZIP_1"
-            )
-        else:
-            tile_buffer = decompress_tile(
-                cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
-            )
-
         # In the following, we don't need to special case tiles near the edge
         # as Numpy will automatically ignore parts of the slices that are out
         # of bounds.
@@ -804,6 +791,27 @@ def decompress_hdu(hdu):
         # For tiles near the edge, the tile shape from the header might not be
         # correct so we have to pass the shape manually.
         actual_tile_shape = data[tile_slices].shape
+
+        cdata = row["COMPRESSED_DATA"]
+
+        if irow == 0 and hdu._header["ZCMPTYPE"] == "GZIP_2":
+            # Decompress with GZIP_1 just to find the total number of
+            # elements in the uncompressed data
+            tile_data = np.asarray(
+                decompress_tile(row["COMPRESSED_DATA"][0], algorithm="GZIP_1")
+            )
+            settings["itemsize"] = tile_data.size // int(np.product(actual_tile_shape))
+
+        lossless = len(cdata) == 0
+
+        if lossless:
+            tile_buffer = decompress_tile(
+                row["GZIP_COMPRESSED_DATA"], algorithm="GZIP_1"
+            )
+        else:
+            tile_buffer = decompress_tile(
+                cdata, algorithm=hdu._header["ZCMPTYPE"], **settings
+            )
 
         if lossless:
             tile_data = _buffer_to_array(
