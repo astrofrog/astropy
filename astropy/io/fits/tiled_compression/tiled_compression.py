@@ -530,6 +530,7 @@ ALGORITHMS = {
     "GZIP_1": Gzip1,
     "GZIP_2": Gzip2,
     "RICE_1": Rice1,
+    "RICE_ONE": Rice1,
     "PLIO_1": PLIO1,
     "HCOMPRESS_1": HCompress1,
 }
@@ -585,7 +586,7 @@ def _header_to_settings(header):
         settings["itemsize"] = abs(header["ZBITPIX"]) // 8
     elif header["ZCMPTYPE"] == "PLIO_1":
         settings["tilesize"] = np.product(tile_shape)
-    elif header["ZCMPTYPE"] == "RICE_1":
+    elif header["ZCMPTYPE"] in ("RICE_1", "RICE_ONE"):
         settings["blocksize"] = header.get("ZVAL1", 32)
         settings["bytepix"] = header.get("ZVAL2", 4)
         settings["tilesize"] = np.product(tile_shape)
@@ -651,7 +652,7 @@ def _buffer_to_array(
 
         # For RICE_1 compression the tiles that are on the edge can end up
         # being padded, so we truncate excess values
-        if algorithm in ("RICE_1", "PLIO_1"):
+        if algorithm in ("RICE_1", "RICE_ONE", "PLIO_1"):
             tile_buffer = tile_buffer[: np.product(tile_shape)]
 
         if tile_buffer.format == "b":
@@ -736,13 +737,7 @@ def _check_compressed_header(header):
     if header["ZBITPIX"] not in [8, 16, 32, 64, -32, -64]:
         raise ValueError(f"Invalid value for BITPIX: {header['ZBITPIX']}")
 
-    if header["ZCMPTYPE"] not in [
-        "GZIP_1",
-        "GZIP_2",
-        "PLIO_1",
-        "RICE_1",
-        "HCOMPRESS_1",
-    ]:
+    if header["ZCMPTYPE"] not in ALGORITHMS:
         raise ValueError(f"Unrecognized compression type: {header['ZCMPTYPE']}")
 
     # Check that certain keys are present
@@ -925,8 +920,6 @@ def compress_hdu(hdu):
         else:
             if not data.dtype.isnative:
                 data = data.astype(data.dtype.newbyteorder("="))
-
-        print(data, data.dtype)
 
         if lossless[-1]:
             cbytes = compress_tile(data, algorithm="GZIP_1")
