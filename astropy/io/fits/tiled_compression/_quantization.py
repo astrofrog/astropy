@@ -14,6 +14,28 @@ from astropy.io.fits.tiled_compression._compression import (
 __all__ = ["Quantize"]
 
 
+N_RANDOM = 10000
+
+
+def _generate_random():
+    # This generates a canonical list of 10000 'random' values which the FITS
+    # standard requires for quantization.
+    a = 16807.0;
+    m = 2147483647.0;
+    rand_value = np.zeros(N_RANDOM)
+    seed = 1;
+    for ii in range(N_RANDOM):
+        temp = a * seed
+        seed = temp - m * int(temp / m);
+        rand_value[ii] = seed / m;
+    if seed != 1_043_618_065:
+        raise ValueError(f"Unexpected 10,000th seed: {seed}")
+    return rand_value
+
+
+RANDOM_VALUES = _generate_random()
+
+
 DITHER_METHODS = {"NO_DITHER": -1, "SUBTRACTIVE_DITHER_1": 1, "SUBTRACTIVE_DITHER_2": 2}
 
 
@@ -59,35 +81,36 @@ class Quantize:
         if self.dither_method == -1:
             # For NO_DITHER we should just use the scale and zero directly
             return qbytes * scale + zero
+
+        qbytes = qbytes.ravel()
+
         if self.bitpix == -32:
-            ubytes = unquantize_float_c(
-                qbytes.tobytes(),
-                self.row,
-                qbytes.size,
-                scale,
-                zero,
-                self.dither_method,
-                0,
-                0,
-                0.0,
-                qbytes.dtype.itemsize,
-            )
+            output = np.zeros(qbytes.shape, dtype=np.float32)
         elif self.bitpix == -64:
-            ubytes = unquantize_double_c(
-                qbytes.tobytes(),
-                self.row,
-                qbytes.size,
-                scale,
-                zero,
-                self.dither_method,
-                0,
-                0,
-                0.0,
-                qbytes.dtype.itemsize,
-            )
+            output = np.zeros(qbytes.shape, dtype=float)
         else:
             raise TypeError("bitpix should be one of -32 or -64")
-        return np.frombuffer(ubytes, dtype=BITPIX2DTYPE[self.bitpix]).data
+
+        n_values = len(qbytes)
+
+        iseed = (self.row - 1) % N_RANDOM
+        nextrand = int(RANDOM_VALUES[iseed] * 500)
+
+        # TODO: re-write the following without a loop!
+
+        for ii in range(n_values):
+            if self.dither_method == 2 and qbytes[ii] == -2147483646:
+                output[ii] = 0.
+            else:
+                output[ii] = (qbytes[ii] - RANDOM_VALUES[nextrand] + 0.5) * scale + zero
+            nextrand += 1
+            if nextrand == N_RANDOM:
+                iseed += 1
+                if iseed == N_RANDOM:
+                    iseed = 0
+                nextrand = int(RANDOM_VALUES[iseed] * 500)
+
+        return output.data
 
     def encode_quantized(self, buf):
         """
