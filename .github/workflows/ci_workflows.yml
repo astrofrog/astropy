@@ -45,7 +45,7 @@ jobs:
           }
 
   tests:
-    needs: [initial_checks]
+    # needs: [initial_checks]
     uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@v1
     with:
       submodules: false
@@ -87,7 +87,7 @@ jobs:
           posargs: --durations=50 --run-slow
 
   allowed_failures:
-    needs: [initial_checks]
+    # needs: [initial_checks]
     uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@v1
     with:
       submodules: false
@@ -106,7 +106,7 @@ jobs:
   parallel_and_32bit:
     name: 32-bit and parallel
     runs-on: ubuntu-latest
-    needs: [initial_checks]
+    # needs: [initial_checks]
     container:
       image: quay.io/pypa/manylinux2014_i686:2022-04-03-da6ecb3
     steps:
