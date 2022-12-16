@@ -4,7 +4,6 @@
 #include <Python.h>
 #include <fits_hcompress.h>
 #include <fits_hdecompress.h>
-#include <imcompress.h>
 #include <pliocomp.h>
 #include <quantize.h>
 #include <ricecomp.h>
@@ -392,109 +391,5 @@ static PyObject *quantize_double_c(PyObject *self, PyObject *args) {
   result = Py_BuildValue("y#iddii", quantized_bytes, nx * ny * sizeof(int), status,
                                     bscale, bzero, iminval, imaxval);
   free(quantized_bytes);
-  return result;
-}
-
-static PyObject *unquantize_float_c(PyObject *self, PyObject *args) {
-
-  const char *input_bytes;
-  Py_ssize_t nbytes;
-  PyObject *result;
-
-  long row, npix;
-  int nullcheck;
-  int tnull;
-  float nullval;
-  int dither_method;
-
-  double bscale, bzero;
-  int bytepix; // int size
-  int status = 0;
-
-  int *anynull;
-  float *output_data;
-  char *output_bytes;
-
-  if (!PyArg_ParseTuple(args, "y#llddiiifi", &input_bytes, &nbytes, &row, &npix,
-                        &bscale, &bzero, &dither_method, &nullcheck, &tnull,
-                        &nullval, &bytepix)) {
-    return NULL;
-  }
-
-// TODO: add support, if needed, for nullcheck=1
-
-anynull = (int *)malloc(npix * sizeof(int));
-output_data = (float *)malloc(npix * sizeof(float));
-
-if (bytepix == 1) {
-    unquantize_i1r4(row, (unsigned char *)input_bytes, npix, bscale, bzero,
-                    dither_method, nullcheck, (unsigned char)tnull, nullval,
-                    NULL, anynull, output_data, &status);
-} else if (bytepix == 2) {
-    unquantize_i2r4(row, (short *)input_bytes, npix, bscale, bzero,
-                    dither_method, nullcheck, (short)tnull, nullval, NULL,
-                    anynull, output_data, &status);
-} else if (bytepix == 4) {
-    unquantize_i4r4(row, (int *)input_bytes, npix, bscale, bzero, dither_method,
-                    nullcheck, (int)tnull, nullval, NULL, anynull, output_data,
-                    &status);
-}
-
-output_bytes = (char *)output_data;
-
-  result = Py_BuildValue("y#", output_bytes, npix * sizeof(float));
-  free(output_bytes);
-  return result;
-}
-
-static PyObject *unquantize_double_c(PyObject *self, PyObject *args) {
-
-  const char *input_bytes;
-  Py_ssize_t nbytes;
-  PyObject *result;
-
-  long row, npix;
-  int nullcheck;
-  int tnull;
-  double nullval;
-  int dither_method;
-
-  double bscale, bzero;
-  int bytepix; // int size
-  int status = 0;
-
-  int *anynull;
-  double *output_data;
-  char *output_bytes;
-
-  if (!PyArg_ParseTuple(args, "y#llddiiidi", &input_bytes, &nbytes, &row, &npix,
-                        &bscale, &bzero, &dither_method, &nullcheck, &tnull,
-                        &nullval, &bytepix)) {
-    return NULL;
-  }
-
-// TODO: add support, if needed, for nullcheck=1
-
-anynull = (int *)malloc(npix * sizeof(int));
-output_data = (double *)malloc(npix * sizeof(double));
-
-if (bytepix == 1) {
-    unquantize_i1r8(row, (unsigned char *)input_bytes, npix, bscale, bzero,
-                    dither_method, nullcheck, (unsigned char)tnull, nullval,
-                    NULL, anynull, output_data, &status);
-} else if (bytepix == 2) {
-    unquantize_i2r8(row, (short *)input_bytes, npix, bscale, bzero,
-                    dither_method, nullcheck, (short)tnull, nullval, NULL,
-                    anynull, output_data, &status);
-} else if (bytepix == 4) {
-    unquantize_i4r8(row, (int *)input_bytes, npix, bscale, bzero, dither_method,
-                    nullcheck, (int)tnull, nullval, NULL, anynull, output_data,
-                    &status);
-}
-
-output_bytes = (char *)output_data;
-
-  result = Py_BuildValue("y#", output_bytes, npix * sizeof(double));
-  free(output_bytes);
   return result;
 }
