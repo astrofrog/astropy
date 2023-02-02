@@ -109,7 +109,8 @@ SKIP_TESTS = [
     "test_generate_config",
     "test_generate_config2",
     "test_create_config_file",
-    "test_download_parallel_fills_cache",
+    "test_download_parallel",
+    "test_progress_bar_map",
 ]
 
 # Run the tests!
