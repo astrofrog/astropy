@@ -111,6 +111,7 @@ SKIP_TESTS = [
     "test_create_config_file",
     "test_download_parallel",
     "test_progress_bar_map",
+    "test_download_with_sources_and_bogus_original",
 ]
 
 # Run the tests!
