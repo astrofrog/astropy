@@ -53,4 +53,4 @@ jobs:
       run: tox ${{ matrix.toxargs}} -e ${{ matrix.toxenv}} -- ${{ matrix.toxposargs}}
 
     - name: Run exe
-      run start .pyinstaller/run_astropy_tests.exe 
+      run: start .pyinstaller/run_astropy_tests.exe
