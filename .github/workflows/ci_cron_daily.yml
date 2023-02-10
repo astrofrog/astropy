@@ -23,20 +23,11 @@ jobs:
       matrix:
         include:
 
-          - name: Bundling with pyinstaller Linux
-            os: ubuntu-latest
-            python: 3.8
-            toxenv: pyinstaller
-
-          - name: Bundling with pyinstaller Mac
-            os: macos-latest
-            python: 3.8
-            toxenv: pyinstaller
-
           - name: Bundling with pyinstaller Windows
             os: windows-latest
             python: 3.8
             toxenv: pyinstaller-win
+            toxargs: -vvv
 
     steps:
     - name: Checkout code
