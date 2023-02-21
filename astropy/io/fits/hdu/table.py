@@ -206,10 +206,19 @@ class _TableLikeHDU(_ValidHDU):
         columns._add_listener(data)
         return data
 
+    _cached_heap = None
+
+    def _cache_heap(self):
+        self._cached_heap = self._get_raw_data(self._header["PCOUNT"], np.uint8, self._data_offset + self._theap)
+
     def _get_data_from_heap(self, offset, shape, dtype):
-        return self._get_raw_data(
-            shape, dtype, self._data_offset + self._theap + offset
-        )
+        if self._cached_heap is None:
+            return self._get_raw_data(
+                shape, dtype, self._data_offset + self._theap + offset
+            )
+        else:
+            data = self._cached_heap[offset:offset + np.product(shape) * np.dtype(dtype).itemsize]
+            return data.view(dtype).reshape(shape)
 
     def _init_tbdata(self, data):
         columns = self.columns

@@ -1476,11 +1476,18 @@ class CompImageHDU(BinTableHDU):
             for _ in range(required_blanks - table_blanks):
                 self._header.append()
 
+    _cache = {}
+
     def _get_raw_tile_from_heap(self, column_name, row_index):
         """
         Get the raw data for a given tile from the heap.
         """
-        size, offset = self.compressed_data[column_name][row_index]
+
+        if column_name not in self._cache:
+            self._cache[column_name] = self.compressed_data[column_name].copy()
+
+        size, offset = self._cache[column_name][row_index]
+
         tform = self.columns[column_name].format
         if tform[2] == "B":
             dtype = np.uint8
@@ -1531,6 +1538,8 @@ class CompImageHDU(BinTableHDU):
         """
         if len(self.compressed_data) == 0:
             return None
+
+        self._cache_heap()
 
         # Since .section has general code to load any arbitrary part of the
         # data, we can just use this - and the @lazyproperty on the current
