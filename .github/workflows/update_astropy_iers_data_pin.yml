@@ -20,7 +20,7 @@ jobs:
       pull-requests: write  # for peter-evans/create-pull-request to create a PR
     name: Auto-update astropy-iers-data minimum version
     runs-on: ubuntu-latest
-    if: github.repository == 'astropy/astropy'
+    if: github.repository == 'astrofrog/astropy'
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
