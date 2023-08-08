@@ -279,9 +279,6 @@ class CompImageHeader(Header):
             # break the behavior for new keywords and for commentary keywords
             keyword, index = key, None
 
-        if self._is_reserved_keyword(keyword):
-            return
-
         super().__setitem__(key, value)
 
         if index is not None:
@@ -331,9 +328,6 @@ class CompImageHeader(Header):
                 "(keyword, value, [comment]) tuple; got: {!r}".format(card)
             )
 
-        if self._is_reserved_keyword(card.keyword):
-            return
-
         super().append(card=card, useblanks=useblanks, bottom=bottom, end=end)
 
         remapped_keyword = self._remap_keyword(card.keyword)
@@ -377,9 +371,6 @@ class CompImageHeader(Header):
                 "(keyword, value, [comment]) tuple; got: {!r}".format(card)
             )
 
-        if self._is_reserved_keyword(card.keyword):
-            return
-
         # Now the tricky part is to determine where to insert in the table
         # header.  If given a numerical index we need to map that to the
         # corresponding index in the table header.  Although rare, there may be
@@ -404,9 +395,6 @@ class CompImageHeader(Header):
     def _update(self, card):
         keyword = card[0]
 
-        if self._is_reserved_keyword(keyword):
-            return
-
         super()._update(card)
 
         if keyword in Card._commentary_keywords:
@@ -420,9 +408,6 @@ class CompImageHeader(Header):
     # This one is tricky since _relativeinsert calls insert
     def _relativeinsert(self, card, before=None, after=None, replace=False):
         keyword = card[0]
-
-        if self._is_reserved_keyword(keyword):
-            return
 
         # Now we have to figure out how to remap 'before' and 'after'
         if before is None:
@@ -448,26 +433,26 @@ class CompImageHeader(Header):
         )
 
     @classmethod
-    def _is_reserved_keyword(cls, keyword, warn=True):
+    def _validate_card(cls, card, warn=True):
         msg = (
             "Keyword {!r} is reserved for use by the FITS Tiled Image "
             "Convention and will not be stored in the header for the "
-            "image being compressed.".format(keyword)
+            "image being compressed.".format(card.keyword)
         )
 
-        if keyword == "TFIELDS":
+        if card.keyword == "TFIELDS":
             if warn:
                 warnings.warn(msg)
-            return True
+            return False
 
-        m = TDEF_RE.match(keyword)
+        m = TDEF_RE.match(card.keyword)
 
         if m and m.group("label").upper() in TABLE_KEYWORD_NAMES:
             if warn:
                 warnings.warn(msg)
-            return True
+            return False
 
-        m = cls._zdef_re.match(keyword)
+        m = cls._zdef_re.match(card.keyword)
 
         if m:
             label = m.group("label").upper()
@@ -475,13 +460,13 @@ class CompImageHeader(Header):
             if num is not None and label in cls._indexed_compression_keywords:
                 if warn:
                     warnings.warn(msg)
-                return True
+                return False
             elif label in cls._compression_keywords:
                 if warn:
                     warnings.warn(msg)
-                return True
+                return False
 
-        return False
+        return True
 
     @classmethod
     def _remap_keyword(cls, keyword):
@@ -1643,7 +1628,7 @@ class CompImageHDU(BinTableHDU):
         # keywords, which there may be in some pathological cases:
         # https://github.com/astropy/astropy/issues/2750
         for keyword in set(image_header):
-            if CompImageHeader._is_reserved_keyword(keyword, warn=False):
+            if CompImageHeader._validate_card(Card(keyword), warn=False):
                 del image_header[keyword]
 
         hcomments = self._header.comments
