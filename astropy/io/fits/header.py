@@ -304,6 +304,10 @@ class Header:
     def _ipython_key_completions_(self):
         return self.__iter__()
 
+    @classmethod
+    def _validate_card(cls, card):
+        return True
+
     @property
     def cards(self):
         """
@@ -1194,6 +1198,9 @@ class Header:
                 "(keyword, value, [comment]) tuple; got: {!r}".format(card)
             )
 
+        if not self._validate_card(card):
+            return
+
         if not end and card.is_blank:
             # Blank cards should always just be appended to the end
             end = True
@@ -1459,6 +1466,9 @@ class Header:
                 "The value inserted into a Header must be either a keyword or "
                 "(keyword, value, [comment]) tuple; got: {!r}".format(card)
             )
+
+        if not self._validate_card(card):
+            return
 
         self._cards.insert(idx, card)
 
