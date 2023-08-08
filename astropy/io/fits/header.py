@@ -128,6 +128,9 @@ class Header:
 
         self._modified = False
 
+    def _is_reserved_keyword(self, keyword):
+        return False
+
     def __len__(self):
         return len(self._cards)
 
@@ -219,6 +222,8 @@ class Header:
         else:
             # If we get an IndexError that should be raised; we don't allow
             # assignment to non-existing indices
+            if self._is_reserved_keyword(key):
+                return
             self._update((key, value, comment))
 
     def __delitem__(self, key):
