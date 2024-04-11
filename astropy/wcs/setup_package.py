@@ -254,6 +254,8 @@ def get_wcslib_cfg(cfg, wcslib_files, include_paths):
                 ]
             )
 
+    cfg["extra_compile_args"].extend(["-lpthread"])
+
 
 def get_extensions():
     generate_c_docstrings()
