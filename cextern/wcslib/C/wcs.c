@@ -27,6 +27,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <pthread.h>
+
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+static int exclusive_section_executed = 0;
+
 #include "wcserr.h"
 #include "wcsmath.h"
 #include "wcsprintf.h"
@@ -1667,6 +1673,8 @@ int wcsfree(struct wcsprm *wcs)
 {
   if (wcs == 0x0) return WCSERR_NULL_POINTER;
 
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
   if (wcs->flag == -1) {
     wcs->lin.flag = -1;
 
@@ -2491,395 +2499,418 @@ int wcsbchk(struct wcsprm *wcs, int bounds)
 int wcsset(struct wcsprm *wcs)
 
 {
-  static const char *function = "wcsset";
+    static const char *function = "wcsset";
 
-  if (wcs == 0x0) return WCSERR_NULL_POINTER;
-  struct wcserr **err = &(wcs->err);
+    if (wcs == 0x0) return WCSERR_NULL_POINTER;
+    struct wcserr **err = &(wcs->err);
 
-  // Determine axis types from CTYPEia.
-  int status;
-  if ((status = wcs_types(wcs))) {
-    return status;
-  }
+    pthread_t tid = pthread_self();
+    fprintf(stderr,"In %s> tid = %lld\n", __FUNCTION__, (long long)tid);
+    if(pthread_mutex_trylock(&mutex) == 0)
+    {
+        fprintf(stderr,"In %s> got mutex on tid = %lld\n", __FUNCTION__, (long long)tid);
+        if(wcs->flag == 0) exclusive_section_executed = 0;
+        if(exclusive_section_executed == 0)
+        {
+            // Determine axis types from CTYPEia.
+            int status;
+            if ((status = wcs_types(wcs))) {
+                return status;
+            }
 
-  // Convert to canonical units.
-  if ((status = wcs_units(wcs))) {
-    return status;
-  }
+            // Convert to canonical units.
+            if ((status = wcs_units(wcs))) {
+                return status;
+            }
 
-  int naxis = wcs->naxis;
-  if (32 < naxis) {
-    return wcserr_set(WCSERR_SET(WCSERR_BAD_PARAM),
-      "naxis must not exceed 32 (got %d)", naxis);
-  }
+            int naxis = wcs->naxis;
+            if (32 < naxis) {
+                return wcserr_set(WCSERR_SET(WCSERR_BAD_PARAM),
+                "naxis must not exceed 32 (got %d)", naxis);
+            }
 
 
-  // Non-linear celestial axes present?
-  if (wcs->lng >= 0 && wcs->types[wcs->lng] == 2200) {
-    struct celprm *wcscel = &(wcs->cel);
-    celini(wcscel);
+            // Non-linear celestial axes present?
+            if (wcs->lng >= 0 && wcs->types[wcs->lng] == 2200) {
+                struct celprm *wcscel = &(wcs->cel);
+                celini(wcscel);
 
-    // CRVALia, LONPOLEa, and LATPOLEa keyvalues.
-    wcscel->ref[0] = wcs->crval[wcs->lng];
-    wcscel->ref[1] = wcs->crval[wcs->lat];
-    wcscel->ref[2] = wcs->lonpole;
-    wcscel->ref[3] = wcs->latpole;
+                // CRVALia, LONPOLEa, and LATPOLEa keyvalues.
+                wcscel->ref[0] = wcs->crval[wcs->lng];
+                wcscel->ref[1] = wcs->crval[wcs->lat];
+                wcscel->ref[2] = wcs->lonpole;
+                wcscel->ref[3] = wcs->latpole;
 
-    // Do alias translation for TPU/TPV before dealing with PVi_ma.
-    struct prjprm *wcsprj = &(wcscel->prj);
-    strncpy(wcsprj->code, wcs->ctype[wcs->lng]+5, 3);
-    wcsprj->code[3] = '\0';
-    if (strncmp(wcsprj->code, "TPU", 3) == 0 ||
-        strncmp(wcsprj->code, "TPV", 3) == 0) {
-      // Translate the PV parameters.
-      struct disprm *dis;
-      if ((dis = calloc(1, sizeof(struct disprm))) == 0x0) {
-        return wcserr_set(WCS_ERRMSG(WCSERR_MEMORY));
-      }
+                // Do alias translation for TPU/TPV before dealing with PVi_ma.
+                struct prjprm *wcsprj = &(wcscel->prj);
+                strncpy(wcsprj->code, wcs->ctype[wcs->lng]+5, 3);
+                wcsprj->code[3] = '\0';
+                if (strncmp(wcsprj->code, "TPU", 3) == 0 ||
+                    strncmp(wcsprj->code, "TPV", 3) == 0) {
+                // Translate the PV parameters.
+                struct disprm *dis;
+                if ((dis = calloc(1, sizeof(struct disprm))) == 0x0) {
+                    return wcserr_set(WCS_ERRMSG(WCSERR_MEMORY));
+                }
 
-      int ndpmax = 6 + wcs->npv;
+                int ndpmax = 6 + wcs->npv;
 
-      // Attach it to linprm.  Also inits it.
-      char dpq[16];
-      struct linprm *wcslin = &(wcs->lin);
-      dis->flag = -1;
-      if (strncmp(wcsprj->code, "TPU", 3) == 0) {
-        // Prior distortion.
-        lindist(1, wcslin, dis, ndpmax);
-        strcpy(dpq, "DP");
-      } else {
-        // Sequent distortion.
-        lindist(2, wcslin, dis, ndpmax);
-        strcpy(dpq, "DQ");
-      }
+                // Attach it to linprm.  Also inits it.
+                char dpq[16];
+                struct linprm *wcslin = &(wcs->lin);
+                dis->flag = -1;
+                if (strncmp(wcsprj->code, "TPU", 3) == 0) {
+                    // Prior distortion.
+                    lindist(1, wcslin, dis, ndpmax);
+                    strcpy(dpq, "DP");
+                } else {
+                    // Sequent distortion.
+                    lindist(2, wcslin, dis, ndpmax);
+                    strcpy(dpq, "DQ");
+                }
 
-      // Yes, the distortion type is "TPV" even for TPU.
-      strcpy(dis->dtype[wcs->lng], "TPV");
-      strcpy(dis->dtype[wcs->lat], "TPV");
+                // Yes, the distortion type is "TPV" even for TPU.
+                strcpy(dis->dtype[wcs->lng], "TPV");
+                strcpy(dis->dtype[wcs->lat], "TPV");
 
-      // Keep the keywords in axis-order to aid debugging.
-      struct dpkey *keyp = dis->dp;
-      dis->ndp = 0;
+                // Keep the keywords in axis-order to aid debugging.
+                struct dpkey *keyp = dis->dp;
+                dis->ndp = 0;
 
-      sprintf(dpq+2, "%d", wcs->lng+1);
-      dpfill(keyp++, dpq, "NAXES",  0, 0, 2, 0.0);
-      dpfill(keyp++, dpq, "AXIS.1", 0, 0, 1, 0.0);
-      dpfill(keyp++, dpq, "AXIS.2", 0, 0, 2, 0.0);
-      dis->ndp += 3;
+                sprintf(dpq+2, "%d", wcs->lng+1);
+                dpfill(keyp++, dpq, "NAXES",  0, 0, 2, 0.0);
+                dpfill(keyp++, dpq, "AXIS.1", 0, 0, 1, 0.0);
+                dpfill(keyp++, dpq, "AXIS.2", 0, 0, 2, 0.0);
+                dis->ndp += 3;
 
-      // Copy distortion parameters for the longitude axis.
-      for (int k = 0; k < wcs->npv; k++) {
-        if (wcs->pv[k].i != wcs->lng+1) continue;
-        sprintf(keyp->field, "%s.TPV.%d", dpq, wcs->pv[k].m);
-        dpfill(keyp++, 0x0, 0x0, 0, 1, 0, wcs->pv[k].value);
-        dis->ndp++;
-      }
+                // Copy distortion parameters for the longitude axis.
+                for (int k = 0; k < wcs->npv; k++) {
+                    if (wcs->pv[k].i != wcs->lng+1) continue;
+                    sprintf(keyp->field, "%s.TPV.%d", dpq, wcs->pv[k].m);
+                    dpfill(keyp++, 0x0, 0x0, 0, 1, 0, wcs->pv[k].value);
+                    dis->ndp++;
+                }
 
-      // Now the latitude axis.
-      sprintf(dpq+2, "%d", wcs->lat+1);
-      dpfill(keyp++, dpq, "NAXES",  0, 0, 2, 0.0);
-      dpfill(keyp++, dpq, "AXIS.1", 0, 0, 2, 0.0);
-      dpfill(keyp++, dpq, "AXIS.2", 0, 0, 1, 0.0);
-      dis->ndp += 3;
+                // Now the latitude axis.
+                sprintf(dpq+2, "%d", wcs->lat+1);
+                dpfill(keyp++, dpq, "NAXES",  0, 0, 2, 0.0);
+                dpfill(keyp++, dpq, "AXIS.1", 0, 0, 2, 0.0);
+                dpfill(keyp++, dpq, "AXIS.2", 0, 0, 1, 0.0);
+                dis->ndp += 3;
 
-      for (int k = 0; k < wcs->npv; k++) {
-        if (wcs->pv[k].i != wcs->lat+1) continue;
-        sprintf(keyp->field, "%s.TPV.%d", dpq, wcs->pv[k].m);
-        dpfill(keyp++, 0x0, 0x0, 0, 1, 0, wcs->pv[k].value);
-        dis->ndp++;
-      }
+                for (int k = 0; k < wcs->npv; k++) {
+                    if (wcs->pv[k].i != wcs->lat+1) continue;
+                    sprintf(keyp->field, "%s.TPV.%d", dpq, wcs->pv[k].m);
+                    dpfill(keyp++, 0x0, 0x0, 0, 1, 0, wcs->pv[k].value);
+                    dis->ndp++;
+                }
 
-      // Erase PVi_ma associated with the celestial axes.
-      int n = 0;
-      for (int k = 0; k < wcs->npv; k++) {
-        int i = wcs->pv[k].i - 1;
-        if (i == wcs->lng || i == wcs->lat) continue;
+                // Erase PVi_ma associated with the celestial axes.
+                int n = 0;
+                for (int k = 0; k < wcs->npv; k++) {
+                    int i = wcs->pv[k].i - 1;
+                    if (i == wcs->lng || i == wcs->lat) continue;
 
-        wcs->pv[n].i = wcs->pv[k].i;
-        wcs->pv[n].m = wcs->pv[k].m;
-        wcs->pv[n].value = wcs->pv[k].value;
+                    wcs->pv[n].i = wcs->pv[k].i;
+                    wcs->pv[n].m = wcs->pv[k].m;
+                    wcs->pv[n].value = wcs->pv[k].value;
 
-        n++;
-      }
+                    n++;
+                }
 
-      wcs->npv = n;
-      strcpy(wcsprj->code, "TAN");
+                wcs->npv = n;
+                strcpy(wcsprj->code, "TAN");
 
-      // As the PVi_ma have now been erased, ctype must be reset to prevent
-      // this translation from re-occurring if wcsset() is called again.
-      strcpy(wcs->ctype[wcs->lng]+5, "TAN");
-      strcpy(wcs->ctype[wcs->lat]+5, "TAN");
+                // As the PVi_ma have now been erased, ctype must be reset to prevent
+                // this translation from re-occurring if wcsset() is called again.
+                strcpy(wcs->ctype[wcs->lng]+5, "TAN");
+                strcpy(wcs->ctype[wcs->lat]+5, "TAN");
 
-    } else if (strncmp(wcsprj->code, "TNX", 3) == 0) {
-      // The WAT distortion should already have been encoded in disseq.
-      strcpy(wcsprj->code, "TAN");
-      strcpy(wcs->ctype[wcs->lng]+5, "TAN");
-      strcpy(wcs->ctype[wcs->lat]+5, "TAN");
+                } else if (strncmp(wcsprj->code, "TNX", 3) == 0) {
+                // The WAT distortion should already have been encoded in disseq.
+                strcpy(wcsprj->code, "TAN");
+                strcpy(wcs->ctype[wcs->lng]+5, "TAN");
+                strcpy(wcs->ctype[wcs->lat]+5, "TAN");
 
-    } else if (strncmp(wcsprj->code, "ZPX", 3) == 0) {
-      // The WAT distortion should already have been encoded in disseq.
-      strcpy(wcsprj->code, "ZPN");
-      strcpy(wcs->ctype[wcs->lng]+5, "ZPN");
-      strcpy(wcs->ctype[wcs->lat]+5, "ZPN");
-    }
+                } else if (strncmp(wcsprj->code, "ZPX", 3) == 0) {
+                // The WAT distortion should already have been encoded in disseq.
+                strcpy(wcsprj->code, "ZPN");
+                strcpy(wcs->ctype[wcs->lng]+5, "ZPN");
+                strcpy(wcs->ctype[wcs->lat]+5, "ZPN");
+                }
 
-    // PVi_ma keyvalues.
-    for (int k = 0; k < wcs->npv; k++) {
-      if (wcs->pv[k].i == 0) {
-        // From a PROJPn keyword.
-        wcs->pv[k].i = wcs->lat + 1;
-      }
+                // PVi_ma keyvalues.
+                for (int k = 0; k < wcs->npv; k++) {
+                if (wcs->pv[k].i == 0) {
+                    // From a PROJPn keyword.
+                    wcs->pv[k].i = wcs->lat + 1;
+                }
 
-      int i = wcs->pv[k].i - 1;
-      int m = wcs->pv[k].m;
+                int i = wcs->pv[k].i - 1;
+                int m = wcs->pv[k].m;
 
-      if (i == wcs->lat) {
-        // PVi_ma associated with latitude axis.
-        if (m < 30) {
-          wcsprj->pv[m] = wcs->pv[k].value;
+                if (i == wcs->lat) {
+                    // PVi_ma associated with latitude axis.
+                    if (m < 30) {
+                    wcsprj->pv[m] = wcs->pv[k].value;
+                    }
+
+                } else if (i == wcs->lng) {
+                    // PVi_ma associated with longitude axis.
+                    switch (m) {
+                    case 0:
+                    wcscel->offset = (wcs->pv[k].value != 0.0);
+                    break;
+                    case 1:
+                    wcscel->phi0   = wcs->pv[k].value;
+                    break;
+                    case 2:
+                    wcscel->theta0 = wcs->pv[k].value;
+                    break;
+                    case 3:
+                    // If present, overrides LONPOLEa.
+                    wcscel->ref[2] = wcs->pv[k].value;
+                    break;
+                    case 4:
+                    // If present, overrides LATPOLEa.
+                    wcscel->ref[3] = wcs->pv[k].value;
+                    break;
+                    default:
+                    return wcserr_set(WCSERR_SET(WCSERR_BAD_COORD_TRANS),
+                        "PV%i_%i%s: Unrecognized coordinate transformation parameter",
+                        i+1, m, wcs->alt);
+                    break;
+                    }
+                }
+                }
+
+                // Do simple alias translations.
+                if (strncmp(wcs->ctype[wcs->lng]+5, "GLS", 3) == 0) {
+                wcscel->offset = 1;
+                wcscel->phi0   = 0.0;
+                wcscel->theta0 = wcs->crval[wcs->lat];
+                strcpy(wcsprj->code, "SFL");
+
+                } else if (strncmp(wcs->ctype[wcs->lng]+5, "NCP", 3) == 0) {
+                // Convert NCP to SIN.
+                if (wcscel->ref[1] == 0.0) {
+                    return wcserr_set(WCSERR_SET(WCSERR_BAD_PARAM),
+                    "Invalid projection: NCP blows up on the equator");
+                }
+
+                strcpy(wcsprj->code, "SIN");
+                wcsprj->pv[1] = 0.0;
+                wcsprj->pv[2] = cosd(wcscel->ref[1])/sind(wcscel->ref[1]);
+                }
+
+                // Initialize the celestial transformation routines.
+                wcsprj->r0 = 0.0;
+                if ((status = celset(wcscel))) {
+                return wcserr_set(WCS_ERRMSG(wcs_celerr[status]));
+                }
+
+                // Update LONPOLE, LATPOLE, and PVi_ma keyvalues.
+                wcs->lonpole = wcscel->ref[2];
+                wcs->latpole = wcscel->ref[3];
+
+                for (int k = 0; k < wcs->npv; k++) {
+                int i = wcs->pv[k].i - 1;
+                int m = wcs->pv[k].m;
+
+                if (i == wcs->lng) {
+                    switch (m) {
+                    case 1:
+                    wcs->pv[k].value = wcscel->phi0;
+                    break;
+                    case 2:
+                    wcs->pv[k].value = wcscel->theta0;
+                    break;
+                    case 3:
+                    wcs->pv[k].value = wcscel->ref[2];
+                    break;
+                    case 4:
+                    wcs->pv[k].value = wcscel->ref[3];
+                    break;
+                    }
+                }
+                }
+            }
+
+
+            // Non-linear spectral axis present?
+            if (wcs->spec >= 0 && wcs->types[wcs->spec] == 3300) {
+                char scode[4], stype[5];
+                struct spcprm *wcsspc = &(wcs->spc);
+                spcini(wcsspc);
+                if ((status = spctype(wcs->ctype[wcs->spec], stype, scode, 0x0, 0x0, 0x0,
+                                    0x0, 0x0, err))) {
+                return status;
+                }
+                strcpy(wcsspc->type, stype);
+                strcpy(wcsspc->code, scode);
+
+                // CRVALia, RESTFRQa, and RESTWAVa keyvalues.
+                wcsspc->crval = wcs->crval[wcs->spec];
+                wcsspc->restfrq = wcs->restfrq;
+                wcsspc->restwav = wcs->restwav;
+
+                // PVi_ma keyvalues.
+                for (int k = 0; k < wcs->npv; k++) {
+                int i = wcs->pv[k].i - 1;
+                int m = wcs->pv[k].m;
+
+                if (i == wcs->spec) {
+                    // PVi_ma associated with grism axis.
+                    if (m < 7) {
+                    wcsspc->pv[m] = wcs->pv[k].value;
+                    }
+                }
+                }
+
+                // Initialize the spectral transformation routines.
+                if ((status = spcset(wcsspc))) {
+                return wcserr_set(WCS_ERRMSG(wcs_spcerr[status]));
+                }
+            }
+
+
+            // Tabular axes present?
+            for (int itab = 0; itab < wcs->ntab; itab++) {
+                if ((status = tabset(wcs->tab + itab))) {
+                return wcserr_set(WCS_ERRMSG(wcs_taberr[status]));
+                }
+            }
+
+
+            // Initialize the linear transformation.
+            wcs->altlin &= 15;
+            if (wcs->altlin > 1 && !(wcs->altlin & 1)) {
+                double *pc = wcs->pc;
+
+                if ((wcs->altlin & 2) && !(wcs->altlin & 8)) {
+                // Copy CDi_ja to PCi_ja and reset CDELTia.
+                double *cd = wcs->cd;
+                for (int i = 0; i < naxis; i++) {
+                    for (int j = 0; j < naxis; j++) {
+                    *(pc++) = *(cd++);
+                    }
+                    wcs->cdelt[i] = 1.0;
+                }
+
+                } else if (wcs->altlin & 4) {
+                // Construct PCi_ja from CROTAia.
+                int i, j;
+                if ((i = wcs->lng) >= 0 && (j = wcs->lat) >= 0) {
+                    double rho = wcs->crota[j];
+
+                    if (wcs->cdelt[i] == 0.0) {
+                    return wcserr_set(WCSERR_SET(WCSERR_SINGULAR_MTX),
+                        "Singular transformation matrix, CDELT%d is zero", i+1);
+                    }
+                    double lambda = wcs->cdelt[j]/wcs->cdelt[i];
+
+                    *(pc + i*naxis + i) = *(pc + j*naxis + j) = cosd(rho);
+                    *(pc + i*naxis + j) = *(pc + j*naxis + i) = sind(rho);
+                    *(pc + i*naxis + j) *= -lambda;
+                    *(pc + j*naxis + i) /=  lambda;
+                }
+                }
+            }
+
+            wcs->lin.crpix  = wcs->crpix;
+            wcs->lin.pc     = wcs->pc;
+            wcs->lin.cdelt  = wcs->cdelt;
+            if ((status = linset(&(wcs->lin)))) {
+                return wcserr_set(WCS_ERRMSG(wcs_linerr[status]));
+            }
+
+
+            // Set defaults for radesys and equinox for equatorial or ecliptic.
+            if (strcmp(wcs->lngtyp, "RA")   == 0 ||
+                strcmp(wcs->lngtyp, "ELON") == 0 ||
+                strcmp(wcs->lngtyp, "HLON") == 0) {
+                if (wcs->radesys[0] == '\0') {
+                if (undefined(wcs->equinox)) {
+                    strcpy(wcs->radesys, "ICRS");
+                } else if (wcs->equinox < 1984.0) {
+                    strcpy(wcs->radesys, "FK4");
+                } else {
+                    strcpy(wcs->radesys, "FK5");
+                }
+
+                } else if (strcmp(wcs->radesys, "ICRS")  == 0 ||
+                        strcmp(wcs->radesys, "GAPPT") == 0) {
+                // Equinox is not applicable for these coordinate systems.
+                wcs->equinox = UNDEFINED;
+
+                } else if (undefined(wcs->equinox)) {
+                if (strcmp(wcs->radesys, "FK5") == 0) {
+                    wcs->equinox = 2000.0;
+                } else if (strcmp(wcs->radesys, "FK4") == 0 ||
+                            strcmp(wcs->radesys, "FK4-NO-E") == 0) {
+                    wcs->equinox = 1950.0;
+                }
+                }
+
+            } else {
+                // No celestial axes, ensure that radesys and equinox are unset.
+                memset(wcs->radesys, 0, 72);
+                wcs->equinox = UNDEFINED;
+            }
+
+
+            // Strip off trailing blanks and null-fill auxiliary string members.
+            if (wcs->alt[0] == '\0') wcs->alt[0] = ' ';
+            memset(wcs->alt+1, '\0', 3);
+
+            for (int i = 0; i < naxis; i++) {
+                wcsutil_null_fill(72, wcs->cname[i]);
+            }
+            wcsutil_null_fill(72, wcs->wcsname);
+            wcsutil_null_fill(72, wcs->timesys);
+            wcsutil_null_fill(72, wcs->trefpos);
+            wcsutil_null_fill(72, wcs->trefdir);
+            wcsutil_null_fill(72, wcs->plephem);
+            wcsutil_null_fill(72, wcs->timeunit);
+            wcsutil_null_fill(72, wcs->dateref);
+            wcsutil_null_fill(72, wcs->dateobs);
+            wcsutil_null_fill(72, wcs->datebeg);
+            wcsutil_null_fill(72, wcs->dateavg);
+            wcsutil_null_fill(72, wcs->dateend);
+            wcsutil_null_fill(72, wcs->obsorbit);
+            wcsutil_null_fill(72, wcs->radesys);
+            wcsutil_null_fill(72, wcs->specsys);
+            wcsutil_null_fill(72, wcs->ssysobs);
+            wcsutil_null_fill(72, wcs->ssyssrc);
+
+            // MJDREF defaults to zero if no reference date keywords were defined.
+            if (wcs->dateref[0] == '\0') {
+                if (undefined(wcs->mjdref[0])) {
+                wcs->mjdref[0] = 0.0;
+                }
+                if (undefined(wcs->mjdref[1])) {
+                wcs->mjdref[1] = 0.0;
+                }
+            }
+
+            wcs->flag = WCSSET;
         }
-
-      } else if (i == wcs->lng) {
-        // PVi_ma associated with longitude axis.
-        switch (m) {
-        case 0:
-          wcscel->offset = (wcs->pv[k].value != 0.0);
-          break;
-        case 1:
-          wcscel->phi0   = wcs->pv[k].value;
-          break;
-        case 2:
-          wcscel->theta0 = wcs->pv[k].value;
-          break;
-        case 3:
-          // If present, overrides LONPOLEa.
-          wcscel->ref[2] = wcs->pv[k].value;
-          break;
-        case 4:
-          // If present, overrides LATPOLEa.
-          wcscel->ref[3] = wcs->pv[k].value;
-          break;
-        default:
-          return wcserr_set(WCSERR_SET(WCSERR_BAD_COORD_TRANS),
-            "PV%i_%i%s: Unrecognized coordinate transformation parameter",
-            i+1, m, wcs->alt);
-          break;
+        if(exclusive_section_executed == 0 && wcs->naxis > 0){
+            fprintf(stderr,"In %s> on tid = %lld Incremented the exclusive section executed variable\n",__FUNCTION__, (long long)tid);
+            exclusive_section_executed = 1;
         }
-      }
-    }
-
-    // Do simple alias translations.
-    if (strncmp(wcs->ctype[wcs->lng]+5, "GLS", 3) == 0) {
-      wcscel->offset = 1;
-      wcscel->phi0   = 0.0;
-      wcscel->theta0 = wcs->crval[wcs->lat];
-      strcpy(wcsprj->code, "SFL");
-
-    } else if (strncmp(wcs->ctype[wcs->lng]+5, "NCP", 3) == 0) {
-      // Convert NCP to SIN.
-      if (wcscel->ref[1] == 0.0) {
-        return wcserr_set(WCSERR_SET(WCSERR_BAD_PARAM),
-          "Invalid projection: NCP blows up on the equator");
-      }
-
-      strcpy(wcsprj->code, "SIN");
-      wcsprj->pv[1] = 0.0;
-      wcsprj->pv[2] = cosd(wcscel->ref[1])/sind(wcscel->ref[1]);
-    }
-
-    // Initialize the celestial transformation routines.
-    wcsprj->r0 = 0.0;
-    if ((status = celset(wcscel))) {
-      return wcserr_set(WCS_ERRMSG(wcs_celerr[status]));
-    }
-
-    // Update LONPOLE, LATPOLE, and PVi_ma keyvalues.
-    wcs->lonpole = wcscel->ref[2];
-    wcs->latpole = wcscel->ref[3];
-
-    for (int k = 0; k < wcs->npv; k++) {
-      int i = wcs->pv[k].i - 1;
-      int m = wcs->pv[k].m;
-
-      if (i == wcs->lng) {
-        switch (m) {
-        case 1:
-          wcs->pv[k].value = wcscel->phi0;
-          break;
-        case 2:
-          wcs->pv[k].value = wcscel->theta0;
-          break;
-        case 3:
-          wcs->pv[k].value = wcscel->ref[2];
-          break;
-        case 4:
-          wcs->pv[k].value = wcscel->ref[3];
-          break;
+        fprintf(stderr,"In %s> unlocked mutex on tid=%lld\n",__FUNCTION__, (long long) tid);
+        pthread_cond_broadcast(&cond);
+        pthread_mutex_unlock(&mutex);
+    } else {
+        fprintf(stderr,"In %s> mutex is locked on tid=%lld\n",__FUNCTION__, (long long) tid);
+        pthread_mutex_lock(&mutex);
+        while (exclusive_section_executed != 1) {
+            pthread_cond_wait(&cond, &mutex);
         }
-      }
+        pthread_mutex_unlock(&mutex);
     }
-  }
-
-
-  // Non-linear spectral axis present?
-  if (wcs->spec >= 0 && wcs->types[wcs->spec] == 3300) {
-    char scode[4], stype[5];
-    struct spcprm *wcsspc = &(wcs->spc);
-    spcini(wcsspc);
-    if ((status = spctype(wcs->ctype[wcs->spec], stype, scode, 0x0, 0x0, 0x0,
-                          0x0, 0x0, err))) {
-      return status;
-    }
-    strcpy(wcsspc->type, stype);
-    strcpy(wcsspc->code, scode);
-
-    // CRVALia, RESTFRQa, and RESTWAVa keyvalues.
-    wcsspc->crval = wcs->crval[wcs->spec];
-    wcsspc->restfrq = wcs->restfrq;
-    wcsspc->restwav = wcs->restwav;
-
-    // PVi_ma keyvalues.
-    for (int k = 0; k < wcs->npv; k++) {
-      int i = wcs->pv[k].i - 1;
-      int m = wcs->pv[k].m;
-
-      if (i == wcs->spec) {
-        // PVi_ma associated with grism axis.
-        if (m < 7) {
-          wcsspc->pv[m] = wcs->pv[k].value;
-        }
-      }
-    }
-
-    // Initialize the spectral transformation routines.
-    if ((status = spcset(wcsspc))) {
-      return wcserr_set(WCS_ERRMSG(wcs_spcerr[status]));
-    }
-  }
-
-
-  // Tabular axes present?
-  for (int itab = 0; itab < wcs->ntab; itab++) {
-    if ((status = tabset(wcs->tab + itab))) {
-      return wcserr_set(WCS_ERRMSG(wcs_taberr[status]));
-    }
-  }
-
-
-  // Initialize the linear transformation.
-  wcs->altlin &= 15;
-  if (wcs->altlin > 1 && !(wcs->altlin & 1)) {
-    double *pc = wcs->pc;
-
-    if ((wcs->altlin & 2) && !(wcs->altlin & 8)) {
-      // Copy CDi_ja to PCi_ja and reset CDELTia.
-      double *cd = wcs->cd;
-      for (int i = 0; i < naxis; i++) {
-        for (int j = 0; j < naxis; j++) {
-          *(pc++) = *(cd++);
-        }
-        wcs->cdelt[i] = 1.0;
-      }
-
-    } else if (wcs->altlin & 4) {
-      // Construct PCi_ja from CROTAia.
-      int i, j;
-      if ((i = wcs->lng) >= 0 && (j = wcs->lat) >= 0) {
-        double rho = wcs->crota[j];
-
-        if (wcs->cdelt[i] == 0.0) {
-          return wcserr_set(WCSERR_SET(WCSERR_SINGULAR_MTX),
-            "Singular transformation matrix, CDELT%d is zero", i+1);
-        }
-        double lambda = wcs->cdelt[j]/wcs->cdelt[i];
-
-        *(pc + i*naxis + i) = *(pc + j*naxis + j) = cosd(rho);
-        *(pc + i*naxis + j) = *(pc + j*naxis + i) = sind(rho);
-        *(pc + i*naxis + j) *= -lambda;
-        *(pc + j*naxis + i) /=  lambda;
-      }
-    }
-  }
-
-  wcs->lin.crpix  = wcs->crpix;
-  wcs->lin.pc     = wcs->pc;
-  wcs->lin.cdelt  = wcs->cdelt;
-  if ((status = linset(&(wcs->lin)))) {
-    return wcserr_set(WCS_ERRMSG(wcs_linerr[status]));
-  }
-
-
-  // Set defaults for radesys and equinox for equatorial or ecliptic.
-  if (strcmp(wcs->lngtyp, "RA")   == 0 ||
-      strcmp(wcs->lngtyp, "ELON") == 0 ||
-      strcmp(wcs->lngtyp, "HLON") == 0) {
-    if (wcs->radesys[0] == '\0') {
-      if (undefined(wcs->equinox)) {
-        strcpy(wcs->radesys, "ICRS");
-      } else if (wcs->equinox < 1984.0) {
-        strcpy(wcs->radesys, "FK4");
-      } else {
-        strcpy(wcs->radesys, "FK5");
-      }
-
-    } else if (strcmp(wcs->radesys, "ICRS")  == 0 ||
-               strcmp(wcs->radesys, "GAPPT") == 0) {
-      // Equinox is not applicable for these coordinate systems.
-      wcs->equinox = UNDEFINED;
-
-    } else if (undefined(wcs->equinox)) {
-      if (strcmp(wcs->radesys, "FK5") == 0) {
-        wcs->equinox = 2000.0;
-      } else if (strcmp(wcs->radesys, "FK4") == 0 ||
-                 strcmp(wcs->radesys, "FK4-NO-E") == 0) {
-        wcs->equinox = 1950.0;
-      }
-    }
-
-  } else {
-    // No celestial axes, ensure that radesys and equinox are unset.
-    memset(wcs->radesys, 0, 72);
-    wcs->equinox = UNDEFINED;
-  }
-
-
-  // Strip off trailing blanks and null-fill auxiliary string members.
-  if (wcs->alt[0] == '\0') wcs->alt[0] = ' ';
-  memset(wcs->alt+1, '\0', 3);
-
-  for (int i = 0; i < naxis; i++) {
-    wcsutil_null_fill(72, wcs->cname[i]);
-  }
-  wcsutil_null_fill(72, wcs->wcsname);
-  wcsutil_null_fill(72, wcs->timesys);
-  wcsutil_null_fill(72, wcs->trefpos);
-  wcsutil_null_fill(72, wcs->trefdir);
-  wcsutil_null_fill(72, wcs->plephem);
-  wcsutil_null_fill(72, wcs->timeunit);
-  wcsutil_null_fill(72, wcs->dateref);
-  wcsutil_null_fill(72, wcs->dateobs);
-  wcsutil_null_fill(72, wcs->datebeg);
-  wcsutil_null_fill(72, wcs->dateavg);
-  wcsutil_null_fill(72, wcs->dateend);
-  wcsutil_null_fill(72, wcs->obsorbit);
-  wcsutil_null_fill(72, wcs->radesys);
-  wcsutil_null_fill(72, wcs->specsys);
-  wcsutil_null_fill(72, wcs->ssysobs);
-  wcsutil_null_fill(72, wcs->ssyssrc);
-
-  // MJDREF defaults to zero if no reference date keywords were defined.
-  if (wcs->dateref[0] == '\0') {
-    if (undefined(wcs->mjdref[0])) {
-      wcs->mjdref[0] = 0.0;
-    }
-    if (undefined(wcs->mjdref[1])) {
-      wcs->mjdref[1] = 0.0;
-    }
-  }
-
-  wcs->flag = WCSSET;
-
-  return WCSERR_SUCCESS;
+    return WCSERR_SUCCESS;
 }
 
 // : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : : :
@@ -2910,6 +2941,8 @@ int wcs_types(struct wcsprm *wcs)
 
 
   int naxis = wcs->naxis;
+  fprintf(stderr,"In %s> wcs->flag = %d\n",__FUNCTION__,wcs->flag);
+
   if (wcs->types) free(wcs->types);
   if ((wcs->types = calloc(naxis, sizeof(int))) == 0x0) {
     return wcserr_set(WCS_ERRMSG(WCSERR_MEMORY));
