@@ -1621,14 +1621,36 @@ PyWcsprm_cset(
     const int convert) {
 
   int status = 0;
+  int cmp = 0;
+  double tolerance = 0;
+  int equal;
+
+  // We want to avoid calling wcsset whenever possible as it is not thread-safe,
+  // so we keep track of what the wcsprm was last time this function was called,
+  // using x_prev, and we compare these. If equal, and if PyWcsprm_cset() succeeded
+  // last time it was called, then we can just return 0 as there should be nothing
+  // to do.
+  if(self->x_prev_set) {
+    wcsprm_python2c(&self->x);
+    wcsprm_python2c(&self->x_prev);
+    status = wcscompare(cmp, tolerance, &self->x, &self->x_prev, &equal);
+    wcsprm_c2python(&self->x);
+    wcsprm_c2python(&self->x_prev);
+    if (status == 0 && equal != 0) return 0;
+  }
 
   if (convert) wcsprm_python2c(&self->x);
   status = wcsset(&self->x);
   if (convert) wcsprm_c2python(&self->x);
 
   if (status == 0) {
+    // Keep track of what self->x was to avoid calling wcsset again if unchanged
+    wcscopy(1, &self->x, &self->x_prev);
+    self->x_prev_set = 1;
     return 0;
   } else {
+    // If there are any failures, we want to make sure future calls don't take any shortcuts
+    self->x_prev_set = 0;
     wcs_to_python_exc(&(self->x));
     return 1;
   }

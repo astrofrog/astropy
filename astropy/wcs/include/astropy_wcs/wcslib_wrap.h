@@ -12,6 +12,8 @@ extern PyTypeObject PyWcsprmType;
 typedef struct {
   PyObject_HEAD
   struct wcsprm x;
+  struct wcsprm x_prev;
+  int x_prev_set;
 } PyWcsprm;
 
 int _setup_wcsprm_type(PyObject* m);
