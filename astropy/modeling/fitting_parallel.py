@@ -278,8 +278,6 @@ def parallel_fit_model_nd(
         )
         parameter_arrays.append(array)
 
-    print('before', data.shape, parameter_arrays[0].shape)
-
     # Define a model with default parameters to pass in to fit_models_to_chunk without copying all the parameter data
 
     simple_model = _copy_with_new_parameters(model, {})
@@ -306,11 +304,7 @@ def parallel_fit_model_nd(
 
     parameter_arrays_fitted = result.compute(**compute_kwargs)
 
-    print(parameter_arrays_fitted.shape)
-
     parameter_arrays_fitted = parameter_arrays_fitted[:, :, 0]
-
-    print(parameter_arrays_fitted.shape)
 
     # Set up new parameter arrays with fitted values
     parameters = {}
