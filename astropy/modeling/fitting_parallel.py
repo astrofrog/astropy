@@ -141,9 +141,14 @@ def fit_models_to_chunk(
                 fig.savefig(os.path.join(index_folder, "fit.png"))
                 plt.close(fig)
 
+    # HACK: for now we need to return chunks with an extra dimension at the start
+    # of the shape, then the rest of the data shape. However, this is wasteful
+    # and in principle we should be able to use drop_axis in map_blocks to
+    # indicate that we no longer need these extra dimensions.
     parameters = parameters.reshape((parameters.shape[0], parameters.shape[1], 1))
+    parameters = np.broadcast_to(parameters, (parameters.shape[0], parameters.shape[1]) + data.shape[1:])
 
-    return np.broadcast_to(parameters, (parameters.shape[0],) + data.shape)
+    return parameters
 
 
 def parallel_fit_model_nd(
@@ -273,6 +278,8 @@ def parallel_fit_model_nd(
         )
         parameter_arrays.append(array)
 
+    print('before', data.shape, parameter_arrays[0].shape)
+
     # Define a model with default parameters to pass in to fit_models_to_chunk without copying all the parameter data
 
     simple_model = _copy_with_new_parameters(model, {})
@@ -281,7 +288,6 @@ def parallel_fit_model_nd(
         fit_models_to_chunk,
         data,
         *parameter_arrays,
-        # chunks=(len(parameter_arrays),) + data.chunksize,
         enforce_ndim=True,
         dtype=float,
         new_axis=0,
@@ -300,7 +306,11 @@ def parallel_fit_model_nd(
 
     parameter_arrays_fitted = result.compute(**compute_kwargs)
 
+    print(parameter_arrays_fitted.shape)
+
     parameter_arrays_fitted = parameter_arrays_fitted[:, :, 0]
+
+    print(parameter_arrays_fitted.shape)
 
     # Set up new parameter arrays with fitted values
     parameters = {}
