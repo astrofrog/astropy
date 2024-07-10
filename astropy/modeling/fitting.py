@@ -44,6 +44,8 @@ from .spline import (
 from .statistic import leastsquare
 from .utils import _combine_equivalency_dict, poly_map_domain
 
+from .fitting_parallel import parallel_fit_dask
+
 __all__ = [
     "LinearLSQFitter",
     "LevMarLSQFitter",
@@ -61,6 +63,7 @@ __all__ = [
     "SplineInterpolateFitter",
     "SplineSmoothingFitter",
     "SplineSplrepFitter",
+    "parallel_fit_dask",
 ]
 
 
