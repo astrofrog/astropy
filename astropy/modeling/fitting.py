@@ -34,6 +34,7 @@ import numpy as np
 from astropy.units import Quantity
 from astropy.utils.exceptions import AstropyUserWarning
 
+from .fitting_parallel import parallel_fit_dask
 from .optimizers import DEFAULT_ACC, DEFAULT_EPS, DEFAULT_MAXITER, SLSQP, Simplex
 from .spline import (
     SplineExactKnotsFitter,
@@ -43,8 +44,6 @@ from .spline import (
 )
 from .statistic import leastsquare
 from .utils import _combine_equivalency_dict, poly_map_domain
-
-from .fitting_parallel import parallel_fit_dask
 
 __all__ = [
     "LinearLSQFitter",
