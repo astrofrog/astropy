@@ -853,6 +853,7 @@ class CompImageHDU(BinTableHDU):
         self._orig_bscale = self._bscale
 
     def _prewriteto(self, checksum=False, inplace=False):
+
         if self._scale_back:
             self.scale(BITPIX2DTYPE[self._orig_bitpix])
 

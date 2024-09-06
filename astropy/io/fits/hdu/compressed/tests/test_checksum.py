@@ -11,6 +11,7 @@ class TestChecksumFunctions(BaseChecksumTests):
 
     def test_compressed_image_data(self):
         with fits.open(self.data("comp.fits")) as h1:
+            h1[1].data = h1[1].data.copy()
             h1.writeto(self.temp("tmp.fits"), overwrite=True, checksum=True)
             with fits.open(self.temp("tmp.fits"), checksum=True) as h2:
                 assert np.all(h1[1].data == h2[1].data)
