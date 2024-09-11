@@ -456,6 +456,11 @@ def test_fit_with_fixed_and_bound_constraints(fitter):
         assert fitted_1.mean <= 5
         assert fitted_1.amplitude == 3.0
 
+        print(m)
+        print(m.stddev)
+        print(m.stddev.value)
+        print(m.parameters)
+
         m.amplitude.fixed = False
         # Cannot enter np.errstate twice, so we need to indent everything in between.
         _ = fitter(m, x, y)

@@ -1512,7 +1512,7 @@ def test_has_constraints():
 
     assert not model1.has_tied
     assert not model1.has_fixed
-    assert model1.has_bounds
+    assert not model1.has_bounds
 
     model1.amplitude.fixed = True
 

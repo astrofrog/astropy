@@ -161,8 +161,7 @@ class Gaussian1D(Fittable1DModel):
     stddev = Parameter(
         default=1,
         description="Standard deviation of the Gaussian",
-        getter=np.abs,
-        setter=np.abs,
+        positive=True,
     )
 
     def bounding_box(self, factor=5.5):
@@ -227,7 +226,7 @@ class Gaussian1D(Fittable1DModel):
         """
         d_amplitude = np.exp(-0.5 / stddev**2 * (x - mean) ** 2)
         d_mean = amplitude * d_amplitude * (x - mean) / stddev**2
-        d_stddev = amplitude * d_amplitude * (x - mean) ** 2 / stddev**3
+        d_stddev = amplitude * d_amplitude * (x - mean) ** 2 / np.abs(stddev)**3
         return [d_amplitude, d_mean, d_stddev]
 
     @property
@@ -349,14 +348,12 @@ class Gaussian2D(Fittable2DModel):
     x_stddev = Parameter(
         default=1,
         description="Standard deviation of the Gaussian (along x axis)",
-        getter=np.abs,
-        setter=np.abs,
+        positive=True,
     )
     y_stddev = Parameter(
         default=1,
         description="Standard deviation of the Gaussian (along y axis)",
-        getter=np.abs,
-        setter=np.abs,
+        positive=True,
     )
 
     theta = Parameter(
@@ -3606,19 +3603,16 @@ class KingProjectedAnalytic1D(Fittable1DModel):
     amplitude = Parameter(
         default=1,
         description="Amplitude or scaling factor",
-        getter=np.abs,
-        setter=np.abs,
+        positive=True,
     )
     r_core = Parameter(
         default=1,
-        getter=np.abs,
-        setter=np.abs,
+        positive=True,
         description="Core Radius",
     )
     r_tide = Parameter(
         default=2,
-        getter=np.abs,
-        setter=np.abs,
+        positive=True,
         description="Tidal Radius",
     )
 

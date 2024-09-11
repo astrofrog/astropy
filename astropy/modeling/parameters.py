@@ -182,6 +182,8 @@ class Parameter:
         simultaneously with min or max
     mag : bool
         Specify if the unit of the parameter can be a Magnitude unit or not
+    positive : bool, optional
+        If `True`, the parameter will always be converted to a positive value.
     """
 
     constraints = ("fixed", "tied", "bounds")
@@ -209,6 +211,7 @@ class Parameter:
         prior=None,
         posterior=None,
         mag=False,
+        positive=False,
     ):
         super().__init__()
 
@@ -223,6 +226,8 @@ class Parameter:
         self._getter = self._create_value_wrapper(getter, None)
         self._name = name
         self.__doc__ = self._description = description.strip()
+
+        self.positive = positive
 
         # We only need to perform this check on unbound parameters
         if isinstance(default, Quantity):
@@ -291,6 +296,8 @@ class Parameter:
         return value[key]
 
     def __setitem__(self, key, value):
+        if self.positive:
+            value = np.abs(value)
         # Get the existing value and check whether it even makes sense to
         # apply this index
         oldvalue = self.value
@@ -359,6 +366,9 @@ class Parameter:
             # return scalar number as np.float64 object
             return np.float64(value.item())
 
+        if self.positive:
+            return np.abs(value)
+
         return np.float64(value)
 
     @value.setter
@@ -370,6 +380,10 @@ class Parameter:
                 "a parameter to a quantity simply set the "
                 "parameter directly without using .value"
             )
+
+        if self.positive:
+            value = np.abs(value)
+
         if self._setter is None:
             self._value = np.array(value, dtype=np.float64)
         else:
