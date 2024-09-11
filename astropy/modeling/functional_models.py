@@ -56,7 +56,6 @@ __all__ = [
 ]
 
 TWOPI = 2 * np.pi
-FLOAT_EPSILON = float(np.finfo(np.float32).tiny)
 
 # Note that we define this here rather than using the value defined in
 # astropy.stats to avoid importing astropy.stats every time astropy.modeling
@@ -154,12 +153,16 @@ class Gaussian1D(Fittable1DModel):
     )
     mean = Parameter(default=0, description="Position of peak (Gaussian)")
 
-    # Ensure stddev makes sense if its bounds are not explicitly set.
-    # stddev must be non-zero and positive.
+    # We use getter and setter here to make sure that stddev values are always
+    # presented as being positive, as this is what users usually expect. We
+    # don't use actual bounds here because the equation for a Gaussian works
+    # fine with negative values, and also because using bounds limits what
+    # fitters can be used.
     stddev = Parameter(
         default=1,
-        bounds=(FLOAT_EPSILON, None),
         description="Standard deviation of the Gaussian",
+        getter=np.abs,
+        setter=np.abs,
     )
 
     def bounding_box(self, factor=5.5):
@@ -329,17 +332,33 @@ class Gaussian2D(Fittable2DModel):
 
     amplitude = Parameter(default=1, description="Amplitude of the Gaussian")
     x_mean = Parameter(
-        default=0, description="Peak position (along x axis) of Gaussian"
+        default=0,
+        description="Peak position (along x axis) of Gaussian",
     )
     y_mean = Parameter(
-        default=0, description="Peak position (along y axis) of Gaussian"
+        default=0,
+        description="Peak position (along y axis) of Gaussian",
     )
+
+    # We use getter and setter here to make sure that stddev values are always
+    # presented as being positive, as this is what users usually expect. We
+    # don't use actual bounds here because the equation for a Gaussian works
+    # fine with negative values, and also because using bounds limits what
+    # fitters can be used.
+
     x_stddev = Parameter(
-        default=1, description="Standard deviation of the Gaussian (along x axis)"
+        default=1,
+        description="Standard deviation of the Gaussian (along x axis)",
+        getter=np.abs,
+        setter=np.abs,
     )
     y_stddev = Parameter(
-        default=1, description="Standard deviation of the Gaussian (along y axis)"
+        default=1,
+        description="Standard deviation of the Gaussian (along y axis)",
+        getter=np.abs,
+        setter=np.abs,
     )
+
     theta = Parameter(
         default=0.0,
         description=(
@@ -382,14 +401,6 @@ class Gaussian2D(Fittable2DModel):
             x_stddev, y_stddev = np.sqrt(eig_vals)
             y_vec = eig_vecs[:, 0]
             theta = np.arctan2(y_vec[1], y_vec[0])
-
-        # Ensure stddev makes sense if its bounds are not explicitly set.
-        # stddev must be non-zero and positive.
-        # TODO: Investigate why setting this in Parameter above causes
-        #       convolution tests to hang.
-        kwargs.setdefault("bounds", {})
-        kwargs["bounds"].setdefault("x_stddev", (FLOAT_EPSILON, None))
-        kwargs["bounds"].setdefault("y_stddev", (FLOAT_EPSILON, None))
 
         super().__init__(
             amplitude=amplitude,
@@ -3586,16 +3597,29 @@ class KingProjectedAnalytic1D(Fittable1DModel):
     .. [1] https://ui.adsabs.harvard.edu/abs/1962AJ.....67..471K
     """
 
+    # We use getter and setter here to make sure that these values are always
+    # presented as being positive, as this is what users usually expect. We
+    # don't use actual bounds here because the equation for the model works
+    # fine with negative values, and also because using bounds limits what
+    # fitters can be used.
+
     amplitude = Parameter(
         default=1,
-        bounds=(FLOAT_EPSILON, None),
         description="Amplitude or scaling factor",
+        getter=np.abs,
+        setter=np.abs,
     )
     r_core = Parameter(
-        default=1, bounds=(FLOAT_EPSILON, None), description="Core Radius"
+        default=1,
+        getter=np.abs,
+        setter=np.abs,
+        description="Core Radius",
     )
     r_tide = Parameter(
-        default=2, bounds=(FLOAT_EPSILON, None), description="Tidal Radius"
+        default=2,
+        getter=np.abs,
+        setter=np.abs,
+        description="Tidal Radius",
     )
 
     @property
