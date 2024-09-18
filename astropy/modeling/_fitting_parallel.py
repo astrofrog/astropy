@@ -121,6 +121,8 @@ def _fit_models_to_chunk(
 
     iterating_shape_chunk = data.shape[: len(iterating_axes)]
 
+    model_i = None
+
     for index in np.ndindex(iterating_shape_chunk):
         # If all data values are NaN, just set parameters to NaN and move on
         if np.all(np.isnan(data[index])):
@@ -129,13 +131,17 @@ def _fit_models_to_chunk(
             continue
 
         # Make a copy of the reference model and inject parameters
-        model_i = _copy_with_new_parameters(
-            model,
-            {
-                name: parameters[(ipar,) + index]
-                for ipar, name in enumerate(model.param_names)
-            },
-        )
+        if model_i is None:
+            model_i = _copy_with_new_parameters(
+                model,
+                {
+                    name: parameters[(ipar,) + index]
+                    for ipar, name in enumerate(model.param_names)
+                },
+            )
+        else:
+            for ipar, name in enumerate(model.param_names):
+                setattr(model_i, name, parameters[(ipar,) + index])
 
         output = diagnostics == "all"
         error = ""
