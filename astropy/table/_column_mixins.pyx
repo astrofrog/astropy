@@ -27,6 +27,8 @@ import sys
 import numpy as np
 cimport numpy as np
 
+from cpython.object cimport PyObject_GetItem
+
 np.import_array()
 
 
@@ -73,6 +75,12 @@ cdef inline object base_getitem(object self, object item, item_getter getitem):
 cdef inline object column_getitem(object self, object item):
     return (<PyTypeObject *>np.ndarray).tp_as_mapping.mp_subscript(self, item)
 
+
+
+# from cpython.object cimport PyObject_GetItem
+
+# cdef inline object column_getitem(object self, object item):
+#     return PyObject_GetItem(self, item)
 
 cdef class _ColumnGetitemShim:
     def __getitem__(self, item):
