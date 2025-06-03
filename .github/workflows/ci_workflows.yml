@@ -22,7 +22,6 @@ permissions:
 
 jobs:
   tests:
-    needs: [initial_checks]
     uses: astrofrog/github-actions-workflows/.github/workflows/tox.yml@freethreaded  # v1.16.0
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
