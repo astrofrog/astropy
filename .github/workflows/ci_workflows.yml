@@ -162,7 +162,6 @@ jobs:
             astropy/table/_column_mixins.pyx \
             astropy/table/setup_package.py \
             astropy/utils/xml/setup_package.py \
-            astropy/wcs/setup_package.py
         name: Remove incompatible extensions
       - run: pipx run build
         name: Run build
