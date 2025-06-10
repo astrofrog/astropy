@@ -32,7 +32,7 @@ PyWtbarr_new(PyTypeObject* type, PyObject* args, PyObject* kwds) {
 static int
 PyWtbarr_traverse(PyWtbarr* self, visitproc visit, void *arg) {
   Py_VISIT(self->owner);
-  Py_VISIT(Py_TYPE(self));
+  Py_VISIT(Py_TYPE((PyObject*)self));
   return 0;
 }
 

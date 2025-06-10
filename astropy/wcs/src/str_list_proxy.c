@@ -57,7 +57,7 @@ PyStrListProxy_traverse(
     void *arg) {
 
   Py_VISIT(self->pyobject);
-  Py_VISIT(Py_TYPE(self));
+  Py_VISIT((PyObject*)Py_TYPE(self));
   return 0;
 }
 
