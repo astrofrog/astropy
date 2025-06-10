@@ -884,11 +884,13 @@ set_pvcards(
     return -1;
   }
 
+  PyObject* item = NULL;
   for (i = 0; i < size; ++i)
   {
-    if (!PyArg_ParseTuple(PySequence_GetItem(value, i), "iid",
+    if (!PyArg_ParseTuple((item = PySequence_GetItem(value, i)), "iid",
         &newmem[i].i, &newmem[i].m, &newmem[i].value))
     {
+      Py_DECREF(item);
       goto done;
     }
   }
