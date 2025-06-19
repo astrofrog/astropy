@@ -1056,9 +1056,13 @@ PyWcsprm_fix(
 
   memset(err, 0, sizeof(struct wcserr) * NWCSFIX);
 
+  printf("16 %.72s\n", self->x.cunit[0]);
+
   wcsprm_python2c(&self->x);
   wcsfixi(ctrl, naxis, &self->x, stat, err);
   wcsprm_c2python(&self->x);
+
+  printf("17 %.72s\n", self->x.cunit[0]);
 
   /* We're done with this already, so deref now so we don't have to remember
      later */

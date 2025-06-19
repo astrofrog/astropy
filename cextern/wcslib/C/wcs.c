@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <execinfo.h>
 
 #include "wcserr.h"
 #include "wcsmath.h"
@@ -2533,6 +2534,17 @@ int wcsbchk(struct wcsprm *wcs, int bounds)
 
 //----------------------------------------------------------------------------
 
+void print_stacktrace(int max_frames) {
+    void *buffer[max_frames];
+    int nptrs = backtrace(buffer, max_frames);
+    char **symbols = backtrace_symbols(buffer, nptrs);
+    printf("Stack trace:\n");
+    for (int i = 1; i < nptrs; i++) { // skip [0] (this function)
+        printf("  [%d] %s\n", i, symbols[i]);
+    }
+    free(symbols);
+}
+
 int wcsset(struct wcsprm *wcs)
 
 {
@@ -2542,7 +2554,9 @@ int wcsset(struct wcsprm *wcs)
   if (wcs->flag == -WCSSET) return 0;
   struct wcserr **err = &(wcs->err);
 
-  printf("in wcsset: %d\n", wcs->cunit[0][0]);
+  printf("in wcsset: %.72s\n", wcs->cunit[0]);
+
+  print_stacktrace(10);
 
   // Determine axis types from CTYPEia.
   int status;
@@ -2945,6 +2959,8 @@ int wcsset(struct wcsprm *wcs)
   wcs->chksum = wcs_chksum(wcs);
 
   wcs->flag = (wcs->flag == 1) ? -WCSSET : WCSSET;
+
+  printf("in wcsset [end]: %.72s\n", wcs->cunit[0]);
 
   return 0;
 }
