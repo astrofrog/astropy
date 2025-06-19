@@ -595,7 +595,9 @@ reduce these to 2 dimensions using the naxis kwarg.
                 self.fix(translate_units=translate_units)
 
         if _do_set:
+            print('Setting')
             self.wcs.set()
+            print('Done setting')
 
         for fd in close_fds:
             fd.close()

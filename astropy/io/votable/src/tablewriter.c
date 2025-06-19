@@ -216,7 +216,7 @@ write_tabledata(PyObject* self, PyObject *args, PyObject *kwds)
     if ((ncols = PyList_Size(converters)) == -1) goto exit;
     if (PyList_Size(py_supports_empty_values) != ncols) goto exit;
 
-    supports_empty_values = PyMem_Malloc(sizeof(int) * ncols);
+    supports_empty_values = malloc(sizeof(int) * ncols);
     if (!supports_empty_values) goto exit;
     for (i = 0; i < ncols; ++i) {
         supports_empty_values[i] = PyObject_IsTrue(

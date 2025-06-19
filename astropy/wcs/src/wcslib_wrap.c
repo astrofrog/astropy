@@ -374,6 +374,8 @@ PyWcsprm_init(
     return -1;
   }
 
+//   printf("1 %.72s\n", wcs->cunit[0]);
+
   if (header_obj == NULL || header_obj == Py_None) {
     if (keysel > 0) {
       PyErr_SetString(
@@ -394,6 +396,8 @@ PyWcsprm_init(
         naxis = 2;
     }
 
+    //   printf("2 %.72s\n", wcs->cunit[0]);
+
     if (naxis < 1 || naxis > 15) {
       PyErr_SetString(
           PyExc_ValueError,
@@ -413,10 +417,14 @@ PyWcsprm_init(
 
     self->x.alt[0] = key[0];
 
+    //   printf("3 %.72s\n", wcs->cunit[0]);
+
     if (PyWcsprm_cset(self, 0)) {
       return -1;
     }
     wcsprm_c2python(&self->x);
+
+    //   printf("4 %.72s\n", wcs->cunit[0]);
 
     return 0;
   } else { /* header != NULL */
@@ -448,6 +456,8 @@ PyWcsprm_init(
           "naxis may not be provided if a header is provided.");
       return -1;
     }
+
+    //   printf("5 %.72s\n", wcs->cunit[0]);
 
     nkeyrec = header_length / 80;
     if (nkeyrec > 0x7fffffff) {
@@ -481,6 +491,8 @@ PyWcsprm_init(
 
       Py_DECREF(colsel_array);
     }
+
+    //   printf("6 %.72s\n", wcs->cunit[0]);
 
     wcsprintf_set(NULL);
 
@@ -517,6 +529,8 @@ PyWcsprm_init(
       return -1;
     }
 
+    //   printf("8 %.72s\n", wcs->cunit[0]);
+
     wcsvfree(&nwcs, &wcs);
 
     if (warnings && convert_rejections_to_warnings()) {
@@ -547,6 +561,7 @@ PyWcsprm_init(
     }
 
     free(colsel_ints);
+  printf("9 %.72s\n", wcs->cunit[0]);
 
     if (status != 0) {
       wcshdr_err_to_python_exc(status, wcs);
@@ -595,9 +610,14 @@ PyWcsprm_init(
       }
     }
 
+      printf("10 %.72s\n", wcs->cunit[0]);
+
     note_change(self);
     wcsprm_c2python(&self->x);
     wcsvfree(&nwcs, &wcs);
+
+    printf("11 %.72s\n", self->x.cunit[0]);
+
     return 0;
   }
 }
@@ -626,9 +646,11 @@ PyWcsprm_bounds_check(
   if (sky2pix) {
       bounds |= 1;
   }
+//   printf("11 %.72s\n", wcs->cunit[0]);
 
   wcsprm_python2c(&self->x);
   wcsbchk(&self->x, bounds);
+//   printf("12 %.72s\n", wcs->cunit[0]);
 
   Py_RETURN_NONE;
 }
@@ -1631,9 +1653,15 @@ PyWcsprm_cset(
 
   int status = 0;
 
+  printf("PyWcsprm_cset\n");
+
+          printf("12 %.72s\n", self->x.cunit[0]);
+
   if (convert) wcsprm_python2c(&self->x);
   status = wcsset(&self->x);
   if (convert) wcsprm_c2python(&self->x);
+
+        printf("13 %.72s\n", self->x.cunit[0]);
 
   if (status == 0) {
     return 0;

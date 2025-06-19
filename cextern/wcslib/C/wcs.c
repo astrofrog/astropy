@@ -2542,6 +2542,8 @@ int wcsset(struct wcsprm *wcs)
   if (wcs->flag == -WCSSET) return 0;
   struct wcserr **err = &(wcs->err);
 
+  printf("in wcsset: %d\n", wcs->cunit[0][0]);
+
   // Determine axis types from CTYPEia.
   int status;
   if ((status = wcs_types(wcs))) {
