@@ -29,9 +29,7 @@ def sorting_key(x):
 
 
 # Get the full list of contributors - this takes into account the .mailmap
-names = subprocess.check_output(["git", "shortlog", "-sne"]).splitlines()
-
-print(names)
+names = subprocess.check_output(["git", "shortlog", "-sne", "HEAD"]).splitlines()
 
 # Extract the names from each line, and sort in a case-insensitive way
 names = sorted(
