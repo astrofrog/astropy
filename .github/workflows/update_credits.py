@@ -28,8 +28,44 @@ def sorting_key(x):
     return remove_accents(x.lower())
 
 
+import os
+
+print("cwd:", os.getcwd())
+print(
+    "is git repo:",
+    subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        check=False,
+        capture_output=True,
+        text=True,
+    ).stdout.strip(),
+)
+print(
+    "HEAD:",
+    subprocess.run(
+        ["git", "rev-parse", "HEAD"], check=False, capture_output=True, text=True
+    ).stdout.strip(),
+)
+print(
+    "last commit:",
+    subprocess.run(
+        ["git", "log", "-1", "--pretty=%H %aN <%aE>"],
+        check=False,
+        capture_output=True,
+        text=True,
+    ).stdout,
+)
+print(
+    "shortlog HEAD:",
+    subprocess.run(
+        ["git", "shortlog", "-sne", "HEAD"], check=False, capture_output=True, text=True
+    ).stdout,
+)
+
 # Get the full list of contributors - this takes into account the .mailmap
 names = subprocess.check_output(["git", "shortlog", "-sne", "HEAD"]).splitlines()
+
+print(names)
 
 # Extract the names from each line, and sort in a case-insensitive way
 names = sorted(
