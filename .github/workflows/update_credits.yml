@@ -42,14 +42,16 @@ jobs:
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
       with:
-        branch: update-astropy-iers-data-pin
+        branch: update-credits
         branch-suffix: timestamp
         delete-branch: true
-        labels: no-changelog-entry-needed, utils.iers
-        title: Update credits
+        labels: no-changelog-entry-needed, Docs
+        title: Update credits to add new contributors
         body: |
           This is an automated update of the credits for the core package.
 
-          :pray: Please apply backport labels to any active backport branches for v7.2.x or later. :pray:
+          Checklist:
 
-          :warning: Please close and re-open this pull request to trigger the CI. :warning:
+          * [ ] Check the resulting docs/credits.rst, and update the .mailmap file for any duplicates or missing names
+          * [ ] :pray: Please apply backport labels to any active backport branches for v7.2.x or later. :pray:
+          * [ ] :warning: Please close and re-open this pull request to trigger the CI. :warning:
