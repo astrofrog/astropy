@@ -1,5 +1,5 @@
 [project]
-name = "astropy"
+name = "astropy-core"
 dynamic = [
     "version"
 ]
@@ -65,7 +65,7 @@ ipython = [
     "ipython>=8.0.0",
 ]
 jupyter = [  # these are optional dependencies for utils.console and table
-    "astropy[ipython]",
+    "astropy-core[ipython]",
     "ipywidgets>=7.7.3",
     "ipykernel>=6.16.0",
     "ipydatagrid>=1.1.13",
@@ -77,9 +77,9 @@ jupyter = [  # these are optional dependencies for utils.console and table
 # This is ALL the run-time optional dependencies.
 all = [
     # Install grouped optional dependencies
-    "astropy[recommended]",
-    "astropy[ipython]",
-    "astropy[jupyter]",
+    "astropy-core[recommended]",
+    "astropy-core[ipython]",
+    "astropy-core[jupyter]",
     # Install all remaining optional dependencies
     "certifi>=2022.6.15.1",
     "dask[dataframe]>=2024.8.0", # keep in sync with dependency-groups.dataframe
@@ -111,8 +111,8 @@ test = [
 ]
 test_all = [
     # Install grouped optional dependencies
-    "astropy[all]",  # installs all optional run-time dependencies
-    "astropy[test]",
+    "astropy-core[all]",  # installs all optional run-time dependencies
+    "astropy-core[test]",
     # Install all remaining dependencies
     "objgraph>=3.1.2",
     "skyfield>=1.42.0",
@@ -134,9 +134,9 @@ typing = [
     "narwhals>=1.42.0" # keep in sync with dependency-groups.dataframe
 ]
 docs = [
-    "astropy[recommended]",  # installs the [recommended] dependencies
+    "astropy-core[recommended]",  # installs the [recommended] dependencies
     "sphinx>=8.2.0,<9",  # keep in sync with docs/conf.py
-    "sphinx-astropy[confv2]>=1.9.1",
+    "sphinx-astropy-core[confv2]>=1.9.1",
     "pytest>=8.0.0",
     "sphinx-changelog>=1.2.0",
     "sphinx_design>=0.6.1",
@@ -147,15 +147,15 @@ docs = [
 ]
 # These group together all the dependencies needed for developing in Astropy.
 dev = [
-    "astropy[recommended]",  # installs the most common optional dependencies
-    "astropy[test]",
-    "astropy[docs]",
-    "astropy[typing]",
+    "astropy-core[recommended]",  # installs the most common optional dependencies
+    "astropy-core[test]",
+    "astropy-core[docs]",
+    "astropy-core[typing]",
 ]
 dev_all = [
     "tox>=4.33.0", # keep in sync with tox.minversion in tox.ini
-    "astropy[dev]",
-    "astropy[test_all]",
+    "astropy-core[dev]",
+    "astropy-core[test_all]",
 ]
 
 [project.urls]
@@ -237,7 +237,7 @@ norecursedirs = [
     ".*",
     "docs[\\/]_build",
     "docs[\\/]generated",
-    "astropy[\\/]extern",
+    "astropy-core[\\/]extern",
 ]
 astropy_header = true
 doctest_plus = "enabled"
