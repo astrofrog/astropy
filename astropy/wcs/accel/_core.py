@@ -3,9 +3,10 @@ Fast pixel-to-pixel transformations for zenithal WCS projections.
 
 This module implements the Montage "plane-to-plane" algorithm for fast
 coordinate transformations between two WCS with zenithal projections.
-For TAN projections, the transformation is exact. For other zenithal
-projections (SIN, STG, ARC, etc.), a highly accurate homography
-approximation is used.
+For TAN projections, the transformation is exact and computed entirely
+from WCS header parameters (CRVAL, CRPIX, CD/PC+CDELT) without any
+WCS coordinate conversions. For other zenithal projections (SIN, STG,
+ARC, etc.), a highly accurate homography approximation is used.
 
 The transformation is a projective (homographic) mapping:
     px2 = (A*px1 + B*py1 + C) / (G*px1 + H*py1 + I)
@@ -66,68 +67,62 @@ def _get_cd_matrix(wcs):
     return np.diag(wcs.wcs.get_cdelt()) @ wcs.wcs.get_pc()
 
 
-def _celestial_to_cartesian(ra_deg, dec_deg):
-    """Convert RA, Dec (degrees) to unit 3D Cartesian vector."""
-    ra = np.radians(ra_deg)
-    dec = np.radians(dec_deg)
-    return np.array([
-        np.cos(dec) * np.cos(ra),
-        np.cos(dec) * np.sin(ra),
-        np.sin(dec),
-    ])
-
-
 def _get_tangent_basis(wcs):
     """
-    Compute tangent plane basis vectors for a WCS via numerical differentiation.
+    Compute tangent plane basis vectors analytically from CRVAL.
+
+    For TAN projections, the tangent plane basis is determined entirely by
+    the reference point (CRVAL). No WCS coordinate conversions are needed.
 
     Returns (n, ex, ey) where:
     - n: unit vector pointing to CRVAL
-    - ex, ey: tangent vectors for intermediate world x/y directions
+    - ex: unit vector in tangent plane pointing east (increasing RA)
+    - ey: unit vector in tangent plane pointing north (increasing Dec)
     """
-    cd = _get_cd_matrix(wcs)
-    cd_inv = np.linalg.inv(cd)
-    crpix = wcs.wcs.crpix
-    eps = 1e-4  # degrees
+    # Get reference point from CRVAL
+    crval = wcs.wcs.crval  # [RA, Dec] in degrees
+    ra0 = np.radians(crval[0])
+    dec0 = np.radians(crval[1])
 
-    # Reference direction at CRVAL
-    ra_0, dec_0 = wcs.pixel_to_world_values(crpix[0], crpix[1])
-    n = _celestial_to_cartesian(ra_0, dec_0)
+    cos_dec = np.cos(dec0)
+    sin_dec = np.sin(dec0)
+    cos_ra = np.cos(ra0)
+    sin_ra = np.sin(ra0)
 
-    # Numerical derivatives
-    deg2rad = np.pi / 180.0
+    # Unit vector pointing to reference point
+    n = np.array([cos_dec * cos_ra, cos_dec * sin_ra, sin_dec])
 
-    pix_x = crpix + cd_inv @ np.array([eps, 0])
-    ra_x, dec_x = wcs.pixel_to_world_values(pix_x[0], pix_x[1])
-    dir_x = _celestial_to_cartesian(ra_x, dec_x)
+    # ex points east (direction of increasing RA at reference point)
+    # In FITS WCS with standard LONPOLE=180, intermediate x increases eastward
+    ex = np.array([-sin_ra, cos_ra, 0.0])
 
-    pix_y = crpix + cd_inv @ np.array([0, eps])
-    ra_y, dec_y = wcs.pixel_to_world_values(pix_y[0], pix_y[1])
-    dir_y = _celestial_to_cartesian(ra_y, dec_y)
-
-    ex = (dir_x - n) / (eps * deg2rad)
-    ey = (dir_y - n) / (eps * deg2rad)
-
-    # Orthogonalize to ensure basis lies in tangent plane
-    ex = ex - np.dot(ex, n) * n
-    ey = ey - np.dot(ey, n) * n
+    # ey points north (direction of increasing Dec at reference point)
+    ey = np.array([-sin_dec * cos_ra, -sin_dec * sin_ra, cos_dec])
 
     return n, ex, ey
 
 
 def _compute_matrix_analytical(wcs1, wcs2):
-    """Compute transformation matrix analytically (exact for TAN)."""
+    """
+    Compute transformation matrix analytically (exact for TAN).
+
+    This is a fully analytical computation using only WCS header parameters
+    (CRVAL, CRPIX, CD/PC+CDELT). No WCS coordinate conversions are performed.
+    """
     deg2rad = np.pi / 180.0
 
     cd1 = _get_cd_matrix(wcs1)
     cd2 = _get_cd_matrix(wcs2)
-    crpix1 = wcs1.wcs.crpix
-    crpix2 = wcs2.wcs.crpix
+
+    # Convert CRPIX from FITS 1-indexed to 0-indexed pixel coordinates
+    crpix1_0 = wcs1.wcs.crpix - 1
+    crpix2_0 = wcs2.wcs.crpix - 1
 
     n1, ex1, ey1 = _get_tangent_basis(wcs1)
     n2, ex2, ey2 = _get_tangent_basis(wcs2)
 
-    offset1 = -cd1 @ crpix1
+    # Intermediate world coords at pixel (0,0): CD @ (0 - crpix_0) = -CD @ crpix_0
+    offset1 = -cd1 @ crpix1_0
 
     # Matrix: pixel1 -> (u1, v1, deg2rad)
     P1 = np.array([
@@ -145,11 +140,11 @@ def _compute_matrix_analytical(wcs1, wcs2):
 
     B = T @ P1
 
-    # Matrix: (u2, v2, 1) -> pixel2
+    # Matrix: (u2, v2, 1) -> pixel2 (0-indexed)
     cd2_inv = np.linalg.inv(cd2)
     P2_inv = np.array([
-        [cd2_inv[0, 0], cd2_inv[0, 1], crpix2[0]],
-        [cd2_inv[1, 0], cd2_inv[1, 1], crpix2[1]],
+        [cd2_inv[0, 0], cd2_inv[0, 1], crpix2_0[0]],
+        [cd2_inv[1, 0], cd2_inv[1, 1], crpix2_0[1]],
         [0, 0, 1],
     ])
 
