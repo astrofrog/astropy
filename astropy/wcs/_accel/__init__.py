@@ -5,16 +5,11 @@ This module provides accelerated coordinate transformations between two WCS
 with zenithal projections using the Montage "plane-to-plane" algorithm.
 """
 
-from ._core import (
-    SUPPORTED_PROJECTIONS,
-    apply_transform,
-    apply_transform_grid,
-    compute_transform_matrix,
-)
+from ._matrix import apply_transform, compute_transform_matrix
+from ._projections import SUPPORTED_PROJECTIONS
 
 __all__ = [
     "compute_transform_matrix",
     "apply_transform",
-    "apply_transform_grid",
     "SUPPORTED_PROJECTIONS",
 ]
