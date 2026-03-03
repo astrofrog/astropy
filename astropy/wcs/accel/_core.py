@@ -152,6 +152,200 @@ def _compute_matrix_analytical(wcs1, wcs2):
     return M / M[2, 2]
 
 
+def _intermediate_to_direction(x_deg, y_deg, proj, n, ex, ey):
+    """
+    Convert intermediate world coordinates to 3D unit direction vector.
+
+    Parameters
+    ----------
+    x_deg, y_deg : float
+        Intermediate world coordinates in degrees.
+    proj : str
+        Projection code (TAN, SIN, STG, ARC, ZEA).
+    n, ex, ey : ndarray
+        Tangent plane basis vectors.
+
+    Returns
+    -------
+    d : ndarray
+        Unit 3D direction vector, or None if point cannot be projected.
+    """
+    x = np.radians(x_deg)
+    y = np.radians(y_deg)
+    r = np.sqrt(x * x + y * y)
+
+    if r < 1e-12:
+        return n.copy()
+
+    # Native spherical angle phi (from -y toward +x)
+    phi = np.arctan2(x, -y)
+
+    # Compute native latitude theta from radial distance r
+    # In FITS WCS zenithal projections: theta = 90° at reference point
+    # r = R(theta) where R is the projection's radial function
+    if proj == "TAN":
+        # r = cot(theta), so theta = arccot(r) = pi/2 - arctan(r)
+        theta = np.pi / 2 - np.arctan(r)
+    elif proj == "SIN":
+        # r = cos(theta), so theta = arccos(r)
+        if r > 1:
+            return None
+        theta = np.arccos(r)
+    elif proj == "STG":
+        # r = 2*tan((pi/2 - theta)/2), so theta = pi/2 - 2*arctan(r/2)
+        theta = np.pi / 2 - 2 * np.arctan(r / 2)
+    elif proj == "ARC":
+        # r = pi/2 - theta (radians), so theta = pi/2 - r
+        theta = np.pi / 2 - r
+    elif proj == "ZEA":
+        # r = 2*sin((pi/2 - theta)/2) = sqrt(2*(1 - sin(theta)))
+        # Inverse: theta = pi/2 - 2*arcsin(r/2)
+        sin_half = r / 2
+        if sin_half > 1:
+            return None
+        theta = np.pi / 2 - 2 * np.arcsin(sin_half)
+    else:
+        return None
+
+    if theta < 0:
+        return None
+
+    # 3D direction vector
+    # theta is native latitude: 90° at pole (n), 0° at horizon
+    # sin(theta) is component along n, cos(theta) is component in tangent plane
+    sin_theta = np.sin(theta)
+    cos_theta = np.cos(theta)
+
+    # Direction in tangent plane at angle phi from -ey
+    tangent_dir = np.sin(phi) * ex - np.cos(phi) * ey
+
+    d = sin_theta * n + cos_theta * tangent_dir
+    return d / np.linalg.norm(d)
+
+
+def _direction_to_intermediate(d, proj, n, ex, ey):
+    """
+    Convert 3D unit direction vector to intermediate world coordinates.
+
+    Parameters
+    ----------
+    d : ndarray
+        Unit 3D direction vector.
+    proj : str
+        Projection code (TAN, SIN, STG, ARC, ZEA).
+    n, ex, ey : ndarray
+        Tangent plane basis vectors.
+
+    Returns
+    -------
+    x_deg, y_deg : float
+        Intermediate world coordinates in degrees.
+    """
+    # Project onto tangent plane basis
+    # sin_theta is component along n (pole direction)
+    # cos_theta is component in tangent plane
+    sin_theta = np.dot(d, n)
+    dx = np.dot(d, ex)
+    dy = np.dot(d, ey)
+    cos_theta = np.sqrt(dx * dx + dy * dy)
+
+    if cos_theta < 1e-12:
+        return 0.0, 0.0
+
+    # Native spherical angle phi (azimuth from -ey toward +ex)
+    phi = np.arctan2(dx, -dy)
+
+    # Native latitude theta (90° at pole, 0° at horizon)
+    theta = np.arctan2(sin_theta, cos_theta)
+
+    # Radial distance r = R(theta) (projection-specific)
+    if proj == "TAN":
+        # r = cot(theta) = cos(theta)/sin(theta)
+        if sin_theta < 1e-12:
+            return np.nan, np.nan
+        r = cos_theta / sin_theta
+    elif proj == "SIN":
+        # r = cos(theta)
+        r = cos_theta
+    elif proj == "STG":
+        # r = 2*tan((pi/2 - theta)/2) = 2*(1 - sin(theta))/cos(theta)
+        if cos_theta < 1e-12:
+            return np.nan, np.nan
+        r = 2 * (1 - sin_theta) / cos_theta
+    elif proj == "ARC":
+        # r = pi/2 - theta
+        r = np.pi / 2 - theta
+    elif proj == "ZEA":
+        # r = 2*sin((pi/2 - theta)/2) = sqrt(2*(1 - sin(theta)))
+        r = np.sqrt(2 * (1 - sin_theta))
+    else:
+        r = cos_theta / sin_theta  # Default to TAN
+
+    # Intermediate coordinates: x = r*sin(phi), y = -r*cos(phi)
+    x = r * np.sin(phi)
+    y = -r * np.cos(phi)
+
+    return np.degrees(x), np.degrees(y)
+
+
+def _compute_matrix_zenithal(wcs1, wcs2):
+    """
+    Compute transformation matrix for zenithal projections analytically.
+
+    Uses 3D direction vectors as the intermediate representation:
+    pixel1 -> intermediate1 -> 3D direction -> intermediate2 -> pixel2
+
+    This is exact for all zenithal projections (no fitting approximation
+    in the projection math itself - only the final homography fit).
+    """
+    proj1 = _get_projection(wcs1)
+    proj2 = _get_projection(wcs2)
+
+    cd1 = _get_cd_matrix(wcs1)
+    cd2 = _get_cd_matrix(wcs2)
+    cd2_inv = np.linalg.inv(cd2)
+
+    crpix1_0 = wcs1.wcs.crpix - 1  # 0-indexed
+    crpix2_0 = wcs2.wcs.crpix - 1
+
+    n1, ex1, ey1 = _get_tangent_basis(wcs1)
+    n2, ex2, ey2 = _get_tangent_basis(wcs2)
+
+    # Sample points to build the homography
+    offsets = np.array([-100, 0, 100])
+    px, py = np.meshgrid(crpix1_0[0] + offsets, crpix1_0[1] + offsets)
+    src = np.column_stack([px.ravel(), py.ravel()])
+
+    dst = []
+    for pix1 in src:
+        # Pixel1 -> intermediate1 (degrees)
+        xy1 = cd1 @ (pix1 - crpix1_0)
+
+        # Intermediate1 -> 3D direction
+        d = _intermediate_to_direction(xy1[0], xy1[1], proj1, n1, ex1, ey1)
+
+        if d is None:
+            # Point cannot be projected - skip
+            dst.append([np.nan, np.nan])
+            continue
+
+        # 3D direction -> intermediate2 (degrees)
+        x2, y2 = _direction_to_intermediate(d, proj2, n2, ex2, ey2)
+
+        # Intermediate2 -> pixel2
+        pix2 = cd2_inv @ np.array([x2, y2]) + crpix2_0
+        dst.append(pix2)
+
+    dst = np.array(dst)
+
+    # Remove any NaN points
+    valid = ~np.isnan(dst[:, 0])
+    if np.sum(valid) < 4:
+        raise ValueError("Not enough valid calibration points")
+
+    return _solve_homography(src[valid], dst[valid])
+
+
 def _solve_homography(src, dst):
     """Solve for 3x3 homography matrix using DLT algorithm."""
     n = src.shape[0]
@@ -169,17 +363,14 @@ def _solve_homography(src, dst):
 
 
 def _compute_matrix_calibration(wcs1, wcs2):
-    """Compute transformation matrix by fitting to calibration points."""
-    crpix = wcs1.wcs.crpix
-    offsets = np.array([-100, 0, 100])
-    px, py = np.meshgrid(crpix[0] + offsets, crpix[1] + offsets)
-    src = np.column_stack([px.ravel(), py.ravel()])
+    """
+    Compute transformation matrix for zenithal projections.
 
-    world = wcs1.pixel_to_world_values(src[:, 0], src[:, 1])
-    px2, py2 = wcs2.world_to_pixel_values(*world)
-    dst = np.column_stack([px2, py2])
-
-    return _solve_homography(src, dst)
+    Uses the Montage two_plane algorithm analytically: no WCS coordinate
+    conversions are needed. The transformation converts to TAN-equivalent
+    coordinates, applies a 2D homography, then converts back.
+    """
+    return _compute_matrix_zenithal(wcs1, wcs2)
 
 
 def compute_transform_matrix(wcs1, wcs2, method="auto"):
