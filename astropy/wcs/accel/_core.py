@@ -1,18 +1,16 @@
 """
 Fast pixel-to-pixel transformations for zenithal WCS projections.
 
-This module implements the Montage "plane-to-plane" algorithm for fast
-coordinate transformations between two WCS with zenithal projections.
-For TAN projections, the transformation is exact and computed entirely
-from WCS header parameters (CRVAL, CRPIX, CD/PC+CDELT) without any
-WCS coordinate conversions. For other zenithal projections (SIN, STG,
-ARC, etc.), a highly accurate homography approximation is used.
+This module provides accelerated coordinate transformations between two WCS
+with zenithal projections (TAN, SIN, STG, ARC, ZEA). The transformation is
+computed entirely from WCS header parameters without calling WCS coordinate
+conversion methods.
 
 The transformation is a projective (homographic) mapping:
     px2 = (A*px1 + B*py1 + C) / (G*px1 + H*py1 + I)
     py2 = (D*px1 + E*py1 + F) / (G*px1 + H*py1 + I)
 
-This avoids per-pixel trigonometry, achieving 20-400x speedups over
+This avoids per-pixel trigonometry, achieving significant speedups over
 the standard pixel->world->pixel approach.
 """
 
@@ -25,17 +23,13 @@ __all__ = [
     "SUPPORTED_PROJECTIONS",
 ]
 
-# Zenithal projections where the plane-to-plane algorithm works
+# Zenithal projections supported by the plane-to-plane algorithm
 SUPPORTED_PROJECTIONS = frozenset({
     "TAN",  # Gnomonic
     "SIN",  # Orthographic
     "STG",  # Stereographic
     "ARC",  # Zenithal equidistant
     "ZEA",  # Zenithal equal-area
-    "ZPN",  # Zenithal polynomial
-    "AZP",  # Zenithal perspective
-    "AIR",  # Airy
-    "NCP",  # North celestial pole (deprecated SIN variant)
 })
 
 
@@ -71,15 +65,11 @@ def _get_tangent_basis(wcs):
     """
     Compute tangent plane basis vectors analytically from CRVAL.
 
-    For TAN projections, the tangent plane basis is determined entirely by
-    the reference point (CRVAL). No WCS coordinate conversions are needed.
-
     Returns (n, ex, ey) where:
-    - n: unit vector pointing to CRVAL
+    - n: unit vector pointing to CRVAL (reference direction)
     - ex: unit vector in tangent plane pointing east (increasing RA)
     - ey: unit vector in tangent plane pointing north (increasing Dec)
     """
-    # Get reference point from CRVAL
     crval = wcs.wcs.crval  # [RA, Dec] in degrees
     ra0 = np.radians(crval[0])
     dec0 = np.radians(crval[1])
@@ -121,17 +111,16 @@ def _compute_matrix_analytical(wcs1, wcs2):
     n1, ex1, ey1 = _get_tangent_basis(wcs1)
     n2, ex2, ey2 = _get_tangent_basis(wcs2)
 
-    # Intermediate world coords at pixel (0,0): CD @ (0 - crpix_0) = -CD @ crpix_0
     offset1 = -cd1 @ crpix1_0
 
-    # Matrix: pixel1 -> (u1, v1, deg2rad)
+    # P1: pixel1 -> intermediate coords (degrees) with scale factor
     P1 = np.array([
         [cd1[0, 0], cd1[0, 1], offset1[0]],
         [cd1[1, 0], cd1[1, 1], offset1[1]],
         [0, 0, deg2rad],
     ])
 
-    # Matrix: (u1, v1, deg2rad) -> (dir.ex2/deg2rad, dir.ey2/deg2rad, dir.n2)
+    # T: basis transformation between tangent planes (with projective scaling)
     T = np.array([
         [np.dot(ex1, ex2), np.dot(ey1, ex2), np.dot(n1, ex2) / deg2rad**2],
         [np.dot(ex1, ey2), np.dot(ey1, ey2), np.dot(n1, ey2) / deg2rad**2],
@@ -140,7 +129,7 @@ def _compute_matrix_analytical(wcs1, wcs2):
 
     B = T @ P1
 
-    # Matrix: (u2, v2, 1) -> pixel2 (0-indexed)
+    # P2_inv: intermediate coords (degrees) -> pixel2
     cd2_inv = np.linalg.inv(cd2)
     P2_inv = np.array([
         [cd2_inv[0, 0], cd2_inv[0, 1], crpix2_0[0]],
@@ -279,7 +268,7 @@ def _direction_to_intermediate(d, proj, n, ex, ey):
         # r = 2*sin((pi/2 - theta)/2) = sqrt(2*(1 - sin(theta)))
         r = np.sqrt(2 * (1 - sin_theta))
     else:
-        r = cos_theta / sin_theta  # Default to TAN
+        return np.nan, np.nan
 
     # Intermediate coordinates: x = r*sin(phi), y = -r*cos(phi)
     x = r * np.sin(phi)
@@ -348,10 +337,10 @@ def _compute_matrix_zenithal(wcs1, wcs2):
 
 def _solve_homography(src, dst):
     """Solve for 3x3 homography matrix using DLT algorithm."""
-    n = src.shape[0]
-    A = np.zeros((2 * n, 9))
+    num_points = src.shape[0]
+    A = np.zeros((2 * num_points, 9))
 
-    for i in range(n):
+    for i in range(num_points):
         x, y = src[i]
         xp, yp = dst[i]
         A[2 * i] = [-x, -y, -1, 0, 0, 0, x * xp, y * xp, xp]
@@ -360,17 +349,6 @@ def _solve_homography(src, dst):
     _, _, Vt = np.linalg.svd(A)
     H = Vt[-1].reshape(3, 3)
     return H / H[2, 2]
-
-
-def _compute_matrix_calibration(wcs1, wcs2):
-    """
-    Compute transformation matrix for zenithal projections.
-
-    Uses the Montage two_plane algorithm analytically: no WCS coordinate
-    conversions are needed. The transformation converts to TAN-equivalent
-    coordinates, applies a 2D homography, then converts back.
-    """
-    return _compute_matrix_zenithal(wcs1, wcs2)
 
 
 def compute_transform_matrix(wcs1, wcs2, method="auto"):
@@ -404,7 +382,7 @@ def compute_transform_matrix(wcs1, wcs2, method="auto"):
             raise ValueError("Analytical method requires TAN projection for both WCS")
         return _compute_matrix_analytical(wcs1, wcs2)
 
-    return _compute_matrix_calibration(wcs1, wcs2)
+    return _compute_matrix_zenithal(wcs1, wcs2)
 
 
 def apply_transform(px1, py1, matrix, xp=None):
