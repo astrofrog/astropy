@@ -6,7 +6,6 @@
 #include <fits_hdecompress.h>
 #include <pliocomp.h>
 #include <quantize.h>
-#include <unquantize.h>
 #include <ricecomp.h>
 
 /* The following is needed in order to avoid compilation warnings related to calloc() */
@@ -22,8 +21,6 @@ static char compress_hcompress_1_c_docstring[] = "Compress data using HCOMPRESS_
 static char decompress_hcompress_1_c_docstring[] = "Decompress data using HCOMPRESS_1";
 static char quantize_float_c_docstring[] = "Quantize float data";
 static char quantize_double_c_docstring[] = "Quantize float data";
-static char unquantize_float_c_docstring[] = "Unquantize data to float";
-static char unquantize_double_c_docstring[] = "Unquantize data to double";
 
 /* Declare the C functions here. */
 static PyObject *compress_plio_1_c(PyObject *self, PyObject *args);
@@ -34,8 +31,6 @@ static PyObject *compress_hcompress_1_c(PyObject *self, PyObject *args);
 static PyObject *decompress_hcompress_1_c(PyObject *self, PyObject *args);
 static PyObject *quantize_float_c(PyObject *self, PyObject *args);
 static PyObject *quantize_double_c(PyObject *self, PyObject *args);
-static PyObject *unquantize_float_c(PyObject *self, PyObject *args);
-static PyObject *unquantize_double_c(PyObject *self, PyObject *args);
 static PyObject *CfitsioException = NULL;
 
 /* Define the methods that will be available on the module. */
@@ -54,8 +49,6 @@ static PyMethodDef module_methods[] = {
      decompress_hcompress_1_c_docstring},
     {"quantize_float_c", quantize_float_c, METH_VARARGS, quantize_float_c_docstring},
     {"quantize_double_c", quantize_double_c, METH_VARARGS, quantize_double_c_docstring},
-    {"unquantize_float_c", unquantize_float_c, METH_VARARGS, unquantize_float_c_docstring},
-    {"unquantize_double_c", unquantize_double_c, METH_VARARGS, unquantize_double_c_docstring},
     {NULL, NULL, 0, NULL}
 };
 
@@ -611,221 +604,5 @@ static PyObject *quantize_double_c(PyObject *self, PyObject *args)
             imaxval
         );
     free(quantized_bytes);
-    return result;
-}
-
-static PyObject *unquantize_float_c(PyObject *self, PyObject *args)
-{
-
-    const char *input_bytes;
-    Py_ssize_t nbytes;
-    PyObject *result;
-
-    long row, npix;
-    int nullcheck;
-    int tnull;
-    float nullval;
-    int dither_method;
-
-    double bscale, bzero;
-    int bytepix; // int size
-    int status = 0;
-
-    int *anynull;
-    float *output_data;
-    char *output_bytes;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "y#llddiiifi",
-            &input_bytes,
-            &nbytes,
-            &row,
-            &npix,
-            &bscale,
-            &bzero,
-            &dither_method,
-            &nullcheck,
-            &tnull,
-            &nullval,
-            &bytepix
-        )) {
-        return NULL;
-    }
-
-    // TODO: add support, if needed, for nullcheck=1
-
-    Py_BEGIN_ALLOW_THREADS
-
-        anynull = (int *)malloc(npix * sizeof(int));
-    output_data = (float *)calloc(npix, sizeof(float));
-
-    if (bytepix == 1) {
-        unquantize_i1r4(
-            row,
-            (unsigned char *)input_bytes,
-            npix,
-            bscale,
-            bzero,
-            dither_method,
-            nullcheck,
-            (unsigned char)tnull,
-            nullval,
-            NULL,
-            anynull,
-            output_data,
-            &status
-        );
-    }
-    else if (bytepix == 2) {
-        unquantize_i2r4(
-            row,
-            (short *)input_bytes,
-            npix,
-            bscale,
-            bzero,
-            dither_method,
-            nullcheck,
-            (short)tnull,
-            nullval,
-            NULL,
-            anynull,
-            output_data,
-            &status
-        );
-    }
-    else if (bytepix == 4) {
-        unquantize_i4r4(
-            row,
-            (int *)input_bytes,
-            npix,
-            bscale,
-            bzero,
-            dither_method,
-            nullcheck,
-            (int)tnull,
-            nullval,
-            NULL,
-            anynull,
-            output_data,
-            &status
-        );
-    }
-
-    output_bytes = (char *)output_data;
-
-    Py_END_ALLOW_THREADS
-
-        result = Py_BuildValue("y#", output_bytes, npix * sizeof(float));
-    free(output_bytes);
-    free(anynull);
-    return result;
-}
-
-static PyObject *unquantize_double_c(PyObject *self, PyObject *args)
-{
-
-    const char *input_bytes;
-    Py_ssize_t nbytes;
-    PyObject *result;
-
-    long row, npix;
-    int nullcheck;
-    int tnull;
-    double nullval;
-    int dither_method;
-
-    double bscale, bzero;
-    int bytepix; // int size
-    int status = 0;
-
-    int *anynull;
-    double *output_data;
-    char *output_bytes;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "y#llddiiidi",
-            &input_bytes,
-            &nbytes,
-            &row,
-            &npix,
-            &bscale,
-            &bzero,
-            &dither_method,
-            &nullcheck,
-            &tnull,
-            &nullval,
-            &bytepix
-        )) {
-        return NULL;
-    }
-
-    // TODO: add support, if needed, for nullcheck=1
-
-    Py_BEGIN_ALLOW_THREADS
-
-        anynull = (int *)malloc(npix * sizeof(int));
-    output_data = (double *)malloc(npix * sizeof(double));
-
-    if (bytepix == 1) {
-        unquantize_i1r8(
-            row,
-            (unsigned char *)input_bytes,
-            npix,
-            bscale,
-            bzero,
-            dither_method,
-            nullcheck,
-            (unsigned char)tnull,
-            nullval,
-            NULL,
-            anynull,
-            output_data,
-            &status
-        );
-    }
-    else if (bytepix == 2) {
-        unquantize_i2r8(
-            row,
-            (short *)input_bytes,
-            npix,
-            bscale,
-            bzero,
-            dither_method,
-            nullcheck,
-            (short)tnull,
-            nullval,
-            NULL,
-            anynull,
-            output_data,
-            &status
-        );
-    }
-    else if (bytepix == 4) {
-        unquantize_i4r8(
-            row,
-            (int *)input_bytes,
-            npix,
-            bscale,
-            bzero,
-            dither_method,
-            nullcheck,
-            (int)tnull,
-            nullval,
-            NULL,
-            anynull,
-            output_data,
-            &status
-        );
-    }
-
-    output_bytes = (char *)output_data;
-
-    Py_END_ALLOW_THREADS
-
-        result = Py_BuildValue("y#", output_bytes, npix * sizeof(double));
-    free(output_bytes);
-    free(anynull);
     return result;
 }

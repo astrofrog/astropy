@@ -2,18 +2,19 @@
 This file contains the code for Quantizing / Dequantizing floats.
 """
 
+from functools import lru_cache
+
 import numpy as np
 
-from astropy.io.fits.hdu.base import BITPIX2DTYPE
 from astropy.io.fits.hdu.compressed._compression import (
     quantize_double_c,
     quantize_float_c,
-    unquantize_double_c,
-    unquantize_float_c,
 )
 
 __all__ = ["Quantize"]
 
+_N_RANDOM = 10000
+_ZERO_VALUE = np.int32(-2147483646)
 
 DITHER_METHODS = {
     "NONE": 0,
@@ -23,8 +24,80 @@ DITHER_METHODS = {
 }
 
 
+@lru_cache(maxsize=1)
+def _init_randoms():
+    """Initialize the array of random numbers used for dithering.
+
+    This uses the same deterministic algorithm as CFITSIO to ensure
+    bit-exact compatibility.
+    """
+    a, m = 16807.0, 2147483647.0
+    seed = 1.0
+    values = np.empty(_N_RANDOM, dtype=np.float32)
+    for i in range(_N_RANDOM):
+        seed = a * seed - m * int(a * seed / m)
+        values[i] = seed / m
+    assert int(seed) == 1043618065, "Random number sequence is incorrect"
+    return values
+
+
+def _dither_values(row, n):
+    """Get the random dither values for n pixels at a given row."""
+    rand_values = _init_randoms()
+    iseed = (row - 1) % _N_RANDOM
+    nextrand = int(rand_values[iseed] * 500)
+
+    if nextrand + n <= _N_RANDOM:
+        return rand_values[nextrand : nextrand + n]
+
+    result = np.empty(n, dtype=np.float32)
+    pos = 0
+    while pos < n:
+        chunk = min(_N_RANDOM - nextrand, n - pos)
+        result[pos : pos + chunk] = rand_values[nextrand : nextrand + chunk]
+        pos += chunk
+        iseed = (iseed + 1) % _N_RANDOM
+        nextrand = int(rand_values[iseed] * 500)
+    return result
+
+
+def _unquantize(data, row, scale, zero, dither_method, output_dtype):
+    """Unquantize integer data to floating point using dithering.
+
+    Parameters
+    ----------
+    data : ndarray
+        Quantized integer data.
+    row : int
+        Row number, used to seed the dither sequence.
+    scale : float
+        BSCALE value.
+    zero : float
+        BZERO value.
+    dither_method : int
+        Dithering method (1=SUBTRACTIVE_DITHER_1, 2=SUBTRACTIVE_DITHER_2).
+    output_dtype : numpy dtype
+        Output data type (float32 or float64).
+    """
+    rand = _dither_values(row, len(data))
+    output = np.subtract(data, rand, dtype=np.float64)
+    output += 0.5
+    output *= scale
+    output += zero
+
+    if dither_method == 2 and data.dtype == np.int32:
+        output[data == _ZERO_VALUE] = 0.0
+
+    if output.dtype != output_dtype:
+        output = output.astype(output_dtype)
+    return output
+
+
 class QuantizationFailedException(Exception):
     pass
+
+
+BITPIX2DTYPE = {-32: np.float32, -64: np.float64}
 
 
 class Quantize:
@@ -61,41 +134,16 @@ class Quantize:
         np.ndarray
             The unquantized buffer.
         """
-        qbytes = np.asarray(buf)
-        qbytes = qbytes.astype(qbytes.dtype.newbyteorder("="))
-        # TODO: figure out if we need to support null checking
+        data = np.asarray(buf)
+        data = data.astype(data.dtype.newbyteorder("="))
         if self.dither_method == -1:
-            # For NO_DITHER we should just use the scale and zero directly
-            return qbytes * scale + zero
-        if self.bitpix == -32:
-            ubytes = unquantize_float_c(
-                qbytes.tobytes(),
-                self.row,
-                qbytes.size,
-                scale,
-                zero,
-                self.dither_method,
-                0,
-                0,
-                0.0,
-                qbytes.dtype.itemsize,
-            )
-        elif self.bitpix == -64:
-            ubytes = unquantize_double_c(
-                qbytes.tobytes(),
-                self.row,
-                qbytes.size,
-                scale,
-                zero,
-                self.dither_method,
-                0,
-                0,
-                0.0,
-                qbytes.dtype.itemsize,
-            )
-        else:
+            return data * scale + zero
+        if self.bitpix not in (-32, -64):
             raise TypeError("bitpix should be one of -32 or -64")
-        return np.frombuffer(ubytes, dtype=BITPIX2DTYPE[self.bitpix]).data
+        return _unquantize(
+            data.ravel(), self.row, scale, zero,
+            self.dither_method, BITPIX2DTYPE[self.bitpix],
+        )
 
     def encode_quantized(self, buf):
         """
