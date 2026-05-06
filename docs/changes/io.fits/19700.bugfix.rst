@@ -1,0 +1,6 @@
+Logical (``'L'``) variable-length array columns now accept
+``np.ma.MaskedArray`` rows and Python lists/tuples containing ``None``
+on write, with masked / ``None`` positions written to the heap as the
+FITS NULL byte (``b'\x00'``). Numeric input that contains values
+other than 0 / 1 (or ``True`` / ``False``) emits an
+``AstropyUserWarning``.

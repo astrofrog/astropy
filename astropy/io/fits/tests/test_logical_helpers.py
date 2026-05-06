@@ -1,13 +1,87 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
 from astropy.io.fits._logical_helpers import (
     _detect_legacy_logical_vla_heap,
+    _logical_row_has_non_logical_numeric,
+    _logical_row_to_byte_storage,
+    _logical_row_uses_byte_storage,
     _logical_to_fits_bytes,
     _logical_vla_heap_has_null,
 )
+
+
+class TestLogicalRowUsesByteStorage:
+    @pytest.mark.parametrize(
+        "row",
+        [
+            np.array([b"T", b"F"], dtype="S1"),
+            np.ma.masked_array([True, False], mask=[True, False]),
+            [True, None, False],
+            (None, True),
+        ],
+    )
+    def test_yes(self, row):
+        assert _logical_row_uses_byte_storage(row) is True
+
+    @pytest.mark.parametrize(
+        "row",
+        [
+            [True, False],
+            np.array([True, False]),
+            np.array([1, 0], dtype=np.int8),
+        ],
+    )
+    def test_no(self, row):
+        assert _logical_row_uses_byte_storage(row) is False
+
+
+class TestLogicalRowHasNonLogicalNumeric:
+    @pytest.mark.parametrize("row", [[2, 0], [1, -1], [0.5, 1.0], [1, 2, 3]])
+    def test_yes(self, row):
+        assert _logical_row_has_non_logical_numeric(row) is True
+
+    @pytest.mark.parametrize(
+        "row",
+        [
+            [0, 1, 1, 0],
+            [True, False],
+            np.array([b"T", b"F"], dtype="S1"),
+            [None, 1, 0],
+            np.ma.masked_array([2, 0], mask=[True, False]),
+        ],
+    )
+    def test_no(self, row):
+        # Pure 0/1, bool, |S1 bytes, and rows where the only non-logical
+        # numeric is masked / None all return False.
+        assert _logical_row_has_non_logical_numeric(row) is False
+
+    def test_empty_after_dropping_none(self):
+        assert _logical_row_has_non_logical_numeric([None, None]) is False
+
+
+class TestLogicalRowToByteStorage:
+    def test_preserves_S1_input_verbatim(self):
+        row = np.array([b"T", b"\x00", b"F"], dtype="S1")
+        out = _logical_row_to_byte_storage(row)
+        assert out.dtype == np.dtype("S1")
+        assert out.tobytes() == b"T\x00F"
+
+    def test_masked_array_writes_null_at_mask(self):
+        row = np.ma.masked_array([True, False, True], mask=[False, True, False])
+        out = _logical_row_to_byte_storage(row)
+        assert out.tobytes() == b"T\x00T"
+
+    def test_list_with_none_writes_null(self):
+        out = _logical_row_to_byte_storage([True, None, False])
+        assert out.tobytes() == b"T\x00F"
+
+    def test_pure_bool_list(self):
+        out = _logical_row_to_byte_storage([True, False, True])
+        assert out.tobytes() == b"TFT"
 
 
 class TestLogicalToFitsBytes:

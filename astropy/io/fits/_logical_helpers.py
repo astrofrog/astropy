@@ -1,6 +1,72 @@
-"""Helpers for handling FITS logical (``'L'``) variable-length array data."""
+# Licensed under a 3-clause BSD style license
+
+"""
+Helpers for handling FITS logical (``'L'``) variable-length array data.
+"""
 
 import numpy as np
+
+
+def _logical_row_uses_byte_storage(row):
+    """Return True if a logical-VLA row needs |S1 storage to preserve NULL.
+
+    Triggers for |S1 byte arrays (produced by reading with
+    ``logical_as_bytes=True``), ``np.ma.MaskedArray`` input, and Python
+    lists/tuples containing ``None``.
+    """
+    if isinstance(row, np.ndarray) and row.dtype.kind == "S":
+        return True
+    if np.ma.isMaskedArray(row):
+        return True
+    if isinstance(row, (list, tuple)) and any(v is None for v in row):
+        return True
+    return False
+
+
+def _logical_row_has_non_logical_numeric(row):
+    """Return True if ``row`` contains numeric values other than 0 or 1.
+
+    NULL / masked entries are excluded from the check. |S1 byte input is
+    skipped entirely; the bytes are assumed to already match the FITS L
+    wire format.
+    """
+    if isinstance(row, np.ndarray) and row.dtype.kind == "S":
+        return False
+    if np.ma.isMaskedArray(row):
+        row = row.compressed()
+    elif isinstance(row, (list, tuple)):
+        row = [v for v in row if v is not None]
+        if not row:
+            return False
+    arr = np.asarray(row)
+    if arr.dtype.kind not in ("i", "u", "f") or arr.size == 0:
+        return False
+    return not np.all((arr == 0) | (arr == 1))
+
+
+def _logical_row_to_byte_storage(row):
+    """Convert a logical-VLA row to |S1 bytes, mapping masked/None to NULL.
+
+    Accepts |S1 byte arrays (preserved verbatim), ``np.ma.MaskedArray``,
+    and Python lists/tuples containing ``None``.
+    """
+    if isinstance(row, np.ndarray) and row.dtype.kind == "S":
+        return np.asarray(row, dtype="S1")
+    if np.ma.isMaskedArray(row):
+        mask = np.ma.getmaskarray(row)
+        clean = np.asarray(row.filled(False), dtype=np.int8)
+    elif isinstance(row, (list, tuple)) and any(v is None for v in row):
+        mask = np.array([v is None for v in row])
+        clean = np.array(
+            [False if v is None else v for v in row], dtype=np.int8
+        )
+    else:
+        mask = None
+        clean = np.array(row, dtype=np.int8)
+    bytes_arr = np.where(clean == 0, ord("F"), ord("T")).astype(np.int8)
+    if mask is not None:
+        bytes_arr[mask] = 0
+    return bytes_arr.view("S1")
 
 
 def _logical_to_fits_bytes(row):

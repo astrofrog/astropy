@@ -2635,19 +2635,55 @@ class TestTableFunctions(FitsTestCase):
         [
             (["T", "F", "T"], ValueError),
             (["Y", "N"], ValueError),
-            ([None, False, True], TypeError),
         ],
     )
     def test_logical_vla_rejects_non_numeric_input(self, tmp_path, rowval, exc):
         """Logical VLA columns reject non-numeric / non-bool inputs at
         write time (matching the behavior of astropy <= 7.2.0). Without
-        this the new bool conversion would silently coerce strings/None:
+        this the new bool conversion would silently coerce strings:
         e.g. ``["T", "F", "T"]`` to ``[True, True, True]`` because
-        non-empty strings are truthy.
+        non-empty strings are truthy. Lists containing ``None`` are
+        accepted and produce NULL bytes; see
+        ``test_logical_vla_writes_null_from_masked_or_none``.
         """
         col = fits.Column(name="flag", format="PL()", array=[rowval])
         with pytest.raises(exc):
             fits.BinTableHDU.from_columns([col]).writeto(tmp_path / "bad.fits")
+
+    def test_logical_vla_writes_null_from_masked_or_none(self, tmp_path):
+        """Masked positions in an ``np.ma.MaskedArray`` row, and ``None``
+        entries in a list/tuple row, are written as NULL bytes (b'\\x00')
+        to the heap of a logical VLA column. ``logical_as_bytes=True``
+        on read exposes the raw bytes so the round-trip is verifiable.
+        """
+        col = fits.Column(
+            name="flag",
+            format="PL()",
+            array=[
+                np.ma.masked_array([False, False, True], mask=[True, False, False]),
+                [None, False, True],
+            ],
+        )
+        out_path = tmp_path / "vla_null_write.fits"
+        fits.BinTableHDU.from_columns([col]).writeto(out_path)
+
+        with fits.open(out_path, logical_as_bytes=True) as hdul:
+            d = hdul[1].data["flag"]
+            assert d[0].dtype == np.dtype("S1")
+            assert d[0].tobytes() == b"\x00FT"
+            assert d[1].tobytes() == b"\x00FT"
+
+    def test_logical_vla_warns_on_non_logical_numeric(self, tmp_path):
+        """Numeric input to a logical VLA column that contains values
+        other than 0 / 1 emits an ``AstropyUserWarning`` so the user is
+        not blindsided by silent coercion to bool.
+        """
+        col = fits.Column(name="flag", format="PL()", array=[[1, 2, -1]])
+        with pytest.warns(
+            AstropyUserWarning,
+            match="numeric values will be coerced",
+        ):
+            fits.BinTableHDU.from_columns([col]).writeto(tmp_path / "warn.fits")
 
     def test_logical_vla_as_bytes(self):
         """``logical_as_bytes=True`` exposes the raw FITS L wire bytes
