@@ -304,6 +304,15 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
         )
 
     @property
+    def world_axis_coordinate_systems(self):
+        keys_keep = [item[0] for item in self.world_axis_object_components]
+        return {
+            key: system
+            for key, system in self._wcs.world_axis_coordinate_systems.items()
+            if key in keys_keep
+        }
+
+    @property
     def array_shape(self):
         if self._wcs.array_shape:
             return np.broadcast_to(0, self._wcs.array_shape)[

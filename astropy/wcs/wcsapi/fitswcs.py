@@ -384,6 +384,10 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         return self._get_components_and_classes()[1]
 
     @property
+    def world_axis_coordinate_systems(self):
+        return self._get_components_and_classes()[2]
+
+    @property
     def serialized_classes(self):
         return False
 
@@ -397,13 +401,16 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         # it. We start off by defining a hash based on the attributes of the
         # WCS that matter here (we can't just use the WCS object as a hash since
         # it is mutable)
+        # NaN values must be normalized since NaN != NaN would otherwise
+        # defeat the cache comparison below.
+        equinox = self.wcs.equinox
         wcs_hash = (
             self.naxis,
             list(self.wcs.ctype),
             list(self.wcs.cunit),
             self.wcs.radesys,
             self.wcs.specsys,
-            self.wcs.equinox,
+            None if np.isnan(equinox) else equinox,
             self.wcs.dateobs,
             self.wcs.lng,
             self.wcs.lat,
@@ -421,9 +428,15 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         from astropy.time import Time, TimeDelta
         from astropy.time.formats import FITS_DEPRECATED_SCALES
         from astropy.wcs.utils import wcs_to_celestial_frame
+        from astropy.wcs.wcsapi.coordinate_systems import (
+            celestial_frame_to_coordinate_system,
+            spectral_frame_to_coordinate_system,
+            time_frame_to_coordinate_system,
+        )
 
         components = [None] * self.naxis
         classes = {}
+        systems = {}
 
         # Let's start off by checking whether the WCS has a pair of celestial
         # components
@@ -457,6 +470,12 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     1,
                     lambda c: c.spherical.lat.to_value(lat_unit),
                 )
+
+                celestial_system = celestial_frame_to_coordinate_system(
+                    celestial_frame
+                )
+                if celestial_system is not None:
+                    systems["celestial"] = celestial_system
 
         # Next, we check for spectral components
 
@@ -568,6 +587,17 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     )
                     target = None
 
+            # Common arguments for the plain-data description of the spectral
+            # coordinate system, built after the checks above so that an
+            # observer dropped from the SpectralCoord is also not described.
+            # Note that earth_location and obstime are only evaluated when the
+            # observer is set, in which case they are always defined.
+
+            spectral_system_kwargs = {
+                "observer_location": earth_location if observer is not None else None,
+                "observer_time": obstime if observer is not None else None,
+            }
+
             # NOTE: below we include Quantity in classes['spectral'] instead
             # of SpectralCoord - this is because we want to also be able to
             # accept plain quantities.
@@ -621,6 +651,12 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                 classes["spectral"] = (u.Quantity, (), {}, spectralcoord_from_redshift)
                 components[self.wcs.spec] = ("spectral", 0, redshift_from_spectralcoord)
 
+                spectral_system = spectral_frame_to_coordinate_system(
+                    self.wcs.specsys,
+                    rest_wavelength=self.wcs.restwav * u.m,
+                    **spectral_system_kwargs,
+                )
+
             elif ctype == "BETA":
 
                 def spectralcoord_from_beta(beta):
@@ -648,6 +684,12 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
 
                 classes["spectral"] = (u.Quantity, (), {}, spectralcoord_from_beta)
                 components[self.wcs.spec] = ("spectral", 0, beta_from_spectralcoord)
+
+                spectral_system = spectral_frame_to_coordinate_system(
+                    self.wcs.specsys,
+                    rest_wavelength=self.wcs.restwav * u.m,
+                    **spectral_system_kwargs,
+                )
 
             else:
                 kwargs["unit"] = self.wcs.cunit[ispec]
@@ -707,6 +749,16 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
 
                 classes["spectral"] = (u.Quantity, (), {}, spectralcoord_from_value)
                 components[self.wcs.spec] = ("spectral", 0, value_from_spectralcoord)
+
+                spectral_system = spectral_frame_to_coordinate_system(
+                    self.wcs.specsys,
+                    doppler_convention=kwargs.get("doppler_convention"),
+                    doppler_rest=kwargs.get("doppler_rest"),
+                    **spectral_system_kwargs,
+                )
+
+            if spectral_system is not None:
+                systems["spectral"] = spectral_system
 
         # We can then make sure we correctly return Time objects where appropriate
         # (https://www.aanda.org/articles/aa/pdf/2015/02/aa24653-14.pdf)
@@ -804,12 +856,20 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     classes[name] = (Time, (), {}, time_from_reference_and_offset)
                     components[i] = (name, 0, offset_from_time_and_reference)
 
+                    # Note that reference_time already incorporates any
+                    # GPS->TAI shift and scale normalization above, as well
+                    # as the observer location.
+                    time_system = time_frame_to_coordinate_system(reference_time)
+                    if time_system is not None:
+                        systems[name] = time_system
+
         if "phys.polarization.stokes" in self.world_axis_physical_types:
             for i in range(self.naxis):
                 if self.world_axis_physical_types[i] == "phys.polarization.stokes":
                     name = "stokes"
                     classes[name] = (StokesCoord, (), {})
                     components[i] = (name, 0, "value")
+                    systems[name] = {"type": "stokes"}
 
         # Fallback: for any remaining components that haven't been identified, just
         # return Quantity as the class to use
@@ -823,8 +883,15 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     name += "_"
                 classes[name] = (u.Quantity, (), {"unit": self.wcs.cunit[i]})
                 components[i] = (name, 0, "value")
+                # Only axes with no CTYPE at all positively assert that they
+                # carry no semantics beyond their physical type and unit. A
+                # non-empty but unrecognized CTYPE (e.g. a solar coordinate
+                # without sunpy installed) means the system is unknown, so we
+                # leave it undescribed.
+                if self.wcs.ctype[i] == "":
+                    systems[name] = {"type": "generic"}
 
         # Keep a cached version of result
-        self._components_and_classes_cache = wcs_hash, (components, classes)
+        self._components_and_classes_cache = wcs_hash, (components, classes, systems)
 
-        return components, classes
+        return components, classes, systems
