@@ -11,23 +11,37 @@ their world coordinates are interchangeable at the values level.
 
 import numbers
 
-__all__ = ["celestial_frame_to_coordinate_system", "world_axes_equivalent"]
+__all__ = [
+    "celestial_frame_to_coordinate_system",
+    "spectral_frame_to_coordinate_system",
+    "time_frame_to_coordinate_system",
+    "world_axes_equivalent",
+]
 
-# Mapping from FITS WCS Paper III SPECSYS values to reference position terms.
-# These descend from the STC reference position vocabulary
-# (http://www.ivoa.net/rdf/refposition); values without a blessed term are
-# emitted with a "custom:" prefix by the FITS WCS implementation.
+# Mapping from FITS WCS Paper III SPECSYS values to terms from the IVOA
+# reference position vocabulary (http://www.ivoa.net/rdf/refposition).
+# Only values with a term in the current vocabulary are included; spectral
+# systems with any other SPECSYS are not described at all. A VEP proposing
+# LSRK, LSRD, GALACTIC_CENTER, LOCAL_GROUP_CENTER and CMB (for CMBDIPOL)
+# has been drafted, and the mapping should be extended if it is accepted.
 SPECSYS_TO_REFPOSITION = {
     "TOPOCENT": "TOPOCENTER",
     "GEOCENTR": "GEOCENTER",
     "BARYCENT": "BARYCENTER",
     "HELIOCEN": "HELIOCENTER",
-    "LSRK": "LSRK",
-    "LSRD": "LSRD",
-    "GALACTOC": "GALACTIC_CENTER",
-    "LOCALGRP": "LOCAL_GROUP_CENTER",
-    "CMBDIPOL": "custom:CMBDIPOL",
-    "SOURCE": "custom:SOURCE",
+}
+
+# Mapping from astropy time scale names to terms from the IVOA time scale
+# vocabulary (http://www.ivoa.net/rdf/timescale). The 'local' scale has no
+# term, so time systems using it are not described at all.
+TIME_SCALE_TO_TIMESCALE = {
+    "tai": "TAI",
+    "tcb": "TCB",
+    "tcg": "TCG",
+    "tdb": "TDB",
+    "tt": "TT",
+    "ut1": "UT",
+    "utc": "UTC",
 }
 
 
@@ -52,25 +66,18 @@ def celestial_frame_to_coordinate_system(frame):
         omitted from
         `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_axis_coordinate_systems`).
     """
-    from astropy.coordinates import FK4, FK5, ICRS, FK4NoETerms, Galactic, Supergalactic
+    from astropy.coordinates import FK4, FK5, ICRS, Galactic, Supergalactic
 
     # Note that the frame *class* must match exactly (not a subclass), since
     # subclasses can change the meaning of the coordinates.
     if type(frame) is ICRS:
         return {"type": "space", "frame": "ICRS"}
     elif type(frame) is FK5:
-        return {"type": "space", "frame": "eq_FK5", "equinox": frame.equinox.jyear_str}
+        return {"type": "space", "frame": "FK5", "equinox": frame.equinox.jyear_str}
     elif type(frame) is FK4:
         return {
             "type": "space",
-            "frame": "eq_FK4",
-            "equinox": frame.equinox.byear_str,
-            "epoch": frame.obstime.byear_str,
-        }
-    elif type(frame) is FK4NoETerms:
-        return {
-            "type": "space",
-            "frame": "custom:eq_FK4_no_e",
+            "frame": "FK4",
             "equinox": frame.equinox.byear_str,
             "epoch": frame.obstime.byear_str,
         }
@@ -80,6 +87,119 @@ def celestial_frame_to_coordinate_system(frame):
         return {"type": "space", "frame": "SUPER_GALACTIC"}
     else:
         return None
+
+
+def spectral_frame_to_coordinate_system(
+    specsys,
+    observer_location=None,
+    observer_time=None,
+    doppler_convention=None,
+    doppler_rest=None,
+    rest_wavelength=None,
+):
+    """
+    Build a plain-data description of a spectral coordinate system.
+
+    The ``"refposition"`` item uses terms from the IVOA reference position
+    vocabulary (http://www.ivoa.net/rdf/refposition).
+
+    Parameters
+    ----------
+    specsys : str
+        The standard of rest, as a FITS WCS SPECSYS value (e.g. ``'LSRK'``,
+        ``'BARYCENT'``).
+    observer_location : `~astropy.coordinates.EarthLocation`, optional
+        The location of the observer, where known.
+    observer_time : `~astropy.time.Time`, optional
+        The time of the observation, where the observer location is given.
+    doppler_convention : str, optional
+        The doppler convention for velocity values (``'relativistic'``,
+        ``'radio'`` or ``'optical'``).
+    doppler_rest : `~astropy.units.Quantity`, optional
+        The rest frequency or wavelength for velocity values.
+    rest_wavelength : `~astropy.units.Quantity`, optional
+        The rest wavelength for redshift or beta values.
+
+    Returns
+    -------
+    dict or None
+        A plain-data description of the spectral coordinate system, or `None`
+        if ``specsys`` is empty (an unknown standard of rest must never
+        compare as equivalent to another unknown one) or has no term in the
+        IVOA vocabulary (the description would not be interoperable).
+    """
+    from astropy import units as u
+
+    if specsys not in SPECSYS_TO_REFPOSITION:
+        return None
+
+    system = {
+        "type": "spectral",
+        "refposition": SPECSYS_TO_REFPOSITION[specsys],
+    }
+
+    if observer_location is None:
+        system["observer"] = None
+    else:
+        system["observer"] = {
+            "obsgeo_m": [
+                float(q.to_value(u.m)) for q in observer_location.to_geocentric()
+            ],
+            "obstime_mjd": float(observer_time.utc.mjd),
+        }
+
+    if doppler_rest is not None:
+        system["doppler_convention"] = doppler_convention
+        system["doppler_rest_hz"] = float(
+            doppler_rest.to_value(u.Hz, equivalencies=u.spectral())
+        )
+
+    if rest_wavelength is not None:
+        system["rest_wavelength_m"] = float(rest_wavelength.to_value(u.m))
+
+    return system
+
+
+def time_frame_to_coordinate_system(reference_time):
+    """
+    Build a plain-data description of a time coordinate system.
+
+    The ``"timescale"`` item uses terms from the IVOA time scale vocabulary
+    (http://www.ivoa.net/rdf/timescale).
+
+    Parameters
+    ----------
+    reference_time : `~astropy.time.Time`
+        The reference time that values on the time axis are measured from,
+        carrying the time scale and, optionally, the observer location.
+
+    Returns
+    -------
+    dict or None
+        A plain-data description of the time coordinate system, or `None` if
+        the time scale has no term in the IVOA vocabulary (the description
+        would not be interoperable).
+    """
+    from astropy import units as u
+
+    if reference_time.scale not in TIME_SCALE_TO_TIMESCALE:
+        return None
+
+    location = reference_time.location
+
+    if location is None:
+        location_description = None
+    else:
+        location_description = [
+            float(q.to_value(u.m)) for q in location.to_geocentric()
+        ]
+
+    return {
+        "type": "time",
+        "timescale": TIME_SCALE_TO_TIMESCALE[reference_time.scale],
+        "timeorigin_mjd": float(reference_time.mjd),
+        "location_m": location_description,
+    }
 
 
 def _plain_data_equal(value1, value2):

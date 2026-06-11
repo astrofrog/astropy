@@ -429,8 +429,9 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         from astropy.time.formats import FITS_DEPRECATED_SCALES
         from astropy.wcs.utils import wcs_to_celestial_frame
         from astropy.wcs.wcsapi.coordinate_systems import (
-            SPECSYS_TO_REFPOSITION,
             celestial_frame_to_coordinate_system,
+            spectral_frame_to_coordinate_system,
+            time_frame_to_coordinate_system,
         )
 
         components = [None] * self.naxis
@@ -534,29 +535,6 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                         f"SPECSYS={self.wcs.specsys} not yet supported"
                     )
 
-            # Build a plain-data description of the spectral coordinate
-            # system. If SPECSYS is not known we deliberately do not describe
-            # the system at all, since an unknown reference frame must never
-            # compare as equivalent to another unknown one.
-
-            if self.wcs.specsys:
-                if observer is None:
-                    observer_description = None
-                else:
-                    observer_description = {
-                        "obsgeo_m": [float(v) for v in self.wcs.obsgeo[:3]],
-                        "obstime_mjd": float(obstime.utc.mjd),
-                    }
-                spectral_system = {
-                    "type": "spectral",
-                    "refposition": SPECSYS_TO_REFPOSITION.get(
-                        self.wcs.specsys, f"custom:{self.wcs.specsys}"
-                    ),
-                    "observer": observer_description,
-                }
-            else:
-                spectral_system = None
-
             # Determine target
 
             # This is tricker. In principle the target for each pixel is the
@@ -608,6 +586,17 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                         AstropyUserWarning,
                     )
                     target = None
+
+            # Common arguments for the plain-data description of the spectral
+            # coordinate system, built after the checks above so that an
+            # observer dropped from the SpectralCoord is also not described.
+            # Note that earth_location and obstime are only evaluated when the
+            # observer is set, in which case they are always defined.
+
+            spectral_system_kwargs = {
+                "observer_location": earth_location if observer is not None else None,
+                "observer_time": obstime if observer is not None else None,
+            }
 
             # NOTE: below we include Quantity in classes['spectral'] instead
             # of SpectralCoord - this is because we want to also be able to
@@ -662,8 +651,11 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                 classes["spectral"] = (u.Quantity, (), {}, spectralcoord_from_redshift)
                 components[self.wcs.spec] = ("spectral", 0, redshift_from_spectralcoord)
 
-                if spectral_system is not None:
-                    spectral_system["rest_wavelength_m"] = float(self.wcs.restwav)
+                spectral_system = spectral_frame_to_coordinate_system(
+                    self.wcs.specsys,
+                    rest_wavelength=self.wcs.restwav * u.m,
+                    **spectral_system_kwargs,
+                )
 
             elif ctype == "BETA":
 
@@ -693,8 +685,11 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                 classes["spectral"] = (u.Quantity, (), {}, spectralcoord_from_beta)
                 components[self.wcs.spec] = ("spectral", 0, beta_from_spectralcoord)
 
-                if spectral_system is not None:
-                    spectral_system["rest_wavelength_m"] = float(self.wcs.restwav)
+                spectral_system = spectral_frame_to_coordinate_system(
+                    self.wcs.specsys,
+                    rest_wavelength=self.wcs.restwav * u.m,
+                    **spectral_system_kwargs,
+                )
 
             else:
                 kwargs["unit"] = self.wcs.cunit[ispec]
@@ -755,15 +750,12 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                 classes["spectral"] = (u.Quantity, (), {}, spectralcoord_from_value)
                 components[self.wcs.spec] = ("spectral", 0, value_from_spectralcoord)
 
-                if spectral_system is not None and "doppler_rest" in kwargs:
-                    spectral_system["doppler_convention"] = kwargs[
-                        "doppler_convention"
-                    ]
-                    spectral_system["doppler_rest_hz"] = float(
-                        kwargs["doppler_rest"].to_value(
-                            u.Hz, equivalencies=u.spectral()
-                        )
-                    )
+                spectral_system = spectral_frame_to_coordinate_system(
+                    self.wcs.specsys,
+                    doppler_convention=kwargs.get("doppler_convention"),
+                    doppler_rest=kwargs.get("doppler_rest"),
+                    **spectral_system_kwargs,
+                )
 
             if spectral_system is not None:
                 systems["spectral"] = spectral_system
@@ -865,19 +857,11 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     components[i] = (name, 0, offset_from_time_and_reference)
 
                     # Note that reference_time already incorporates any
-                    # GPS->TAI shift and scale normalization above.
-                    if location is None:
-                        location_description = None
-                    else:
-                        location_description = [
-                            float(q.to_value(u.m)) for q in location.to_geocentric()
-                        ]
-                    systems[name] = {
-                        "type": "time",
-                        "timescale": reference_time.scale,
-                        "timeorigin_mjd": float(reference_time.mjd),
-                        "location_m": location_description,
-                    }
+                    # GPS->TAI shift and scale normalization above, as well
+                    # as the observer location.
+                    time_system = time_frame_to_coordinate_system(reference_time)
+                    if time_system is not None:
+                        systems[name] = time_system
 
         if "phys.polarization.stokes" in self.world_axis_physical_types:
             for i in range(self.naxis):

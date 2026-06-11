@@ -1,11 +1,8 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
-import numpy as np
-import pytest
 from numpy.testing import assert_allclose
 
 from astropy.wcs import WCS
-from astropy.wcs.utils import pixel_to_pixel
 from astropy.wcs.wcsapi import world_axes_equivalent
 from astropy.wcs.wcsapi.wrappers import SlicedLowLevelWCS
 
@@ -43,17 +40,23 @@ def test_celestial_descriptions():
     assert celestial_wcs(
         radesys="FK5", equinox=2000.0
     ).world_axis_coordinate_systems == {
-        "celestial": {"type": "space", "frame": "eq_FK5", "equinox": "J2000.000"}
+        "celestial": {"type": "space", "frame": "FK5", "equinox": "J2000.000"}
     }
 
 
 def test_spectral_description():
-    systems = spectral_cube_wcs().world_axis_coordinate_systems
+    systems = spectral_cube_wcs(specsys="BARYCENT").world_axis_coordinate_systems
     assert systems["spectral"] == {
         "type": "spectral",
-        "refposition": "LSRK",
+        "refposition": "BARYCENTER",
         "observer": None,
     }
+    # SPECSYS values without a term in the IVOA refposition vocabulary
+    # (pending a VEP) must not be described at all
+    assert (
+        "spectral"
+        not in spectral_cube_wcs(specsys="LSRK").world_axis_coordinate_systems
+    )
     # Without SPECSYS the spectral system is unknown and must not be described
     assert "spectral" not in spectral_cube_wcs(specsys="").world_axis_coordinate_systems
 
@@ -90,9 +93,16 @@ def test_not_equivalent_swapped_axes():
 
 
 def test_spectral_equivalence():
-    assert world_axes_equivalent(spectral_cube_wcs(), spectral_cube_wcs())
+    assert world_axes_equivalent(
+        spectral_cube_wcs(specsys="BARYCENT"), spectral_cube_wcs(specsys="BARYCENT")
+    )
     assert not world_axes_equivalent(
         spectral_cube_wcs(specsys="LSRK"), spectral_cube_wcs(specsys="BARYCENT")
+    )
+    # Spectral systems that cannot be described with IVOA vocabulary terms
+    # (pending a VEP for LSRK) must not match, even each other
+    assert not world_axes_equivalent(
+        spectral_cube_wcs(specsys="LSRK"), spectral_cube_wcs(specsys="LSRK")
     )
     # Unknown spectral systems must never match, even each other
     assert not world_axes_equivalent(
@@ -109,50 +119,6 @@ def test_sliced_wcs_preserves_descriptions():
     assert world_axes_equivalent(sliced, celestial_wcs())
 
 
-def test_pixel_to_pixel_fast_path_results():
-    wcs1 = celestial_wcs()
-    wcs2 = celestial_wcs(ctype1="RA---SIN", ctype2="DEC--SIN")
-
-    x = np.array([1.0, 5.0, 30.0])
-    y = np.array([2.0, 7.0, 40.0])
-
-    fast = pixel_to_pixel(wcs1, wcs2, x, y)
-
-    # Compute the reference result through the high-level objects
-    world = wcs1.pixel_to_world(x, y)
-    slow = wcs2.world_to_pixel(world)
-
-    assert_allclose(fast[0], slow[0])
-    assert_allclose(fast[1], slow[1])
-
-
-def test_pixel_to_pixel_fast_path_taken():
-    wcs1 = celestial_wcs()
-    wcs2 = celestial_wcs(ctype1="RA---SIN", ctype2="DEC--SIN")
-
-    def fail(*args, **kwargs):
-        raise AssertionError("high-level path should not be used")
-
-    wcs1.pixel_to_world = fail
-    wcs2.world_to_pixel = fail
-
-    result = pixel_to_pixel(wcs1, wcs2, np.array([1.0, 5.0]), np.array([2.0, 7.0]))
-    assert len(result) == 2
-
-
-def test_pixel_to_pixel_slow_path_taken():
-    wcs1 = celestial_wcs()
-    wcs2 = celestial_wcs(ctype1="GLON-TAN", ctype2="GLAT-TAN")
-
-    fast = pixel_to_pixel(wcs1, wcs2, np.array([1.0, 5.0]), np.array([2.0, 7.0]))
-
-    world = wcs1.pixel_to_world(np.array([1.0, 5.0]), np.array([2.0, 7.0]))
-    slow = wcs2.world_to_pixel(world)
-
-    assert_allclose(fast[0], slow[0])
-    assert_allclose(fast[1], slow[1])
-
-
 class UndescribedWCS(SlicedLowLevelWCS):
     # Simulates a low-level WCS that does not override the new property and
     # therefore asserts nothing about its coordinate systems.
@@ -167,3 +133,68 @@ def test_unknown_never_matches():
     undescribed2 = UndescribedWCS(wcs, [slice(None), slice(None)])
     assert not world_axes_equivalent(undescribed1, wcs)
     assert not world_axes_equivalent(undescribed1, undescribed2)
+
+
+def test_spectral_frame_to_coordinate_system():
+    from astropy import units as u
+    from astropy.coordinates import EarthLocation
+    from astropy.time import Time
+    from astropy.wcs.wcsapi import spectral_frame_to_coordinate_system
+
+    assert spectral_frame_to_coordinate_system("") is None
+
+    # No IVOA refposition term yet (pending a VEP), so not describable
+    assert spectral_frame_to_coordinate_system("LSRK") is None
+
+    assert spectral_frame_to_coordinate_system("BARYCENT") == {
+        "type": "spectral",
+        "refposition": "BARYCENTER",
+        "observer": None,
+    }
+
+    system = spectral_frame_to_coordinate_system(
+        "TOPOCENT",
+        observer_location=EarthLocation(1, 2, 3, unit=u.m),
+        observer_time=Time(60000.0, format="mjd", scale="utc"),
+        doppler_convention="radio",
+        doppler_rest=1.420405751768 * u.GHz,
+    )
+    assert system == {
+        "type": "spectral",
+        "refposition": "TOPOCENTER",
+        "observer": {"obsgeo_m": [1.0, 2.0, 3.0], "obstime_mjd": 60000.0},
+        "doppler_convention": "radio",
+        "doppler_rest_hz": 1.420405751768e9,
+    }
+
+    # Rest wavelengths and frequencies should give matching descriptions
+    by_wavelength = spectral_frame_to_coordinate_system(
+        "GEOCENTR", doppler_convention="optical", doppler_rest=0.21106114 * u.m
+    )
+    assert by_wavelength["refposition"] == "GEOCENTER"
+    assert_allclose(by_wavelength["doppler_rest_hz"], 1.4204058e9, rtol=1e-6)
+
+
+def test_time_frame_to_coordinate_system():
+    from astropy import units as u
+    from astropy.coordinates import EarthLocation
+    from astropy.time import Time
+    from astropy.wcs.wcsapi import time_frame_to_coordinate_system
+
+    assert time_frame_to_coordinate_system(Time(55197.0, format="mjd", scale="tt")) == {
+        "type": "time",
+        "timescale": "TT",
+        "timeorigin_mjd": 55197.0,
+        "location_m": None,
+    }
+
+    # The 'local' scale has no IVOA timescale term, so is not describable
+    assert (
+        time_frame_to_coordinate_system(Time(55197.0, format="mjd", scale="local"))
+        is None
+    )
+
+    located = Time(
+        55197.0, format="mjd", scale="utc", location=EarthLocation(1, 2, 3, unit=u.m)
+    )
+    assert time_frame_to_coordinate_system(located)["location_m"] == [1.0, 2.0, 3.0]

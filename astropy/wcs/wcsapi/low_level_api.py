@@ -318,14 +318,20 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         value is a dictionary mapping strings to plain (JSON-serializable)
         values - strings, numbers, booleans, or lists/tuples of these - and
         must contain at least a ``"type"`` item identifying the kind of
-        coordinate system (for example ``"space"``, ``"spectral"``, ``"time"``,
-        ``"stokes"``, or ``"generic"``). Where controlled vocabularies exist,
-        the values should be drawn from them - in particular the IVOA
-        ``refframe`` vocabulary (http://www.ivoa.net/rdf/refframe) for the
-        ``"frame"`` item of ``"space"`` systems, and the IVOA ``refposition``
-        and ``timescale`` vocabularies for ``"spectral"`` and ``"time"``
-        systems - falling back to ``"custom:xxx"`` strings otherwise, in the
-        same way as `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_axis_physical_types`.
+        coordinate system (one of ``"space"``, ``"spectral"``, ``"time"``,
+        ``"stokes"``, or ``"generic"``). Items whose values name a reference
+        system *must* use terms from the corresponding IVOA controlled
+        vocabulary - the ``refframe`` vocabulary
+        (http://www.ivoa.net/rdf/refframe) for the ``"frame"`` item of
+        ``"space"`` systems, and the ``refposition`` and ``timescale``
+        vocabularies for ``"spectral"`` and ``"time"`` systems. A coordinate
+        system that cannot be fully described with vocabulary terms must be
+        omitted entirely rather than described partially or with invented
+        terms: a description lacking, say, its standard of rest would compare
+        as equivalent to a physically different one, and an invented term is
+        not interoperable. The way to make a currently inexpressible system
+        describable is to propose the missing term to the IVOA through a
+        Vocabulary Enhancement Proposal.
 
         This property expands on
         `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_axis_physical_types`, which
