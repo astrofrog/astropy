@@ -31,6 +31,46 @@
 #include "wcserr.h"
 #include "wcsprintf.h"
 
+/* wcserr_set, wcserr_clear and wcserr_copy together implement
+ * read/modify/write sequences on a shared `struct wcserr *' pointer
+ * (the per-wcsprm wcs->err, the per-linprm lin->err, etc.).  Without
+ * synchronisation, two threads concurrently failing the same wcsprm
+ * call race on the shared *errp:
+ *
+ *   - wcserr_set: both see *errp == NULL, both calloc, both assign,
+ *     one allocation is leaked; or one thread frees errp->msg (via
+ *     wcserr_clear on its failure path) while another thread's
+ *     wcserr_copy is in strlen(src->msg), giving a use-after-free
+ *     crash inside libc.
+ *   - wcserr_clear: races with any concurrent wcserr_set, double-free
+ *     of errp->msg or *errp.
+ *   - wcserr_copy: reads src->msg while a concurrent wcserr_set
+ *     reassigns it (the original symptom that appeared as a segfault
+ *     in wcserr_copy+0x54 inside libc when called from astropy's
+ *     pipeline_all_pixel2world).
+ *
+ * Serialise all three through a single process-wide spinlock built
+ * from C11 stdatomic's mandatory atomic_flag, which is portable to
+ * every C11 compiler without pulling in pthread or threads.h.  The
+ * critical sections are short (small allocations + memcpy + a few
+ * strlens) so a spinlock is the appropriate primitive.  On pre-C11
+ * compilers the lock degrades to a no-op and the original racy
+ * behaviour is preserved.
+ */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && \
+    !defined(__STDC_NO_ATOMICS__)
+#  include <stdatomic.h>
+   static atomic_flag wcserr_spinlock = ATOMIC_FLAG_INIT;
+#  define WCSERR_LOCK() \
+     while (atomic_flag_test_and_set_explicit(&wcserr_spinlock, \
+                                              memory_order_acquire)) {}
+#  define WCSERR_UNLOCK() \
+     atomic_flag_clear_explicit(&wcserr_spinlock, memory_order_release)
+#else
+#  define WCSERR_LOCK()   ((void)0)
+#  define WCSERR_UNLOCK() ((void)0)
+#endif
+
 static int wcserr_enabled = 0;
 
 //----------------------------------------------------------------------------
@@ -101,6 +141,7 @@ int wcserr_prt(const struct wcserr *err, const char *prefix)
 int wcserr_clear(struct wcserr **errp)
 
 {
+  WCSERR_LOCK();
   if (errp && *errp) {
     if ((*errp)->msg) {
       free((*errp)->msg);
@@ -108,6 +149,7 @@ int wcserr_clear(struct wcserr **errp)
     free(*errp);
     *errp = 0x0;
   }
+  WCSERR_UNLOCK();
 
   return 0;
 }
@@ -129,6 +171,8 @@ int wcserr_set(
   if (errp == 0x0) {
     return status;
   }
+
+  WCSERR_LOCK();
   struct wcserr *err = *errp;
 
   if (status) {
@@ -137,7 +181,13 @@ int wcserr_set(
     }
 
     if (err == 0x0) {
+      WCSERR_UNLOCK();
       return status;
+    }
+
+    /* Free any previous message buffer to avoid leaking it. */
+    if (err->msg) {
+      free(err->msg);
     }
 
     err->status   = status;
@@ -153,7 +203,13 @@ int wcserr_set(
     va_end(argp);
 
     if (msglen <= 0 || (err->msg = malloc(msglen)) == 0x0) {
-      wcserr_clear(errp);
+      /* Inline wcserr_clear to avoid reacquiring the lock. */
+      if (err->msg) {
+        free(err->msg);
+      }
+      free(err);
+      *errp = 0x0;
+      WCSERR_UNLOCK();
       return status;
     }
 
@@ -163,10 +219,16 @@ int wcserr_set(
     va_end(argp);
 
     if (msglen < 0) {
-      wcserr_clear(errp);
+      /* Inline wcserr_clear (see comment above). */
+      if (err->msg) {
+        free(err->msg);
+      }
+      free(err);
+      *errp = 0x0;
     }
   }
 
+  WCSERR_UNLOCK();
   return status;
 }
 
@@ -182,6 +244,9 @@ int wcserr_copy(const struct wcserr *src, struct wcserr *dst)
     return 0;
   }
 
+  WCSERR_LOCK();
+  int status = src->status;
+
   if (dst) {
     memcpy(dst, src, sizeof(struct wcserr));
 
@@ -192,6 +257,7 @@ int wcserr_copy(const struct wcserr *src, struct wcserr *dst)
       }
     }
   }
+  WCSERR_UNLOCK();
 
-  return src->status;
+  return status;
 }
