@@ -56,8 +56,12 @@ jobs:
           [ -x "$pybin" ] || pybin="$(command -v python)"
           for c in "${cores[@]}"; do
             echo "==================== ${c} ===================="
-            gdb -batch -nx -ex "set pagination off" -ex "bt full" \
-              -ex "thread apply all bt" -ex "quit" "$pybin" "${c}" 2>&1 | head -400
+            # Concise backtraces only: 'bt full' dumps huge interpreter locals
+            # (the opcode_targets array) and buries the C frames we care about.
+            gdb -batch -nx -ex "set pagination off" \
+              -ex "echo \n===== crashing thread =====\n" -ex "bt" \
+              -ex "echo \n===== all threads =====\n" -ex "thread apply all bt" \
+              -ex "quit" "$pybin" "${c}" 2>&1 | head -800
           done
           if [ ${#cores[@]} -gt 0 ]; then
             echo "::error::Native crash reproduced - ${#cores[@]} core dump(s); see backtrace above."
@@ -111,8 +115,12 @@ jobs:
           [ -x "$pybin" ] || pybin="$(command -v python)"
           for c in "${cores[@]}"; do
             echo "==================== ${c} ===================="
-            gdb -batch -nx -ex "set pagination off" -ex "bt full" \
-              -ex "thread apply all bt" -ex "quit" "$pybin" "${c}" 2>&1 | head -400
+            # Concise backtraces only: 'bt full' dumps huge interpreter locals
+            # (the opcode_targets array) and buries the C frames we care about.
+            gdb -batch -nx -ex "set pagination off" \
+              -ex "echo \n===== crashing thread =====\n" -ex "bt" \
+              -ex "echo \n===== all threads =====\n" -ex "thread apply all bt" \
+              -ex "quit" "$pybin" "${c}" 2>&1 | head -800
           done
           if [ ${#cores[@]} -gt 0 ]; then
             echo "::error::Native crash reproduced - ${#cores[@]} core dump(s); see backtrace above."
