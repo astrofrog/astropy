@@ -104,8 +104,15 @@ jobs:
           ASTROPY_WCS_DEBUG_ASAN=1 python -m pip install -e '.[test,recommended]'
       - name: Run wcs tests under ASan
         run: |
-          export ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:halt_on_error=1:symbolize=1:print_stacktrace=1
-          export LD_PRELOAD="$(gcc -print-file-name=libasan.so)"
+          # detect_odr_violation/verify_asan_link_order are relaxed because we
+          # LD_PRELOAD asan into a non-asan Python with mixed instrumented and
+          # uninstrumented extensions.
+          export ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:halt_on_error=1:symbolize=1:print_stacktrace=1:detect_odr_violation=0:verify_asan_link_order=0
+          # Preload libstdc++ as well: extensions such as matplotlib's ft2font
+          # throw C++ exceptions during import, and asan's __cxa_throw
+          # interceptor CHECK-fails unless the real one (in libstdc++) is already
+          # resolved at startup.
+          export LD_PRELOAD="$(gcc -print-file-name=libasan.so) $(gcc -print-file-name=libstdc++.so)"
           export PYTHONFAULTHANDLER=1
           set +e
           # Single process so ASan output is attributable; run the full suite to
