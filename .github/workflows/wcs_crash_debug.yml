@@ -1,0 +1,115 @@
+# TMP: diagnostics for the intermittent test_distortion_header SIGABRT under
+# WCSLIB 8.8.  Delete this workflow once the crash is root-caused.
+#
+# Two independent jobs:
+#   * coredump - normal build, reproduces the crash under the real allocator and
+#     prints a native (C) backtrace from the core file.  Most likely to catch the
+#     actual crash, since it does not perturb the heap layout.
+#   * asan - AddressSanitizer build of the _wcs extension; if the crash is a
+#     memory-safety error and reproduces under ASan, it pinpoints the exact line.
+name: WCS crash debug (TMP)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coredump:
+    name: Native backtrace via core dump
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.0.0
+        with:
+          python-version: '3.13'
+      - name: Install gdb and enable core dumps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdb
+          sudo mkdir -p /tmp/astropy-cores
+          sudo chmod 777 /tmp/astropy-cores
+          sudo sysctl -w kernel.core_pattern='/tmp/astropy-cores/core.%e.%p.%t'
+          cat /proc/sys/kernel/core_pattern
+      - name: Build astropy with frame pointers for clean backtraces
+        run: |
+          python -m pip install --upgrade pip
+          CFLAGS="-g -fno-omit-frame-pointer" python -m pip install -e '.[test,recommended]'
+      - name: Reproduce and capture cores
+        run: |
+          ulimit -c unlimited
+          export PYTHONFAULTHANDLER=1
+          set +e
+          # Mirror the py313-test-double config that crashes: run the suite twice
+          # in one session under xdist.  Try a couple of times since it is flaky.
+          for attempt in 1 2; do
+            echo "::group::pytest attempt ${attempt}"
+            python -m pytest --keep-duplicates --strict-markers \
+              --pyargs astropy astropy -n 4 -p no:cacheprovider
+            echo "pytest exit: $?"
+            echo "::endgroup::"
+            if ls /tmp/astropy-cores/core.* >/dev/null 2>&1; then
+              echo "Core dump captured on attempt ${attempt}."
+              break
+            fi
+          done
+      - name: Native backtrace
+        if: always()
+        run: |
+          shopt -s nullglob
+          cores=(/tmp/astropy-cores/core.*)
+          if [ ${#cores[@]} -eq 0 ]; then
+            echo "No core dumps captured - the crash did not reproduce this run."
+            exit 0
+          fi
+          for c in "${cores[@]}"; do
+            echo "==================== ${c} ===================="
+            gdb -batch -nx \
+              -ex "set pagination off" \
+              -ex "bt full" \
+              -ex "thread apply all bt" \
+              -ex "quit" \
+              "$(which python)" "${c}" 2>&1 | head -400
+          done
+      - name: Upload cores
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5.0.0
+        with:
+          name: wcs-crash-cores
+          path: /tmp/astropy-cores/core.*
+          if-no-files-found: ignore
+
+  asan:
+    name: AddressSanitizer report
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.0.0
+        with:
+          python-version: '3.13'
+      - name: Build _wcs with AddressSanitizer
+        run: |
+          python -m pip install --upgrade pip
+          ASTROPY_WCS_DEBUG_ASAN=1 python -m pip install -e '.[test,recommended]'
+      - name: Run wcs tests under ASan
+        run: |
+          export ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:halt_on_error=1:symbolize=1:print_stacktrace=1
+          export LD_PRELOAD="$(gcc -print-file-name=libasan.so)"
+          export PYTHONFAULTHANDLER=1
+          set +e
+          # Single process so ASan output is attributable; run the full suite to
+          # reproduce the cross-test state the crash needs, then the wcs tests.
+          python -m pytest --keep-duplicates --strict-markers \
+            --pyargs astropy -p no:cacheprovider
+          echo "pytest exit: $?"

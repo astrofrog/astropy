@@ -264,6 +264,16 @@ def get_wcslib_cfg(cfg, wcslib_files, include_paths):
                 ]
             )
 
+    # TMP: opt-in AddressSanitizer build of the _wcs extension for diagnosing
+    # the test_distortion_header abort under CI.  Set ASTROPY_WCS_DEBUG_ASAN=1
+    # when building, then run with
+    #   LD_PRELOAD=$(gcc -print-file-name=libasan.so) ASAN_OPTIONS=detect_leaks=0
+    if os.environ.get("ASTROPY_WCS_DEBUG_ASAN") and get_compiler() == "unix":
+        cfg["extra_compile_args"].extend(
+            ["-fsanitize=address", "-g", "-O1", "-fno-omit-frame-pointer"]
+        )
+        cfg["extra_link_args"].append("-fsanitize=address")
+
 
 def get_extensions():
     generate_c_docstrings()
