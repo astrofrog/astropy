@@ -49,26 +49,27 @@ jobs:
           set +e
           # Mirror the py313-test-double config that crashes: run the suite twice
           # in one session under xdist.  Try a couple of times since it is flaky.
+          worst=0
           for attempt in 1 2; do
             echo "::group::pytest attempt ${attempt}"
             python -m pytest --keep-duplicates --strict-markers \
               --pyargs astropy astropy -n 4 -p no:cacheprovider
-            echo "pytest exit: $?"
+            rc=$?
+            echo "pytest exit: ${rc}"
             echo "::endgroup::"
+            [ "${rc}" -gt "${worst}" ] && worst=${rc}
             if ls /tmp/astropy-cores/core.* >/dev/null 2>&1; then
               echo "Core dump captured on attempt ${attempt}."
               break
             fi
           done
+          echo "${worst}" > /tmp/pytest_rc
       - name: Native backtrace
         if: always()
         run: |
           shopt -s nullglob
           cores=(/tmp/astropy-cores/core.*)
-          if [ ${#cores[@]} -eq 0 ]; then
-            echo "No core dumps captured - the crash did not reproduce this run."
-            exit 0
-          fi
+          rc=$(cat /tmp/pytest_rc 2>/dev/null || echo 0)
           for c in "${cores[@]}"; do
             echo "==================== ${c} ===================="
             gdb -batch -nx \
@@ -78,6 +79,18 @@ jobs:
               -ex "quit" \
               "$(which python)" "${c}" 2>&1 | head -400
           done
+          # Fail the job for visibility when a crash is detected.  Under xdist a
+          # crashed worker leaves the main process exit code at 1, so the core
+          # file is the reliable signal; also treat a signal exit (>=128) as a
+          # crash in case core capture failed.
+          if [ ${#cores[@]} -gt 0 ]; then
+            echo "::error::Native crash reproduced - ${#cores[@]} core dump(s) captured; see backtrace above."
+            exit 1
+          elif [ "${rc}" -ge 128 ]; then
+            echo "::error::Process terminated by signal (exit ${rc}) but no core file was captured."
+            exit 1
+          fi
+          echo "No crash detected this run (pytest exit ${rc})."
       - name: Upload cores
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5.0.0
@@ -119,4 +132,10 @@ jobs:
           # reproduce the cross-test state the crash needs, then the wcs tests.
           python -m pytest --keep-duplicates --strict-markers \
             --pyargs astropy -p no:cacheprovider
-          echo "pytest exit: $?"
+          rc=$?
+          echo "pytest exit: ${rc}"
+          # Fail the job for visibility on an asan abort / native crash.
+          if [ "${rc}" -ge 128 ]; then
+            echo "::error::ASan/native crash detected (exit ${rc}); see the AddressSanitizer report above."
+            exit 1
+          fi
