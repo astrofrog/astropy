@@ -3,8 +3,8 @@
 name: Benchmark
 
 on:
-  pull_request:
-    types: [labeled, synchronize]
+  # TMP: only manual while debugging the WCSLIB 8.8 wcs crash, to save CI time
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

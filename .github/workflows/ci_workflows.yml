@@ -1,13 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches:
-    - main
-    - 'v*'
-    tags:
-    - '*'
-  pull_request:
+  # TMP: only manual while debugging the WCSLIB 8.8 wcs crash, to save CI time
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
