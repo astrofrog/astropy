@@ -106,18 +106,20 @@ jobs:
           posargs: --remote-data=astropy
           coverage: codecov
 
-        - name: Python 3.13 with all optional dependencies (Windows)
-          windows: py313-test-alldeps
-          posargs: --durations=50
-          cache-path: .tox
-          cache-key: alldeps-windows-${{ github.ref_name }}
-
-        - name: Python 3.13 with all optional dependencies (MacOS X)
-          macos: py313-test-alldeps
-          posargs: --durations=50 --run-slow
-          runs-on: macos-latest
-          cache-path: .tox
-          cache-key: alldeps-macos-${{ github.ref_name }}
+        # TMP: macOS/Windows disabled while debugging the WCSLIB 8.8 wcs crash;
+        # focusing on the Linux jobs that reliably reproduce it.
+        # - name: Python 3.13 with all optional dependencies (Windows)
+        #   windows: py313-test-alldeps
+        #   posargs: --durations=50
+        #   cache-path: .tox
+        #   cache-key: alldeps-windows-${{ github.ref_name }}
+        #
+        # - name: Python 3.13 with all optional dependencies (MacOS X)
+        #   macos: py313-test-alldeps
+        #   posargs: --durations=50 --run-slow
+        #   runs-on: macos-latest
+        #   cache-path: .tox
+        #   cache-key: alldeps-macos-${{ github.ref_name }}
 
         - name: Python 3.13 aarch64, Run tests twice
           linux: py313-test-double

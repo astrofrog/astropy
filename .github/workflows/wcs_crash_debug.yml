@@ -1,12 +1,11 @@
 # TMP: diagnostics for the intermittent test_distortion_header SIGABRT under
 # WCSLIB 8.8.  Delete this workflow once the crash is root-caused.
 #
-# Two independent jobs:
-#   * coredump - normal build, reproduces the crash under the real allocator and
-#     prints a native (C) backtrace from the core file.  Most likely to catch the
-#     actual crash, since it does not perturb the heap layout.
-#   * asan - AddressSanitizer build of the _wcs extension; if the crash is a
-#     memory-safety error and reproduces under ASan, it pinpoints the exact line.
+# These jobs reproduce the *exact* tox environments that crash in the normal CI
+# matrix (which uses the OpenAstronomy reusable workflow and so can't have a
+# post-crash gdb step), but run them inline with core dumps enabled so we can
+# print a native (C) backtrace of the wcshdo/to_header crash.  Linux only, as
+# requested; the macOS/Windows matrix entries are disabled separately.
 name: WCS crash debug (TMP)
 
 on:
@@ -18,123 +17,150 @@ permissions:
   contents: read
 
 jobs:
-  coredump:
-    name: Native backtrace via core dump
+  coredump-alldeps:
+    name: Backtrace - py313-test-alldeps-fitsio (x86_64)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
+    env:
+      ARCH_ON_CI: "normal"
+      IS_CRON: "false"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.0.0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: '3.13'
-      - name: Install gdb and enable core dumps
+      - name: Install system deps and enable core dumps
         run: |
           sudo apt-get update
-          sudo apt-get install -y gdb
-          sudo mkdir -p /tmp/astropy-cores
-          sudo chmod 777 /tmp/astropy-cores
-          sudo sysctl -w kernel.core_pattern='/tmp/astropy-cores/core.%e.%p.%t'
+          sudo apt-get install -y gdb language-pack-fr tzdata libbz2-dev libcfitsio-dev
+          sudo mkdir -p /cores && sudo chmod 777 /cores
+          sudo sysctl -w kernel.core_pattern='/cores/core.%e.%p.%t'
           cat /proc/sys/kernel/core_pattern
-      - name: Build astropy with frame pointers for clean backtraces
-        run: |
-          python -m pip install --upgrade pip
-          CFLAGS="-g -fno-omit-frame-pointer" python -m pip install -e '.[test,recommended]'
-      - name: Reproduce and capture cores
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+      - name: Run the crashing tox env under core dumps
         run: |
           ulimit -c unlimited
-          export PYTHONFAULTHANDLER=1
           set +e
-          # Mirror the py313-test-double config that crashes: run the suite twice
-          # in one session under xdist.  Try a couple of times since it is flaky.
-          worst=0
-          for attempt in 1 2; do
-            echo "::group::pytest attempt ${attempt}"
-            python -m pytest --keep-duplicates --strict-markers \
-              --pyargs astropy astropy -n 4 -p no:cacheprovider
-            rc=$?
-            echo "pytest exit: ${rc}"
-            echo "::endgroup::"
-            [ "${rc}" -gt "${worst}" ] && worst=${rc}
-            if ls /tmp/astropy-cores/core.* >/dev/null 2>&1; then
-              echo "Core dump captured on attempt ${attempt}."
-              break
-            fi
-          done
-          echo "${worst}" > /tmp/pytest_rc
+          tox -e py313-test-alldeps-fitsio -v --develop -- -n=4 --run-slow
+          echo "tox exit: $?"
       - name: Native backtrace
         if: always()
         run: |
           shopt -s nullglob
-          cores=(/tmp/astropy-cores/core.*)
-          rc=$(cat /tmp/pytest_rc 2>/dev/null || echo 0)
+          cores=(/cores/core.*)
+          pybin=".tox/py313-test-alldeps-fitsio/bin/python"
+          [ -x "$pybin" ] || pybin="$(command -v python)"
           for c in "${cores[@]}"; do
             echo "==================== ${c} ===================="
-            gdb -batch -nx \
-              -ex "set pagination off" \
-              -ex "bt full" \
-              -ex "thread apply all bt" \
-              -ex "quit" \
-              "$(which python)" "${c}" 2>&1 | head -400
+            gdb -batch -nx -ex "set pagination off" -ex "bt full" \
+              -ex "thread apply all bt" -ex "quit" "$pybin" "${c}" 2>&1 | head -400
           done
-          # Fail the job for visibility when a crash is detected.  Under xdist a
-          # crashed worker leaves the main process exit code at 1, so the core
-          # file is the reliable signal; also treat a signal exit (>=128) as a
-          # crash in case core capture failed.
           if [ ${#cores[@]} -gt 0 ]; then
-            echo "::error::Native crash reproduced - ${#cores[@]} core dump(s) captured; see backtrace above."
-            exit 1
-          elif [ "${rc}" -ge 128 ]; then
-            echo "::error::Process terminated by signal (exit ${rc}) but no core file was captured."
+            echo "::error::Native crash reproduced - ${#cores[@]} core dump(s); see backtrace above."
             exit 1
           fi
-          echo "No crash detected this run (pytest exit ${rc})."
+          echo "No core dumps captured this run."
       - name: Upload cores
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5.0.0
         with:
-          name: wcs-crash-cores
-          path: /tmp/astropy-cores/core.*
+          name: cores-alldeps-fitsio
+          path: /cores/core.*
           if-no-files-found: ignore
 
-  asan:
-    name: AddressSanitizer report
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+  coredump-double-arm:
+    name: Backtrace - py313-test-double (aarch64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      ARCH_ON_CI: "arm64"
+      IS_CRON: "false"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.0.0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Install system deps and enable core dumps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdb language-pack-fr tzdata
+          sudo mkdir -p /cores && sudo chmod 777 /cores
+          sudo sysctl -w kernel.core_pattern='/cores/core.%e.%p.%t'
+          cat /proc/sys/kernel/core_pattern
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+      - name: Run the crashing tox env under core dumps
+        run: |
+          ulimit -c unlimited
+          set +e
+          tox -e py313-test-double -- -n=4
+          echo "tox exit: $?"
+      - name: Native backtrace
+        if: always()
+        run: |
+          shopt -s nullglob
+          cores=(/cores/core.*)
+          pybin=".tox/py313-test-double/bin/python"
+          [ -x "$pybin" ] || pybin="$(command -v python)"
+          for c in "${cores[@]}"; do
+            echo "==================== ${c} ===================="
+            gdb -batch -nx -ex "set pagination off" -ex "bt full" \
+              -ex "thread apply all bt" -ex "quit" "$pybin" "${c}" 2>&1 | head -400
+          done
+          if [ ${#cores[@]} -gt 0 ]; then
+            echo "::error::Native crash reproduced - ${#cores[@]} core dump(s); see backtrace above."
+            exit 1
+          fi
+          echo "No core dumps captured this run."
+      - name: Upload cores
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5.0.0
+        with:
+          name: cores-double-arm
+          path: /cores/core.*
+          if-no-files-found: ignore
+
+  asan:
+    name: AddressSanitizer report (x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: '3.13'
       - name: Build _wcs with AddressSanitizer
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libbz2-dev libcfitsio-dev
           python -m pip install --upgrade pip
-          ASTROPY_WCS_DEBUG_ASAN=1 python -m pip install -e '.[test,recommended]'
-      - name: Run wcs tests under ASan
+          ASTROPY_WCS_DEBUG_ASAN=1 python -m pip install -e '.[test,all]'
+      - name: Run tests under ASan
         run: |
           # detect_odr_violation/verify_asan_link_order are relaxed because we
           # LD_PRELOAD asan into a non-asan Python with mixed instrumented and
           # uninstrumented extensions.
           export ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:halt_on_error=1:symbolize=1:print_stacktrace=1:detect_odr_violation=0:verify_asan_link_order=0
-          # Preload libstdc++ as well: extensions such as matplotlib's ft2font
-          # throw C++ exceptions during import, and asan's __cxa_throw
-          # interceptor CHECK-fails unless the real one (in libstdc++) is already
-          # resolved at startup.
+          # Preload libstdc++ too: extensions such as matplotlib's ft2font throw
+          # C++ exceptions during import, and asan's __cxa_throw interceptor
+          # CHECK-fails unless the real one (in libstdc++) is resolved at startup.
           export LD_PRELOAD="$(gcc -print-file-name=libasan.so) $(gcc -print-file-name=libstdc++.so)"
           export PYTHONFAULTHANDLER=1
           set +e
-          # Single process so ASan output is attributable; run the full suite to
-          # reproduce the cross-test state the crash needs, then the wcs tests.
           python -m pytest --keep-duplicates --strict-markers \
             --pyargs astropy -p no:cacheprovider
           rc=$?
           echo "pytest exit: ${rc}"
-          # Fail the job for visibility on an asan abort / native crash.
           if [ "${rc}" -ge 128 ]; then
             echo "::error::ASan/native crash detected (exit ${rc}); see the AddressSanitizer report above."
             exit 1
