@@ -80,17 +80,17 @@ def deproject_to_gnomonic(x_deg, y_deg, proj, xp):
     # Clamp out-of-domain and zero radii so the closed-form factors stay finite
     # and warning-free. The invalid mask is returned for the caller to apply;
     # the zero radius is exact by continuity (f_down -> 1).
-    psi = xp.where(valid, psi, xp.zeros_like(psi))
+    psi = xp.where(valid, psi, 0.0)
     psi2 = psi * psi
 
     if proj == "TAN":
-        f = xp.ones_like(psi)
+        f = 1.0
     elif proj == "SIN":
         f = 1.0 / xp.sqrt(1.0 - psi2)
     elif proj == "ARC":
         tiny = psi < 1e-12
-        psi_safe = xp.where(tiny, xp.ones_like(psi), psi)
-        f = xp.where(tiny, xp.ones_like(psi), xp.tan(psi) / psi_safe)
+        psi_safe = xp.where(tiny, 1.0, psi)
+        f = xp.where(tiny, 1.0, xp.tan(psi) / psi_safe)
     elif proj == "STG":
         f = 1.0 / (1.0 - psi2 / 4.0)
     elif proj == "ZEA":
@@ -127,14 +127,14 @@ def reproject_from_gnomonic(u, v, proj, xp):
     G2 = u * u + v * v
 
     if proj == "TAN":
-        f = xp.ones_like(G2)
+        f = 1.0
     elif proj == "SIN":
         f = 1.0 / xp.sqrt(1.0 + G2)
     elif proj == "ARC":
         G = xp.sqrt(G2)
         tiny = G < 1e-12
-        G_safe = xp.where(tiny, xp.ones_like(G), G)
-        f = xp.where(tiny, xp.ones_like(G), xp.arctan(G) / G_safe)
+        G_safe = xp.where(tiny, 1.0, G)
+        f = xp.where(tiny, 1.0, xp.arctan(G) / G_safe)
     elif proj == "STG":
         f = 2.0 / (1.0 + xp.sqrt(1.0 + G2))
     elif proj == "ZEA":

@@ -188,7 +188,7 @@ def _apply_general(transform, px1, py1, xp):
     b = float(q[1, 0]) * u1 + float(q[1, 1]) * v1 + float(q[1, 2])
     w = float(q[2, 0]) * u1 + float(q[2, 1]) * v1 + float(q[2, 2])
     visible = w > 0  # point must lie in the hemisphere plane 2 can image
-    w_safe = xp.where(visible, w, xp.ones_like(w))
+    w_safe = xp.where(visible, w, 1.0)
     u2 = a / w_safe
     v2 = b / w_safe
 
