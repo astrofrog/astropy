@@ -4,20 +4,26 @@ Benchmarks the fast `astropy.wcs._accel` transform across array backends and all
 25 zenithal projection pairs, and writes a single self-contained HTML report.
 
 ```bash
-python bench.py                       # all backends, 4M points, -> benchmark_results.html
-python bench.py --size 16000000       # past the CPU cache cliff (steady-state)
-python bench.py --backends numpy,jax-gpu,cupy --out report.html
+python bench.py                              # all backends, sizes 1M/4M/16M -> benchmark_results.html
+python bench.py --sizes 1000000,9000000      # custom input sizes
+python bench.py --backends numpy,jax-gpu,cupy,torch-gpu --out report.html
 ```
 
-Backends: `numpy`, `jax-cpu-1core`, `jax-cpu-multi`, `jax-gpu`, `cupy`, plus two
-reference paths this work replaces — the `wcslib` sphere round trip and the
-high-level `pixel_to_pixel`. Each runs in its own subprocess and is shown as N/A
-if its library or device is missing, so the script is safe to run anywhere and
-only fills the GPU columns on a GPU host.
+Backends: `numpy`, `jax-cpu-1core`, `jax-cpu-multi`, `jax-gpu`, `cupy`,
+`torch-cpu`, `torch-gpu`, `torch-compile`, `mlx`, plus two reference paths this
+work replaces — the `wcslib` sphere round trip and the high-level
+`pixel_to_pixel`. Each runs in its own subprocess and is shown as N/A if its
+library or device is missing, so the script is safe to run anywhere and only
+fills the GPU/torch/mlx columns where those are installed.
 
 The script first probes and prints which backends are available, then reports all
 throughputs as a speedup relative to the `wcslib` path for each projection pair
-(so `wcslib` is 1.0x and `pixel_to_pixel` shows the high-level overhead).
+(so `wcslib` is 1.0x and `pixel_to_pixel` shows the high-level overhead). The HTML
+benchmarks each requested input size and gives buttons to switch between them.
+
+`torch-compile` and the `jax-*` backends are compiled (kernel fusion); `numpy`,
+`cupy`, `torch-cpu/gpu` and `mlx` run eagerly. MLX and torch-on-MPS are float32
+(Apple GPUs have no float64), so run those with `--dtype float32`.
 
 To populate the GPU rows, install the matching wheels on that host, e.g.
 `pip install "jax[cuda12]"` and/or `pip install cupy-cuda12x`. The numbers are
