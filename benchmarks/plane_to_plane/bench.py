@@ -53,7 +53,14 @@ BACKENDS = {
     "jax-gpu": ({"JAX_PLATFORMS": "cuda", "JAX_ENABLE_X64": "1"}, False),
     "cupy": ({}, False),
     "wcslib": ({"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}, False),
+    "pixel_to_pixel": ({"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}, False),
 }
+
+# backends benchmarked through a reference astropy code path (not the fast
+# transform): the wcslib sphere round trip and the high-level pixel_to_pixel.
+REFERENCE_BACKENDS = ("wcslib", "pixel_to_pixel")
+# the per-pair baseline every speedup is reported against
+BASELINE = "wcslib"
 
 
 # --------------------------------------------------------------------------
@@ -104,6 +111,9 @@ def wcs_pair(p1, p2, side):
 # Worker: benchmark ONE backend, write JSON
 # --------------------------------------------------------------------------
 def run_worker(backend, size, reps, dtype_name, accel_dir, out_path):
+    import warnings
+
+    warnings.simplefilter("ignore")  # WCS/pixel_to_pixel emit frame warnings
     result = {"backend": backend, "size": size, "dtype": dtype_name}
     try:
         _, pin = BACKENDS[backend]
@@ -131,9 +141,9 @@ def run_worker(backend, size, reps, dtype_name, accel_dir, out_path):
         compute_transform = accel.compute_transform
         apply_transform = accel.apply_transform
 
-        if backend == "wcslib":
-            results = _bench_wcslib(px_np, py_np, sx, sy, reps,
-                                    compute_transform, apply_transform)
+        if backend in REFERENCE_BACKENDS:
+            results = _bench_reference(backend, px_np, py_np, sx, sy, reps,
+                                       compute_transform, apply_transform)
         else:
             gx_b, gy_b = to_backend(px_np), to_backend(py_np)
 
@@ -183,7 +193,7 @@ def _backend_setup(backend):
     ``jit`` is the compiler to wrap the per-pair apply in (jax.jit for jax,
     None for eager backends).
     """
-    if backend in ("numpy", "wcslib"):
+    if backend in ("numpy", *REFERENCE_BACKENDS):
         return (np, np.asarray, np.asarray, _noop, "cpu (numpy)",
                 {"numpy": np.__version__}, None)
     if backend.startswith("jax"):
@@ -240,24 +250,33 @@ def _time(call, sync, reps):
     return best_w * 1e3, cores  # ms, effective host cores
 
 
-def _bench_wcslib(px, py, sx, sy, reps, compute_transform, apply_transform):
+def _reference_call(kind, w1, w2, px, py):
+    """Return a 0-arg callable for a reference (non-fast) transform path."""
+    if kind == "wcslib":
+        def call():
+            world = w1.wcs_pix2world(px, py, 0)
+            return w2.wcs_world2pix(world[0], world[1], 0)
+        return call
+    from astropy.wcs.utils import pixel_to_pixel
+
+    def call():
+        return pixel_to_pixel(w1, w2, px, py)
+    return call
+
+
+def _bench_reference(kind, px, py, sx, sy, reps, compute_transform, apply_transform):
+    """Benchmark a reference path (wcslib round trip or high-level pixel_to_pixel)."""
     results = {}
     side = int(np.sqrt(px.size))
     for p1 in PROJECTIONS:
         for p2 in PROJECTIONS:
             w1, w2 = wcs_pair(p1, p2, side)
-
-            def call():
-                world = w1.wcs_pix2world(px, py, 0)
-                return w2.wcs_world2pix(world[0], world[1], 0)
-
-            ms, cores = _time(call, lambda r: None, reps)
-            # correctness: wcslib round trip vs fast transform on small grid
+            ms, cores = _time(_reference_call(kind, w1, w2, px, py), _noop, reps)
+            # correctness: reference path vs fast transform on the small grid
             t = compute_transform(w1, w2)
             ref = apply_transform(t, sx.astype(np.float64), sy.astype(np.float64), xp=np)
-            world = w1.wcs_pix2world(sx, sy, 0)
-            got = w2.wcs_world2pix(world[0], world[1], 0)
-            err = float(np.nanmax(np.abs(got[0] - ref[0])))
+            got0 = _reference_call(kind, w1, w2, sx, sy)()[0]
+            err = float(np.nanmax(np.abs(got0 - ref[0])))
             results[f"{p1}->{p2}"] = {
                 "mpix": px.size / (ms / 1e3) / 1e6, "ms": ms,
                 "cores": cores, "err": err,
@@ -284,86 +303,106 @@ def _sysinfo():
 
 
 # --------------------------------------------------------------------------
-# Driver: spawn workers, render HTML
+# Probe: quick availability check for ONE backend, write JSON
 # --------------------------------------------------------------------------
+def run_probe(backend, out_path):
+    result = {"backend": backend}
+    try:
+        import astropy  # every backend needs WCS to build the headers
+
+        setup = _backend_setup(backend)  # imports the backend / checks device
+        versions = dict(setup[5])
+        versions["astropy"] = astropy.__version__
+        if backend == "pixel_to_pixel":
+            from astropy.wcs.utils import pixel_to_pixel
+            if pixel_to_pixel is None:
+                raise RuntimeError("pixel_to_pixel not importable")
+        result.update(status="ok", device=setup[4], versions=versions)
+    except Exception as exc:
+        result.update(status="unavailable", reason=f"{type(exc).__name__}: {exc}")
+    with open(out_path, "w") as fh:
+        json.dump(result, fh)
+
+
+# --------------------------------------------------------------------------
+# Driver: probe, spawn workers, render HTML
+# --------------------------------------------------------------------------
+def _spawn(args_list, env_over):
+    env = dict(os.environ, **env_over)
+    return subprocess.run([sys.executable, os.path.abspath(__file__), *args_list],
+                          env=env, capture_output=True, text=True, check=False)
+
+
+def _read_json(path, fallback):
+    if os.path.exists(path):
+        with open(path) as fh:
+            return json.load(fh)
+    return fallback
+
+
 def run_driver(args):
-    backends = args.backends.split(",") if args.backends else list(BACKENDS)
+    backends = [b for b in (args.backends.split(",") if args.backends
+                            else list(BACKENDS)) if b in BACKENDS]
     tmpdir = os.path.join(HERE, ".bench_tmp")
     os.makedirs(tmpdir, exist_ok=True)
+
+    # 1. probe availability and report up front
+    print("Backend availability:")
+    probes, available = {}, []
+    for b in backends:
+        out = os.path.join(tmpdir, f"probe_{b}.json")
+        _spawn(["--probe", b, "--out", out], BACKENDS[b][0])
+        d = _read_json(out, {"status": "unavailable", "reason": "probe crashed"})
+        probes[b] = d
+        if d.get("status") == "ok":
+            available.append(b)
+            ver = ", ".join(f"{k} {v}" for k, v in d.get("versions", {}).items())
+            print(f"  {b:16} available    {d.get('device', '')}  [{ver}]")
+        else:
+            print(f"  {b:16} unavailable  ({d.get('reason', '')})")
+    print()
+
+    # 2. benchmark the available backends
     collected = {}
-    for backend in backends:
-        if backend not in BACKENDS:
-            print(f"  skip unknown backend {backend!r}")
+    for b in backends:
+        if b not in available:
+            collected[b] = probes[b]
             continue
-        env_over, _ = BACKENDS[backend]
-        out = os.path.join(tmpdir, f"{backend}.json")
-        env = dict(os.environ, **env_over)
-        cmd = [sys.executable, os.path.abspath(__file__), "--worker", backend,
-               "--size", str(args.size), "--reps", str(args.reps),
-               "--dtype", args.dtype, "--accel-dir", args.accel_dir, "--out", out]
-        print(f"running {backend:<14} ...", end=" ", flush=True)
+        out = os.path.join(tmpdir, f"{b}.json")
+        print(f"running {b:<16} ...", end=" ", flush=True)
         t0 = time.perf_counter()
-        proc = subprocess.run(cmd, env=env, capture_output=True, text=True,
-                               check=False)
-        data = None
-        if os.path.exists(out):
-            with open(out) as fh:
-                data = json.load(fh)
-        if data is None:
-            data = {"backend": backend, "status": "unavailable",
-                    "reason": f"worker exited {proc.returncode}",
-                    "traceback": proc.stderr[-2000:]}
-        collected[backend] = data
-        dt = time.perf_counter() - t0
+        proc = _spawn(["--worker", b, "--size", str(args.size), "--reps",
+                       str(args.reps), "--dtype", args.dtype,
+                       "--accel-dir", args.accel_dir, "--out", out], BACKENDS[b][0])
+        data = _read_json(out, {"backend": b, "status": "unavailable",
+                                "reason": f"worker exited {proc.returncode}",
+                                "traceback": proc.stderr[-2000:]})
+        collected[b] = data
         tag = data.get("status")
         extra = "" if tag == "ok" else f"({data.get('reason', '')})"
-        print(f"{tag} {extra}  [{dt:.1f}s]")
+        print(f"{tag} {extra}  [{time.perf_counter() - t0:.1f}s]")
 
+    _print_console_summary(collected)
     html = render_html(collected, args)
     with open(args.out, "w") as fh:
         fh.write(html)
     print(f"\nwrote {args.out}")
 
 
-def _heat(value, lo, hi):
-    """Green background intensity for a value on a log scale in [lo, hi]."""
-    if value <= 0 or hi <= lo:
-        return "#f7f7f7", "#000"
-    f = (np.log10(value) - np.log10(lo)) / (np.log10(hi) - np.log10(lo))
-    f = max(0.0, min(1.0, f))
-    # light -> dark green
-    r = int(247 - f * (247 - 0))
-    g = int(247 - f * (247 - 109))
-    b = int(247 - f * (247 - 44))
-    text = "#fff" if f > 0.6 else "#000"
-    return f"rgb({r},{g},{b})", text
-
-
-def _matrix_table(results):
-    cells = [results[f"{p1}->{p2}"]["mpix"]
-             for p1 in PROJECTIONS for p2 in PROJECTIONS if f"{p1}->{p2}" in results]
-    if not cells:
-        return "<p>no data</p>"
-    lo, hi = min(cells), max(cells)
-    out = ['<table class="mat"><tr><th>in \\ out</th>']
-    out += [f"<th>{p}</th>" for p in PROJECTIONS]
-    out.append("</tr>")
-    for p1 in PROJECTIONS:
-        out.append(f"<tr><th>{p1}</th>")
-        for p2 in PROJECTIONS:
-            cell = results.get(f"{p1}->{p2}")
-            if cell is None:
-                out.append('<td>-</td>')
-                continue
-            bg, fg = _heat(cell["mpix"], lo, hi)
-            tip = f"{cell['ms']:.2f} ms | err {cell['err']:.1e} | cores~{cell['cores']:.1f}"
-            out.append(
-                f'<td style="background:{bg};color:{fg}" title="{tip}">'
-                f'{cell["mpix"]:.0f}</td>'
-            )
-        out.append("</tr>")
-    out.append("</table>")
-    return "".join(out)
+def _print_console_summary(collected):
+    wbase = collected.get(BASELINE, {}).get("results")
+    head = f"vs {BASELINE}" if wbase else "Mpix/s"
+    print(f"\nMedian throughput ({head}):")
+    for b in BACKENDS:
+        d = collected.get(b)
+        if not d or d.get("status") != "ok":
+            continue
+        med = _median(d["results"])
+        if wbase:
+            print(f"  {b:16} {_median_ratio(d['results'], wbase):6.1f}x"
+                  f"   ({med:.0f} Mpix/s)")
+        else:
+            print(f"  {b:16} {med:.0f} Mpix/s")
 
 
 def _median(results):
@@ -371,9 +410,60 @@ def _median(results):
     return float(np.median(vals)) if vals else 0.0
 
 
+def _median_ratio(results, wbase):
+    rs = [results[p]["mpix"] / wbase[p]["mpix"]
+          for p in results if p in wbase and wbase[p]["mpix"] > 0]
+    return float(np.median(rs)) if rs else 0.0
+
+
+def _heat_ratio(ratio, gmax):
+    """Diverging colour: green if faster than the baseline, red if slower."""
+    if ratio <= 0 or gmax <= 0:
+        return "#f7f7f7", "#000"
+    f = max(-1.0, min(1.0, np.log10(ratio) / gmax))
+    if f >= 0:  # faster -> green (#2e8b57)
+        r, g, b = (int(255 - f * (255 - c)) for c in (46, 139, 87))
+    else:       # slower -> red (#c0392b)
+        a = -f
+        r, g, b = (int(255 - a * (255 - c)) for c in (192, 57, 43))
+    return f"rgb({r},{g},{b})", ("#fff" if abs(f) > 0.6 else "#000")
+
+
+def _matrix_table(results, wbase):
+    """5x5 table of speedup vs the wcslib baseline (per projection pair)."""
+    ratios = {}
+    for p1 in PROJECTIONS:
+        for p2 in PROJECTIONS:
+            k = f"{p1}->{p2}"
+            if k in results and wbase.get(k, {}).get("mpix", 0) > 0:
+                ratios[k] = results[k]["mpix"] / wbase[k]["mpix"]
+    if not ratios:
+        return "<p>no data</p>"
+    gmax = max(abs(np.log10(r)) for r in ratios.values()) or 1.0
+    out = ['<table class="mat"><tr><th>in \\ out</th>']
+    out += [f"<th>{p}</th>" for p in PROJECTIONS]
+    out.append("</tr>")
+    for p1 in PROJECTIONS:
+        out.append(f"<tr><th>{p1}</th>")
+        for p2 in PROJECTIONS:
+            k = f"{p1}->{p2}"
+            cell = results.get(k)
+            if cell is None or k not in ratios:
+                out.append("<td>-</td>")
+                continue
+            bg, fg = _heat_ratio(ratios[k], gmax)
+            tip = (f"{cell['mpix']:.0f} Mpix/s | {cell['ms']:.2f} ms | "
+                   f"err {cell['err']:.1e} | cores~{cell['cores']:.1f}")
+            out.append(f'<td style="background:{bg};color:{fg}" title="{tip}">'
+                       f'{ratios[k]:.1f}x</td>')
+        out.append("</tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
 def render_html(collected, args):
     ok = {k: v for k, v in collected.items() if v.get("status") == "ok"}
-    base = _median(ok["numpy"]["results"]) if "numpy" in ok else 0.0
+    wbase = ok.get(BASELINE, {}).get("results")
 
     sysinfo = {}
     device_by_backend = {}
@@ -381,6 +471,9 @@ def render_html(collected, args):
         device_by_backend[b] = d.get("device", "-")
         if d.get("sysinfo"):
             sysinfo = d["sysinfo"]
+
+    def med_ratio(d):
+        return _median_ratio(d["results"], wbase) if wbase else _median(d["results"])
 
     # summary rows
     rows = []
@@ -390,35 +483,37 @@ def render_html(collected, args):
             continue
         if d.get("status") != "ok":
             rows.append(
-                f"<tr><td>{b}</td><td>-</td><td colspan='4' class='na'>"
+                f"<tr><td>{b}</td><td>-</td><td colspan='3' class='na'>"
                 f"N/A &mdash; {d.get('reason', 'unavailable')}</td></tr>")
             continue
-        med = _median(d["results"])
-        speedup = med / base if base else 0.0
+        val = med_ratio(d)
+        disp = f"{val:.1f}x" if wbase else f"{val:.0f} Mpix/s"
         cores = np.median([c["cores"] for c in d["results"].values()])
         maxerr = max(c["err"] for c in d["results"].values())
         rows.append(
             f"<tr><td>{b}</td><td>{device_by_backend[b]}</td>"
-            f"<td class='num'>{med:.1f}</td><td class='num'>{speedup:.1f}x</td>"
+            f"<td class='num'>{disp}</td>"
             f"<td class='num'>{cores:.1f}</td><td class='num'>{maxerr:.0e}</td></tr>")
 
-    # svg bar chart of median Mpix/s (log)
-    bars = []
-    chart_items = [(b, _median(collected[b]["results"]))
+    # svg bar chart of median speedup vs baseline
+    chart_items = [(b, med_ratio(collected[b]))
                    for b in BACKENDS
                    if collected.get(b, {}).get("status") == "ok"]
     if chart_items:
-        cmax = max(v for _, v in chart_items)
-        bw, gap, x0, top = 520, 26, 130, 12
+        cmax = max(v for _, v in chart_items) or 1.0
+        unit = "x" if wbase else " Mpix/s"
+        bw, gap, x0, top = 520, 26, 150, 12
         h = len(chart_items) * (22 + gap)
+        bars = []
         for i, (b, v) in enumerate(chart_items):
             y = top + i * (22 + gap)
             w = max(2, bw * v / cmax)
+            fill = "#888" if b in REFERENCE_BACKENDS else "#2e8b57"
             bars.append(
-                f'<text x="120" y="{y+15}" text-anchor="end" class="bl">{b}</text>'
-                f'<rect x="{x0}" y="{y}" width="{w:.0f}" height="22" fill="#2e8b57"/>'
-                f'<text x="{x0+w+6:.0f}" y="{y+15}" class="bv">{v:.0f} Mpix/s</text>')
-        svg = (f'<svg width="760" height="{h+top}" role="img">' + "".join(bars)
+                f'<text x="140" y="{y+15}" text-anchor="end" class="bl">{b}</text>'
+                f'<rect x="{x0}" y="{y}" width="{w:.0f}" height="22" fill="{fill}"/>'
+                f'<text x="{x0+w+6:.0f}" y="{y+15}" class="bv">{v:.1f}{unit}</text>')
+        svg = (f'<svg width="780" height="{h+top}" role="img">' + "".join(bars)
                + "</svg>")
     else:
         svg = "<p>no successful backends</p>"
@@ -427,12 +522,13 @@ def render_html(collected, args):
     heatmaps = []
     for b in BACKENDS:
         d = collected.get(b)
-        if not d or d.get("status") != "ok":
+        if not d or d.get("status") != "ok" or not wbase:
             continue
         heatmaps.append(
             f"<h3>{b} <span class='dev'>&mdash; {device_by_backend[b]}</span></h3>"
-            f"<p class='cap'>throughput in Mpix/s (hover a cell for ms / error / "
-            f"cores). darker = faster.</p>{_matrix_table(d['results'])}")
+            f"<p class='cap'>speedup vs {BASELINE} (hover a cell for Mpix/s / ms / "
+            f"error / cores). green = faster than {BASELINE}, red = slower.</p>"
+            f"{_matrix_table(d['results'], wbase)}")
 
     sys_html = "".join(
         f"<li><b>{k}</b>: {v}</li>" for k, v in sysinfo.items())
@@ -468,15 +564,22 @@ ul{{line-height:1.5}} .bl{{font-size:13px;fill:#333}} .bv{{font-size:12px;fill:#
 <p class="meta">{when} &middot; {size} pixels &middot; dtype {dtype} &middot; {reps} timed reps (min wall)</p>
 <h2>System</h2><ul>{sysinfo}</ul>
 <h2>Summary</h2>
-<table class="sum"><tr><th>backend</th><th>device</th><th>median Mpix/s</th>
-<th>vs numpy</th><th>host cores~</th><th>max err</th></tr>{summary}</table>
-<h3>median throughput</h3>{chart}
-<h2>Per-backend throughput by projection pair</h2>
-<p class="cap">rows = input projection, columns = output projection. TAN&rarr;TAN uses
-the single-matrix fast path; all other cells use the general five-step path.</p>
+<table class="sum"><tr><th>backend</th><th>device</th><th>median vs wcslib</th>
+<th>host cores~</th><th>max err</th></tr>{summary}</table>
+<h3>median speedup vs wcslib</h3>{chart}
+<h2>Per-backend speedup vs wcslib by projection pair</h2>
+<p class="cap">rows = input projection, columns = output projection. Each cell is the
+throughput relative to the wcslib sphere round trip for that same pair (so wcslib
+is 1.0x everywhere). TAN&rarr;TAN uses the single-matrix fast path; all other
+cells use the general five-step path.</p>
 {heatmaps}
 <h2>Notes</h2>
 <div class="note">
+<p><b>Relative to wcslib.</b> All throughputs are reported as a speedup over the
+<code>wcslib</code> sphere round trip for the same projection pair (1.0x = wcslib).
+The two grey rows, <code>wcslib</code> and <code>pixel_to_pixel</code>, are the
+reference paths this work replaces; <code>pixel_to_pixel</code> is the high-level
+path and its &lt;1.0x values show its per-projection overhead over raw wcslib.</p>
 <p><b>Single vs multi core.</b> <code>jax-cpu-1core</code> pins the process to one
 core, isolating XLA kernel <i>fusion</i> from parallelism; <code>jax-cpu-multi</code>
 lets XLA use every core. Compare the <i>host cores~</i> column (CPU time / wall
@@ -500,6 +603,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--worker", help=argparse.SUPPRESS)
+    ap.add_argument("--probe", help=argparse.SUPPRESS)
     ap.add_argument("--size", type=int, default=4_000_000)
     ap.add_argument("--reps", type=int, default=7)
     ap.add_argument("--dtype", default="float64")
@@ -509,7 +613,9 @@ def main():
     ap.add_argument("--out", default=os.path.join(HERE, "benchmark_results.html"))
     args = ap.parse_args()
 
-    if args.worker:
+    if args.probe:
+        run_probe(args.probe, args.out)
+    elif args.worker:
         run_worker(args.worker, args.size, args.reps, args.dtype,
                    args.accel_dir, args.out)
     else:

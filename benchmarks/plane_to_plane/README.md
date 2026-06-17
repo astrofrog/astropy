@@ -9,10 +9,15 @@ python bench.py --size 16000000       # past the CPU cache cliff (steady-state)
 python bench.py --backends numpy,jax-gpu,cupy --out report.html
 ```
 
-Backends: `numpy`, `jax-cpu-1core`, `jax-cpu-multi`, `jax-gpu`, `cupy`, and a
-`wcslib` sphere-round-trip baseline. Each runs in its own subprocess and is shown
-as N/A if its library or device is missing, so the script is safe to run anywhere
-and only fills the GPU columns on a GPU host.
+Backends: `numpy`, `jax-cpu-1core`, `jax-cpu-multi`, `jax-gpu`, `cupy`, plus two
+reference paths this work replaces — the `wcslib` sphere round trip and the
+high-level `pixel_to_pixel`. Each runs in its own subprocess and is shown as N/A
+if its library or device is missing, so the script is safe to run anywhere and
+only fills the GPU columns on a GPU host.
+
+The script first probes and prints which backends are available, then reports all
+throughputs as a speedup relative to the `wcslib` path for each projection pair
+(so `wcslib` is 1.0x and `pixel_to_pixel` shows the high-level overhead).
 
 To populate the GPU rows, install the matching wheels on that host, e.g.
 `pip install "jax[cuda12]"` and/or `pip install cupy-cuda12x`. The numbers are
