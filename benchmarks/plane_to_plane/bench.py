@@ -227,7 +227,12 @@ def _torch_device(backend, torch):
             return "mps"
         raise RuntimeError("no CUDA or MPS device for torch")
     if backend == "torch-compile":
-        return "cuda" if cuda else "cpu"  # mps + compile is still flaky
+        # torch.compile's GPU backend (Triton) needs CUDA capability >= 7.0;
+        # on older GPUs fall back to CPU (inductor C++ backend), which fuses
+        # fine. mps + compile is still flaky, so it also goes to CPU.
+        if cuda and torch.cuda.get_device_capability()[0] >= 7:
+            return "cuda"
+        return "cpu"
     return "cpu"
 
 
@@ -708,7 +713,8 @@ elementwise chain into one kernel &mdash; the real win over eager execution.
 <code>numpy</code>, <code>cupy</code>, <code>torch-cpu/gpu</code> and
 <code>mlx</code> run eagerly (one kernel launch per op), so an eager-vs-compiled
 gap on the same device reflects fusion, not hardware. <code>torch-compile</code>
-runs on CUDA if present, else CPU.</p>
+runs on CUDA when the GPU supports Triton (capability &ge; 7.0), otherwise on CPU
+(inductor C++ backend).</p>
 <p><b>wcslib</b> is astropy's core <code>wcs_pix2world</code>&rarr;
 <code>wcs_world2pix</code> sphere round trip &mdash; the baseline this work
 replaces. It is single-threaded C.</p>

@@ -25,6 +25,12 @@ benchmarks each requested input size and gives buttons to switch between them.
 `cupy`, `torch-cpu/gpu` and `mlx` run eagerly. MLX and torch-on-MPS are float32
 (Apple GPUs have no float64), so run those with `--dtype float32`.
 
+`torch-compile` needs a Triton-capable GPU (CUDA capability >= 7.0); on older
+cards it falls back to compiling on CPU. `torch-gpu` and `cupy` also need wheels
+built for your GPU architecture — older cards (e.g. Pascal / sm_61) may hit "no
+kernel image" or an nvrtc `--gpu-architecture` error and show as N/A; that is an
+install/hardware limitation, not a benchmark error. The run continues regardless.
+
 To populate the GPU rows, install the matching wheels on that host, e.g.
 `pip install "jax[cuda12]"` and/or `pip install cupy-cuda12x`. The numbers are
 float64 (parity with the CPU baselines); pass `--dtype float32` to see the GPU's
