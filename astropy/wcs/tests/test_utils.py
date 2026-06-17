@@ -1781,3 +1781,150 @@ def test_custom_wcs_to_from_frame():
     print(custom_wcs.wcs.ctype)
     assert custom_wcs.wcs.ctype[0] == "CSLN-TAN"
     assert custom_wcs.wcs.ctype[1] == "CSLT-TAN"
+
+
+# ---------------------------------------------------------------------------
+# Accelerated plane-to-plane fast path for pixel_to_pixel (method= kwarg)
+# ---------------------------------------------------------------------------
+
+ZENITHAL = ["TAN", "SIN", "STG", "ARC", "ZEA"]
+
+
+def _zenithal_wcs(proj, crval, crpix, cdelt, rot=0.0, frame="RA"):
+    w = WCS(naxis=2)
+    if frame == "RA":
+        w.wcs.ctype = [f"RA---{proj}", f"DEC--{proj}"]
+    else:
+        w.wcs.ctype = [f"GLON-{proj}", f"GLAT-{proj}"]
+    w.wcs.crval = list(crval)
+    w.wcs.crpix = list(crpix)
+    c, s = np.cos(np.radians(rot)), np.sin(np.radians(rot))
+    w.wcs.cd = np.array([[cdelt * c, -cdelt * s], [cdelt * s, cdelt * c]])
+    w.wcs.set()
+    return w
+
+
+@pytest.mark.filterwarnings("ignore")
+@pytest.mark.parametrize("proj_in", ZENITHAL)
+@pytest.mark.parametrize("proj_out", ZENITHAL)
+def test_pixel_to_pixel_fast_matches_full(proj_in, proj_out):
+    # For every ordered pair of zenithal projections the accelerated path must
+    # agree with the world-coordinate path to floating-point precision, and the
+    # fast path must actually be taken (method='fast' does not raise).
+    wcs_in = _zenithal_wcs(proj_in, [266.4, -29.0], [256, 256], -0.0015)
+    wcs_out = _zenithal_wcs(proj_out, [266.7, -28.7], [300, 280], -0.0011, rot=17)
+    x = np.linspace(80, 440, 50)
+    y = np.linspace(70, 450, 50)
+
+    fast = pixel_to_pixel(wcs_in, wcs_out, x, y, method="fast")
+    full = pixel_to_pixel(wcs_in, wcs_out, x, y, method="full")
+    assert_allclose(fast[0], full[0], atol=1e-6)
+    assert_allclose(fast[1], full[1], atol=1e-6)
+
+    # the default (auto) takes the fast path here, so it equals fast exactly
+    auto = pixel_to_pixel(wcs_in, wcs_out, x, y)
+    assert_allclose(auto[0], fast[0], rtol=0, atol=0)
+    assert_allclose(auto[1], fast[1], rtol=0, atol=0)
+
+
+@pytest.mark.filterwarnings("ignore")
+def test_pixel_to_pixel_fast_scalar():
+    wcs_in = _zenithal_wcs("TAN", [266.4, -29.0], [256, 256], -0.0015)
+    wcs_out = _zenithal_wcs("ZEA", [266.7, -28.7], [300, 280], -0.0011, rot=17)
+    fast = pixel_to_pixel(wcs_in, wcs_out, 256.0, 240.0, method="fast")
+    full = pixel_to_pixel(wcs_in, wcs_out, 256.0, 240.0, method="full")
+    assert np.ndim(fast[0]) == 0
+    assert_allclose(fast, full, atol=1e-6)
+
+
+def _ineligible_pairs():
+    elig = _zenithal_wcs("TAN", [266.4, -29.0], [256, 256], -0.0015)
+
+    sip = _zenithal_wcs("TAN", [266.7, -28.7], [300, 280], -0.0011, rot=17)
+    a = np.zeros((3, 3))
+    a[2, 0] = 1e-5
+    sip.sip = Sip(a, np.zeros((3, 3)), None, None, sip.wcs.crpix)
+
+    car = _zenithal_wcs("CAR", [266.7, -28.7], [300, 280], -0.0011)  # not zenithal
+
+    swapped = WCS(naxis=2)  # latitude on axis 0
+    swapped.wcs.ctype = ["DEC--TAN", "RA---TAN"]
+    swapped.wcs.crval = [-28.7, 266.7]
+    swapped.wcs.set()
+
+    pv = _zenithal_wcs("TAN", [266.7, -28.7], [300, 280], -0.0011)
+    pv.wcs.set_pv([(2, 1, 0.0)])  # TAN + PV (TPV-style)
+    pv.wcs.set()
+
+    return {
+        "sip": (elig, sip),
+        "car": (elig, car),
+        "swapped-axes": (elig, swapped),
+        "tan+pv": (elig, pv),
+    }
+
+
+@pytest.mark.parametrize("case", list(_ineligible_pairs()))
+def test_pixel_to_pixel_fast_raises_when_ineligible(case):
+    wcs_in, wcs_out = _ineligible_pairs()[case]
+    x = np.array([100.0, 200.0, 300.0])
+    y = np.array([110.0, 210.0, 310.0])
+    with pytest.raises(ValueError, match="not eligible"):
+        pixel_to_pixel(wcs_in, wcs_out, x, y, method="fast")
+
+
+@pytest.mark.filterwarnings("ignore")
+@pytest.mark.parametrize("case", list(_ineligible_pairs()))
+def test_pixel_to_pixel_auto_falls_back(case):
+    # auto silently uses the world path for ineligible pairs and matches full
+    wcs_in, wcs_out = _ineligible_pairs()[case]
+    x = np.array([100.0, 200.0, 300.0])
+    y = np.array([110.0, 210.0, 310.0])
+    auto = pixel_to_pixel(wcs_in, wcs_out, x, y, method="auto")
+    full = pixel_to_pixel(wcs_in, wcs_out, x, y, method="full")
+    assert_allclose(np.asarray(auto), np.asarray(full), equal_nan=True)
+
+
+def test_pixel_to_pixel_invalid_method():
+    wcs = _zenithal_wcs("TAN", [266.4, -29.0], [256, 256], -0.0015)
+    with pytest.raises(ValueError, match="method should be"):
+        pixel_to_pixel(wcs, wcs, 1.0, 2.0, method="bogus")
+
+
+class _ForeignArray:
+    """Minimal stand-in for a non-numpy Array API array (e.g. jax/cupy)."""
+
+    def __init__(self, arr):
+        self._arr = np.asarray(arr)
+
+    def __array_namespace__(self, *, api_version=None):
+        import types
+
+        return types.ModuleType("fakelib")
+
+
+def test_pixel_to_pixel_foreign_array_ineligible_raises():
+    # a non-numpy array with an ineligible WCS pair must raise rather than be
+    # silently copied to the host
+    wcs_in, wcs_out = _ineligible_pairs()["sip"]
+    foreign = _ForeignArray([1.0, 2.0, 3.0])
+    with pytest.raises(TypeError, match="non-numpy"):
+        pixel_to_pixel(wcs_in, wcs_out, foreign, foreign, method="auto")
+
+
+@pytest.mark.filterwarnings("ignore")
+def test_pixel_to_pixel_jax_namespace_preserved():
+    jnp = pytest.importorskip("jax.numpy")
+    wcs_in = _zenithal_wcs("TAN", [266.4, -29.0], [256, 256], -0.0015)
+    wcs_out = _zenithal_wcs("ZEA", [266.7, -28.7], [300, 280], -0.0011, rot=17)
+    x = np.linspace(80, 440, 50)
+    y = np.linspace(70, 450, 50)
+
+    out = pixel_to_pixel(wcs_in, wcs_out, jnp.asarray(x), jnp.asarray(y))
+    assert out[0].__array_namespace__().__name__ == "jax.numpy"
+    ref = pixel_to_pixel(wcs_in, wcs_out, x, y, method="full")
+    assert_allclose(np.asarray(out[0]), ref[0], atol=1e-3)
+
+    # method='full' copies the foreign array to the host and returns numpy
+    full = pixel_to_pixel(wcs_in, wcs_out, jnp.asarray(x), jnp.asarray(y), method="full")
+    assert isinstance(full[0], np.ndarray)

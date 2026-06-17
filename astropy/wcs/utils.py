@@ -16,6 +16,8 @@ from astropy.coordinates import (
 )
 from astropy.utils import unbroadcast
 
+from ._accel import apply_transform as _fast_apply
+from ._accel import compute_transform as _fast_compute
 from .wcs import WCS, WCSSUB_LATITUDE, WCSSUB_LONGITUDE
 
 __doctest_skip__ = ["wcs_to_celestial_frame", "celestial_frame_to_wcs"]
@@ -884,7 +886,76 @@ def _split_matrix(matrix):
     return split_info
 
 
-def pixel_to_pixel(wcs_in, wcs_out, *inputs):
+def _is_foreign_array(x):
+    """`True` for an array from a non-numpy Array API namespace (jax, cupy, ...)."""
+    return (
+        hasattr(x, "__array_namespace__")
+        and getattr(x.__array_namespace__(), "__name__", "") != "numpy"
+    )
+
+
+def _to_host_numpy(x):
+    """Bring an array (possibly on a device) back to a numpy array on the host."""
+    try:
+        return np.asarray(x)
+    except (TypeError, ValueError):
+        if hasattr(x, "get"):  # cupy
+            return np.asarray(x.get())
+        if hasattr(x, "cpu"):  # torch
+            return np.asarray(x.cpu())
+        return np.from_dlpack(x)
+
+
+def _is_fast_eligible_wcs(wcs):
+    """
+    `True` if ``wcs`` is a 2-D celestial FITS WCS with a supported zenithal
+    projection in the default orientation and no distortion -- the conditions
+    under which the plane-to-plane transform is exact. The check is deliberately
+    conservative: a false positive would silently return a wrong answer.
+    """
+    if not isinstance(wcs, WCS):
+        return False
+    wcsprm = wcs.wcs
+    ctype = list(wcsprm.ctype)
+    return (
+        wcs.naxis == 2
+        and wcs.has_celestial
+        and wcsprm.lng == 0  # standard longitude/latitude axis order
+        and wcsprm.lat == 1
+        and not _has_distortion(wcs)  # SIP / CPDIS / DET2IM
+        and not len(wcsprm.get_pv())  # e.g. TAN + PV (TPV-style distortion)
+        and not len(wcsprm.get_ps())
+        and wcsprm.lonpole == 180.0  # default native orientation
+        and ctype[0][5:8] == ctype[1][5:8]  # both axes the same projection
+    )
+
+
+def _try_fast_zenithal(wcs_in, wcs_out):
+    """
+    Return a precomputed plane-to-plane transform if ``wcs_in`` and ``wcs_out``
+    are an eligible pair of zenithal FITS WCS, otherwise `None` (so the caller
+    falls back to the world-coordinate path). A false negative only forgoes the
+    speed-up, so anything outside the supported case falls back.
+    """
+    if not (_is_fast_eligible_wcs(wcs_in) and _is_fast_eligible_wcs(wcs_out)):
+        return None
+    try:
+        # also validates the projection codes and that the frames match
+        return _fast_compute(wcs_in, wcs_out)
+    except (ValueError, np.linalg.LinAlgError):
+        return None
+
+
+def _fast_pixel_to_pixel(transform, inputs):
+    """Apply a precomputed plane-to-plane transform, preserving the namespace."""
+    x, y = inputs
+    px, py = _fast_apply(transform, x, y)
+    if np.isscalar(x):
+        px, py = px[()], py[()]
+    return [px, py]
+
+
+def pixel_to_pixel(wcs_in, wcs_out, *inputs, method="auto"):
     """
     Transform pixel coordinates in a dataset with a WCS to pixel coordinates
     in another dataset with a different WCS.
@@ -903,7 +974,48 @@ def pixel_to_pixel(wcs_in, wcs_out, *inputs):
         high-level shared APE 14 WCS API.
     *inputs :
         Scalars or arrays giving the pixel coordinates to transform.
+    method : {'auto', 'fast', 'full'}, optional
+        Which algorithm to use:
+
+        - ``'auto'`` (default): use the accelerated plane-to-plane transform
+          when both WCS are an eligible pair of zenithal FITS WCS sharing a
+          celestial frame, otherwise fall back to the world-coordinate path.
+          The accelerated and world paths agree to floating-point precision.
+        - ``'fast'``: require the accelerated path and raise if the pair is not
+          eligible. Useful when a host round-trip would be unacceptable.
+        - ``'full'``: always use the world-coordinate path.
+
+        The accelerated path preserves the input array namespace (numpy, jax,
+        cupy, ...). The world-coordinate path runs on the host in numpy: under
+        ``'full'`` any non-numpy inputs are copied to the host and numpy arrays
+        are returned, and under ``'auto'`` non-numpy inputs with an ineligible
+        WCS pair raise rather than being silently copied off their device.
     """
+    if method not in ("auto", "fast", "full"):
+        raise ValueError(
+            f"method should be 'auto', 'fast', or 'full' (got {method!r})"
+        )
+
+    if method != "full":
+        transform = _try_fast_zenithal(wcs_in, wcs_out)
+        if transform is not None:
+            return _fast_pixel_to_pixel(transform, inputs)
+        if method == "fast":
+            raise ValueError(
+                "method='fast' was requested but the WCS pair is not eligible "
+                "for the accelerated path (it requires 2-D celestial FITS WCS "
+                "with matching frames, zenithal projections, no distortion, and "
+                "the default orientation)."
+            )
+        if any(_is_foreign_array(x) for x in inputs):
+            raise TypeError(
+                "non-numpy array inputs require a WCS pair that is eligible for "
+                "the accelerated path; pass numpy arrays, or use method='full' "
+                "to copy the inputs to the host and use the world-coordinate path."
+            )
+    elif any(_is_foreign_array(x) for x in inputs):
+        inputs = tuple(_to_host_numpy(x) for x in inputs)
+
     # Shortcut for scalars
     if np.isscalar(inputs[0]):
         world_outputs = wcs_in.pixel_to_world(*inputs)
