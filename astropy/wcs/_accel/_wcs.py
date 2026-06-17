@@ -31,6 +31,41 @@ def validate_wcs(wcs, name="wcs"):
     return proj
 
 
+def frame_key(wcs):
+    """
+    Build a hashable key describing the celestial frame of a WCS.
+
+    The key combines the CTYPE coordinate-type prefixes (e.g. ``("RA", "DEC")``
+    or ``("GLON", "GLAT")``) with ``RADESYS`` and ``EQUINOX``, which together
+    distinguish equatorial/galactic/ecliptic frames and the equatorial
+    realizations (ICRS, FK5, FK4, ...).
+    """
+    ctype = list(wcs.wcs.ctype)
+    prefixes = tuple(c.split("-")[0].upper() for c in ctype[:2])
+    radesys = (wcs.wcs.radesys or "").upper().strip()
+    equinox = wcs.wcs.equinox
+    return prefixes, radesys, equinox
+
+
+def validate_same_frame(wcs1, wcs2):
+    """
+    Require both WCS to describe the same celestial frame.
+
+    The plane-to-plane rotation contains no frame rotation, so a frame mismatch
+    would silently return wrong answers. Frame conversion on the fast path is
+    not yet supported, so mismatches are refused here.
+    """
+    p1, r1, e1 = frame_key(wcs1)
+    p2, r2, e2 = frame_key(wcs2)
+    same_equinox = e1 == e2 or (np.isnan(e1) and np.isnan(e2))
+    if p1 != p2 or r1 != r2 or not same_equinox:
+        raise ValueError(
+            "Fast plane-to-plane transform requires both WCS to describe the "
+            f"same celestial frame, but got {p1}/{r1}/{e1} and {p2}/{r2}/{e2}. "
+            "Frame conversion is not yet supported on the fast path."
+        )
+
+
 def get_cd_matrix(wcs):
     """Get the CD matrix from WCS, handling CDELT+PC or CD conventions."""
     if hasattr(wcs.wcs, "cd") and wcs.wcs.cd is not None:

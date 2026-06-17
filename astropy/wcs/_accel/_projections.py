@@ -1,12 +1,31 @@
 """
 Zenithal projection formulas for coordinate transformations.
 
-This module implements the forward and inverse projection equations for
-zenithal (azimuthal) projections as defined in the FITS WCS standard
-(Calabretta & Greisen 2002).
+This module implements the radial rescales that convert any supported zenithal
+(azimuthal) projection to and from the gnomonic (``TAN``) projection, as defined
+in the FITS WCS standard (Calabretta & Greisen 2002). The conversion is exact
+(to floating-point precision): a zenithal projection depends on the angular
+distance from the reference point only through a monotonic radial law, so the
+gnomonic radius is recoverable in closed form and no reconstruction of the full
+spherical coordinates is needed.
+
+For a zenithal projection the intermediate world coordinates ``(x, y)`` (degrees)
+satisfy ``x = R sin(phi)``, ``y = -R cos(phi)`` with ``R`` the projection radius.
+Writing the dimensionless radius ``psi = (pi/180) R`` and the gnomonic radius
+``G = tan(rho)`` (with ``rho`` the angular distance from the reference point), the
+de-projection to gnomonic multiplies ``(x, y)`` by ``f_down = G / psi`` and the
+re-projection from gnomonic multiplies the gnomonic coordinates by
+``f_up = psi / G``. Both factors are 1 at the reference point and identically 1
+for ``TAN``; their closed forms are implemented below.
+
+All functions here are elementwise over arrays and namespace-agnostic: they take
+the array namespace ``xp`` (numpy, jax.numpy, torch, cupy, ...) so the same code
+runs on CPU and accelerators.
 """
 
 import numpy as np
+
+DEG2RAD = np.pi / 180.0
 
 # Zenithal projections supported by the plane-to-plane algorithm
 SUPPORTED_PROJECTIONS = frozenset({
@@ -17,138 +36,114 @@ SUPPORTED_PROJECTIONS = frozenset({
     "ZEA",  # Zenithal equal-area
 })
 
+# Upper bound on the dimensionless radius ``psi`` for which a point still lies in
+# the ``rho < 90 deg`` hemisphere that the gnomonic intermediate can represent.
+# Points at or beyond the bound have no gnomonic preimage and are flagged
+# invalid (this also covers the SIN psi>1 / ZEA psi>2 "no sky preimage" cases,
+# since those bounds are looser than the rho<90 bound used here).
+_PSI_MAX = {
+    "TAN": np.inf,
+    "SIN": 1.0,
+    "ARC": np.pi / 2.0,
+    "STG": 2.0,
+    "ZEA": np.sqrt(2.0),
+}
 
-def intermediate_to_direction(x_deg, y_deg, proj, n, ex, ey):
+
+def deproject_to_gnomonic(x_deg, y_deg, proj, xp):
     """
-    Convert intermediate world coordinates to 3D unit direction vector.
+    De-project zenithal intermediate coordinates to gnomonic, exactly.
 
     Parameters
     ----------
-    x_deg, y_deg : float
-        Intermediate world coordinates in degrees.
+    x_deg, y_deg : array_like
+        Intermediate world coordinates in degrees for projection ``proj``.
     proj : str
         Projection code (TAN, SIN, STG, ARC, ZEA).
-    n, ex, ey : ndarray
-        Tangent plane basis vectors.
+    xp : module
+        Array namespace (numpy, jax.numpy, torch, cupy, ...).
 
     Returns
     -------
-    d : ndarray or None
-        Unit 3D direction vector, or None if point cannot be projected.
+    u, v : array
+        Dimensionless gnomonic coordinates,
+        ``u = tan(rho) sin(phi)``, ``v = -tan(rho) cos(phi)``.
+    valid : array of bool
+        False where the pixel has no preimage in the ``rho < 90 deg``
+        hemisphere (out-of-domain SIN/ZEA, or beyond the gnomonic horizon).
     """
-    x = np.radians(x_deg)
-    y = np.radians(y_deg)
-    r = np.sqrt(x * x + y * y)
+    xr = x_deg * DEG2RAD
+    yr = y_deg * DEG2RAD
+    psi = xp.sqrt(xr * xr + yr * yr)
+    valid = psi < _PSI_MAX[proj]
 
-    if r < 1e-12:
-        return n.copy()
+    # Clamp out-of-domain and zero radii so the closed-form factors stay finite
+    # and warning-free. The invalid mask is returned for the caller to apply;
+    # the zero radius is exact by continuity (f_down -> 1).
+    psi = xp.where(valid, psi, xp.zeros_like(psi))
+    tiny = psi < 1e-12
+    psi_safe = xp.where(tiny, xp.ones_like(psi), psi)
+    psi2 = psi * psi
 
-    # Native spherical angle phi (from -y toward +x)
-    phi = np.arctan2(x, -y)
-
-    # Compute native latitude theta from radial distance r
-    # In FITS WCS zenithal projections: theta = 90° at reference point
-    # r = R(theta) where R is the projection's radial function
     if proj == "TAN":
-        # r = cot(theta), so theta = arccot(r) = pi/2 - arctan(r)
-        theta = np.pi / 2 - np.arctan(r)
+        f = xp.ones_like(psi)
     elif proj == "SIN":
-        # r = cos(theta), so theta = arccos(r)
-        if r > 1:
-            return None
-        theta = np.arccos(r)
-    elif proj == "STG":
-        # r = 2*tan((pi/2 - theta)/2), so theta = pi/2 - 2*arctan(r/2)
-        theta = np.pi / 2 - 2 * np.arctan(r / 2)
+        f = 1.0 / xp.sqrt(1.0 - psi2)
     elif proj == "ARC":
-        # r = pi/2 - theta (radians), so theta = pi/2 - r
-        theta = np.pi / 2 - r
+        f = xp.where(tiny, xp.ones_like(psi), xp.tan(psi) / psi_safe)
+    elif proj == "STG":
+        f = 1.0 / (1.0 - psi2 / 4.0)
     elif proj == "ZEA":
-        # r = 2*sin((pi/2 - theta)/2) = sqrt(2*(1 - sin(theta)))
-        # Inverse: theta = pi/2 - 2*arcsin(r/2)
-        sin_half = r / 2
-        if sin_half > 1:
-            return None
-        theta = np.pi / 2 - 2 * np.arcsin(sin_half)
+        f = xp.sqrt(1.0 - psi2 / 4.0) / (1.0 - psi2 / 2.0)
     else:
-        return None
+        raise ValueError(f"Unsupported projection: {proj}")
 
-    if theta < 0:
-        return None
-
-    # 3D direction vector
-    # theta is native latitude: 90° at pole (n), 0° at horizon
-    # sin(theta) is component along n, cos(theta) is component in tangent plane
-    sin_theta = np.sin(theta)
-    cos_theta = np.cos(theta)
-
-    # Direction in tangent plane at angle phi from -ey
-    tangent_dir = np.sin(phi) * ex - np.cos(phi) * ey
-
-    d = sin_theta * n + cos_theta * tangent_dir
-    return d / np.linalg.norm(d)
+    return f * xr, f * yr, valid
 
 
-def direction_to_intermediate(d, proj, n, ex, ey):
+def reproject_from_gnomonic(u, v, proj, xp):
     """
-    Convert 3D unit direction vector to intermediate world coordinates.
+    Re-project gnomonic coordinates to zenithal intermediate coordinates, exactly.
 
     Parameters
     ----------
-    d : ndarray
-        Unit 3D direction vector.
+    u, v : array_like
+        Dimensionless gnomonic coordinates.
     proj : str
         Projection code (TAN, SIN, STG, ARC, ZEA).
-    n, ex, ey : ndarray
-        Tangent plane basis vectors.
+    xp : module
+        Array namespace (numpy, jax.numpy, torch, cupy, ...).
 
     Returns
     -------
-    x_deg, y_deg : float
-        Intermediate world coordinates in degrees.
+    x_deg, y_deg : array
+        Intermediate world coordinates in degrees for projection ``proj``.
+
+    Notes
+    -----
+    The gnomonic intermediate always satisfies ``rho < 90 deg``, so the output
+    re-projection is never out of domain for any supported projection.
     """
-    # Project onto tangent plane basis
-    # sin_theta is component along n (pole direction)
-    # cos_theta is component in tangent plane
-    sin_theta = np.dot(d, n)
-    dx = np.dot(d, ex)
-    dy = np.dot(d, ey)
-    cos_theta = np.sqrt(dx * dx + dy * dy)
+    G = xp.sqrt(u * u + v * v)
+    tiny = G < 1e-12
+    G_safe = xp.where(tiny, xp.ones_like(G), G)
+    G2 = G * G
 
-    if cos_theta < 1e-12:
-        return 0.0, 0.0
-
-    # Native spherical angle phi (azimuth from -ey toward +ex)
-    phi = np.arctan2(dx, -dy)
-
-    # Native latitude theta (90° at pole, 0° at horizon)
-    theta = np.arctan2(sin_theta, cos_theta)
-
-    # Radial distance r = R(theta) (projection-specific)
     if proj == "TAN":
-        # r = cot(theta) = cos(theta)/sin(theta)
-        if sin_theta < 1e-12:
-            return np.nan, np.nan
-        r = cos_theta / sin_theta
+        f = xp.ones_like(G)
     elif proj == "SIN":
-        # r = cos(theta)
-        r = cos_theta
-    elif proj == "STG":
-        # r = 2*tan((pi/2 - theta)/2) = 2*(1 - sin(theta))/cos(theta)
-        if cos_theta < 1e-12:
-            return np.nan, np.nan
-        r = 2 * (1 - sin_theta) / cos_theta
+        f = 1.0 / xp.sqrt(1.0 + G2)
     elif proj == "ARC":
-        # r = pi/2 - theta
-        r = np.pi / 2 - theta
+        f = xp.where(tiny, xp.ones_like(G), xp.arctan(G) / G_safe)
+    elif proj == "STG":
+        f = 2.0 / (1.0 + xp.sqrt(1.0 + G2))
     elif proj == "ZEA":
-        # r = 2*sin((pi/2 - theta)/2) = sqrt(2*(1 - sin(theta)))
-        r = np.sqrt(2 * (1 - sin_theta))
+        # Cancellation-free form of sqrt(2(1 - 1/sqrt(1+G^2)))/G:
+        # with s = sqrt(1+G^2), 1 - 1/s = G^2/(s(s+1)), so the G divides out.
+        # Finite at G=0 (-> 1), no small-radius guard needed.
+        s = xp.sqrt(1.0 + G2)
+        f = xp.sqrt(2.0 / (s * (1.0 + s)))
     else:
-        return np.nan, np.nan
+        raise ValueError(f"Unsupported projection: {proj}")
 
-    # Intermediate coordinates: x = r*sin(phi), y = -r*cos(phi)
-    x = r * np.sin(phi)
-    y = -r * np.cos(phi)
-
-    return np.degrees(x), np.degrees(y)
+    return (f * u) / DEG2RAD, (f * v) / DEG2RAD
