@@ -514,6 +514,11 @@ exclude = [
 "docs/*.py" = [
     "INP001",  # implicit-namespace-package. The examples are not a package.
 ]
+"benchmarks/**/*.py" = [
+    "INP001",   # standalone scripts, not a package.
+    "PLC0415",  # backends are imported lazily inside per-backend subprocesses.
+    "PTH",      # os.path is fine for a self-contained script.
+]
 "__init__.py" = [
     "E402", # module level import not at top of file
     "F403", # Wildcard imports
