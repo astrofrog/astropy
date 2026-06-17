@@ -13,14 +13,12 @@ from ._matrix import (
     PlaneToPlaneTransform,
     apply_transform,
     compute_transform,
-    compute_transform_matrix,
 )
 from ._projections import SUPPORTED_PROJECTIONS
 
 __all__ = [
-    "compute_transform",
-    "apply_transform",
-    "PlaneToPlaneTransform",
-    "compute_transform_matrix",
     "SUPPORTED_PROJECTIONS",
+    "PlaneToPlaneTransform",
+    "apply_transform",
+    "compute_transform",
 ]

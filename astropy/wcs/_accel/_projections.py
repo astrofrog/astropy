@@ -81,8 +81,6 @@ def deproject_to_gnomonic(x_deg, y_deg, proj, xp):
     # and warning-free. The invalid mask is returned for the caller to apply;
     # the zero radius is exact by continuity (f_down -> 1).
     psi = xp.where(valid, psi, xp.zeros_like(psi))
-    tiny = psi < 1e-12
-    psi_safe = xp.where(tiny, xp.ones_like(psi), psi)
     psi2 = psi * psi
 
     if proj == "TAN":
@@ -90,6 +88,8 @@ def deproject_to_gnomonic(x_deg, y_deg, proj, xp):
     elif proj == "SIN":
         f = 1.0 / xp.sqrt(1.0 - psi2)
     elif proj == "ARC":
+        tiny = psi < 1e-12
+        psi_safe = xp.where(tiny, xp.ones_like(psi), psi)
         f = xp.where(tiny, xp.ones_like(psi), xp.tan(psi) / psi_safe)
     elif proj == "STG":
         f = 1.0 / (1.0 - psi2 / 4.0)
@@ -124,16 +124,16 @@ def reproject_from_gnomonic(u, v, proj, xp):
     The gnomonic intermediate always satisfies ``rho < 90 deg``, so the output
     re-projection is never out of domain for any supported projection.
     """
-    G = xp.sqrt(u * u + v * v)
-    tiny = G < 1e-12
-    G_safe = xp.where(tiny, xp.ones_like(G), G)
-    G2 = G * G
+    G2 = u * u + v * v
 
     if proj == "TAN":
-        f = xp.ones_like(G)
+        f = xp.ones_like(G2)
     elif proj == "SIN":
         f = 1.0 / xp.sqrt(1.0 + G2)
     elif proj == "ARC":
+        G = xp.sqrt(G2)
+        tiny = G < 1e-12
+        G_safe = xp.where(tiny, xp.ones_like(G), G)
         f = xp.where(tiny, xp.ones_like(G), xp.arctan(G) / G_safe)
     elif proj == "STG":
         f = 2.0 / (1.0 + xp.sqrt(1.0 + G2))

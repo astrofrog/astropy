@@ -31,54 +31,41 @@ from ._wcs import (
 )
 
 
-def _compute_matrix_analytical(wcs1, wcs2):
+def _compute_matrix_analytical(wcs1, wcs2, rotation):
     """
     Compute the exact TAN -> TAN transformation matrix analytically.
 
-    This is a fully analytical computation using only WCS header parameters
-    (CRVAL, CRPIX, CD/PC+CDELT). No WCS coordinate conversions are performed.
-    It is the special case of the general algorithm in which both radial
-    rescales are the identity.
+    This is the special case of the general algorithm in which both radial
+    rescales are the identity, so the whole map is the gnomonic rotation
+    ``rotation`` (= ``Q``) conjugated by the degree<->radian scaling ``S`` and
+    folded between the two pixel affines: ``M = P2_inv . S^-1 . Q . S . P1``.
+    Uses only WCS header parameters (CRVAL, CRPIX, CD/PC+CDELT); no WCS
+    coordinate conversions are performed.
     """
     deg2rad = np.pi / 180.0
 
     cd1 = get_cd_matrix(wcs1)
-    cd2 = get_cd_matrix(wcs2)
-
-    # Convert CRPIX from FITS 1-indexed to 0-indexed pixel coordinates
-    crpix1_0 = wcs1.wcs.crpix - 1
+    cd2_inv = np.linalg.inv(get_cd_matrix(wcs2))
+    crpix1_0 = wcs1.wcs.crpix - 1  # FITS 1-indexed -> 0-indexed
     crpix2_0 = wcs2.wcs.crpix - 1
-
-    n1, ex1, ey1 = get_tangent_basis(wcs1)
-    n2, ex2, ey2 = get_tangent_basis(wcs2)
-
     offset1 = -cd1 @ crpix1_0
 
-    # P1: pixel1 -> intermediate coords (degrees) with scale factor
+    # P1: pixel1 -> intermediate coords (degrees), homogeneous.
     P1 = np.array([
         [cd1[0, 0], cd1[0, 1], offset1[0]],
         [cd1[1, 0], cd1[1, 1], offset1[1]],
-        [0, 0, deg2rad],
+        [0, 0, 1],
     ])
-
-    # T: basis transformation between tangent planes (with projective scaling)
-    T = np.array([
-        [np.dot(ex1, ex2), np.dot(ey1, ex2), np.dot(n1, ex2) / deg2rad**2],
-        [np.dot(ex1, ey2), np.dot(ey1, ey2), np.dot(n1, ey2) / deg2rad**2],
-        [np.dot(ex1, n2) * deg2rad, np.dot(ey1, n2) * deg2rad, np.dot(n1, n2) / deg2rad],
-    ])
-
-    B = T @ P1
-
-    # P2_inv: intermediate coords (degrees) -> pixel2
-    cd2_inv = np.linalg.inv(cd2)
+    # P2_inv: intermediate coords (degrees) -> pixel2, homogeneous.
     P2_inv = np.array([
         [cd2_inv[0, 0], cd2_inv[0, 1], crpix2_0[0]],
         [cd2_inv[1, 0], cd2_inv[1, 1], crpix2_0[1]],
         [0, 0, 1],
     ])
+    S = np.diag([deg2rad, deg2rad, 1.0])
+    S_inv = np.diag([1.0 / deg2rad, 1.0 / deg2rad, 1.0])
 
-    M = P2_inv @ B
+    M = P2_inv @ S_inv @ rotation @ S @ P1
     return M / M[2, 2]
 
 
@@ -151,30 +138,15 @@ def compute_transform(wcs1, wcs2):
     rotation = _tangent_rotation(wcs1, wcs2)
 
     # TAN -> TAN collapses to a single homography; precompute it as a fast path.
+    # For any other pair the map includes non-projective radial rescales and the
+    # general five-step path is used (transform.matrix stays None).
     matrix = None
     if proj1 == "TAN" and proj2 == "TAN":
-        matrix = _compute_matrix_analytical(wcs1, wcs2)
+        matrix = _compute_matrix_analytical(wcs1, wcs2, rotation)
 
     return PlaneToPlaneTransform(
         proj1, proj2, cd1, crpix1, cd2_inv, crpix2, rotation, matrix
     )
-
-
-def compute_transform_matrix(wcs1, wcs2):
-    """
-    Return the single 3x3 projective matrix for a TAN -> TAN transform.
-
-    Only TAN -> TAN reduces to a single matrix. For any other pair of zenithal
-    projections the map includes radial rescales that are not projective; use
-    `compute_transform` and `apply_transform` instead.
-    """
-    transform = compute_transform(wcs1, wcs2)
-    if transform.matrix is None:
-        raise ValueError(
-            f"{transform.proj1} -> {transform.proj2} is not a single projective "
-            "matrix; use compute_transform / apply_transform instead."
-        )
-    return transform.matrix
 
 
 def _resolve_namespace(xp, *arrays):
@@ -186,12 +158,11 @@ def _resolve_namespace(xp, *arrays):
     return np
 
 
-def _apply_matrix(matrix, px1, py1, xp):
+def _apply_matrix(m, px1, py1):
     """Apply a single 3x3 projective matrix (TAN -> TAN fast path)."""
-    m = np.asarray(matrix)
-    denom = m[2, 0] * px1 + m[2, 1] * py1 + m[2, 2]
-    px2 = (m[0, 0] * px1 + m[0, 1] * py1 + m[0, 2]) / denom
-    py2 = (m[1, 0] * px1 + m[1, 1] * py1 + m[1, 2]) / denom
+    denom = float(m[2, 0]) * px1 + float(m[2, 1]) * py1 + float(m[2, 2])
+    px2 = (float(m[0, 0]) * px1 + float(m[0, 1]) * py1 + float(m[0, 2])) / denom
+    py2 = (float(m[1, 0]) * px1 + float(m[1, 1]) * py1 + float(m[1, 2])) / denom
     return px2, py2
 
 
@@ -260,5 +231,5 @@ def apply_transform(transform, px1, py1, xp=None):
     py1 = xp.asarray(py1)
 
     if transform.matrix is not None:
-        return _apply_matrix(transform.matrix, px1, py1, xp)
+        return _apply_matrix(transform.matrix, px1, py1)
     return _apply_general(transform, px1, py1, xp)
