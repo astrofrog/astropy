@@ -65,8 +65,11 @@ def _compute_matrix_analytical(wcs1, wcs2, rotation):
     S = np.diag([deg2rad, deg2rad, 1.0])
     S_inv = np.diag([1.0 / deg2rad, 1.0 / deg2rad, 1.0])
 
-    M = P2_inv @ S_inv @ rotation @ S @ P1
-    return M / M[2, 2]
+    # Left unnormalised on purpose: with P1's and P2_inv's unit third row, the
+    # third (homogeneous) component this matrix produces is exactly the
+    # visibility w = n2.d, so its sign masks points behind the output horizon
+    # (see _apply_matrix). Normalising would not change the (a/w, b/w) result.
+    return P2_inv @ S_inv @ rotation @ S @ P1
 
 
 def _tangent_rotation(wcs1, wcs2):
@@ -158,11 +161,20 @@ def _resolve_namespace(xp, *arrays):
     return np
 
 
-def _apply_matrix(m, px1, py1):
-    """Apply a single 3x3 projective matrix (TAN -> TAN fast path)."""
+def _apply_matrix(m, px1, py1, xp):
+    """Apply a single 3x3 projective matrix (TAN -> TAN fast path).
+
+    ``denom`` is the visibility w; points behind the output horizon (w <= 0)
+    are masked to NaN, matching the general path and the world-coordinate path.
+    """
     denom = float(m[2, 0]) * px1 + float(m[2, 1]) * py1 + float(m[2, 2])
-    px2 = (float(m[0, 0]) * px1 + float(m[0, 1]) * py1 + float(m[0, 2])) / denom
-    py2 = (float(m[1, 0]) * px1 + float(m[1, 1]) * py1 + float(m[1, 2])) / denom
+    num_x = float(m[0, 0]) * px1 + float(m[0, 1]) * py1 + float(m[0, 2])
+    num_y = float(m[1, 0]) * px1 + float(m[1, 1]) * py1 + float(m[1, 2])
+    visible = denom > 0
+    denom_safe = xp.where(visible, denom, 1.0)
+    nan = float("nan")
+    px2 = xp.where(visible, num_x / denom_safe, nan)
+    py2 = xp.where(visible, num_y / denom_safe, nan)
     return px2, py2
 
 
@@ -231,5 +243,5 @@ def apply_transform(transform, px1, py1, xp=None):
     py1 = xp.asarray(py1)
 
     if transform.matrix is not None:
-        return _apply_matrix(transform.matrix, px1, py1)
+        return _apply_matrix(transform.matrix, px1, py1, xp)
     return _apply_general(transform, px1, py1, xp)
