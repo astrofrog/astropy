@@ -236,7 +236,7 @@ operation is between two `~astropy.nddata.CCDData` objects.
     Unit("adu electron")
 
 .. note::
-    The affiliated package `ccdproc <https://ccdproc.readthedocs.io>`_ provides
+    The affiliated package `ccdproc <https://ccdproc.readthedocs.io/en/latest/>`_ provides
     functions for many common data reduction operations. Those functions try to
     construct a sensible header for the result and provide a mechanism for
     logging the action of the function in the header.

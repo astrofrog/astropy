@@ -3222,7 +3222,7 @@ class Moffat1D(Fittable1DModel):
         Moffat full width at half maximum.
         Derivation of the formula is available in
         `this notebook by Yoonsoo Bach
-        <https://nbviewer.jupyter.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat>`_.
+        <https://nbviewer.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat>`_.
         """
         return 2.0 * np.abs(self.gamma) * np.sqrt(2.0 ** (1.0 / self.alpha) - 1.0)
 
@@ -3306,7 +3306,7 @@ class Moffat2D(Fittable2DModel):
         Moffat full width at half maximum.
         Derivation of the formula is available in
         `this notebook by Yoonsoo Bach
-        <https://nbviewer.jupyter.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat>`_.
+        <https://nbviewer.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat>`_.
         """
         return 2.0 * np.abs(self.gamma) * np.sqrt(2.0 ** (1.0 / self.alpha) - 1.0)
 

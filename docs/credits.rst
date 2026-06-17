@@ -645,5 +645,5 @@ in the `astropy repository <https://github.com/astropy/astropy>`_)
 For how to acknowledge Astropy, please see :ref:`astropy-org-acknowledge`.
 
 .. These substitutions are duplicated here (from conf.py) so this rst file can be used in the astropy.org site without triggering warnings.
-.. |Astropy mailing list| replace:: `Astropy mailing list <https://mail.python.org/mailman/listinfo/astropy>`__
-.. |astropy-dev mailing list| replace:: `astropy-dev mailing list <http://groups.google.com/group/astropy-dev>`__
+.. |Astropy mailing list| replace:: `Astropy mailing list <https://mail.python.org/mailman3/lists/astropy.python.org/>`__
+.. |astropy-dev mailing list| replace:: `astropy-dev mailing list <https://groups.google.com/g/astropy-dev>`__

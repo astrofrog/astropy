@@ -148,7 +148,7 @@ trouble opening it (especially if it produces a traceback), then it is possible
 there is a bug in ``astropy``.
 
 .. _fitsverify: https://heasarc.gsfc.nasa.gov/docs/software/ftools/fitsverify/
-.. _online FITS verifier: https://fits.gsfc.nasa.gov/fits_verify.html
+.. _online FITS verifier: https://heasarc.gsfc.nasa.gov/cgi-bin/Tools/fitsverifier/fitsverifier.pl
 
 
 How do I turn off the warning messages ``astropy`` outputs to my console?
@@ -366,7 +366,7 @@ table data to disk in the same format required by FITS. It is then possible
 to serialize your table to the FITS format for distribution. At some point
 this FAQ might provide an example of how to do this.
 
-.. _HDF5: https://www.hdfgroup.org/HDF5/
+.. _HDF5: https://www.hdfgroup.org/solutions/hdf5/
 .. _PyTables: http://www.pytables.org/
 
 .. _fits-scaled-data-faq:

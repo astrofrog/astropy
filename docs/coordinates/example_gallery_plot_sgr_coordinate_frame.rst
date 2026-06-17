@@ -25,7 +25,7 @@ by the `~astropy.coordinates.Galactic` class.
 
 .. seealso::
 
-    The `gala package <http://gala.adrian.pw/>`_
+    The `gala package <http://gala.adrian.pw/en/latest/>`_
         Defines a number of Astropy coordinate frames for
         stellar stream coordinate systems.
 

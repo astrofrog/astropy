@@ -224,7 +224,7 @@ WMAP 3 Year
 
 Parameters are from Spergel et al. (2007) Table 6 (WMAP + SNGold) [WM3]_,
 obtained from
-https://lambda.gsfc.nasa.gov/product/map/dr2/params/lcdm_wmap_sngold.cfm.
+https://lambda.gsfc.nasa.gov/product/wmap/dr2/params/lcdm_wmap_sngold.html.
 ``Tcmb0`` and ``Neff`` are the standard values as also used for |WMAP5|,
 |WMAP7|, |WMAP9|.
 

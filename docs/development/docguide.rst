@@ -105,7 +105,7 @@ The `sphinx-astropy <https://github.com/astropy/sphinx-astropy>`_ package provid
 configuration common to packages in the Astropy ecosystem and serves as a way to
 automatically get the other main dependencies, including:
 
-* `Sphinx <http://www.sphinx-doc.org>`_ - the main package we use to build
+* `Sphinx <https://www.sphinx-doc.org/en/master/>`_ - the main package we use to build
   the documentation
 * `astropy-sphinx-theme <https://github.com/astropy/astropy-sphinx-theme>`_ -
   the default 'bootstrap' theme used by ``astropy`` and a number of affiliated
@@ -114,12 +114,12 @@ automatically get the other main dependencies, including:
   that makes it easy to automatically generate API documentation
 * |numpydoc| - an extension to parse
   docstrings in NumPyDoc format
-* `Graphviz <http://www.graphviz.org>`_ - generate inheritance graphs (available
+* `Graphviz <https://www.graphviz.org/>`_ - generate inheritance graphs (available
   as a conda package or a system install but not in pip)
 
 .. Note::
     Both of the ``pip`` install methods above do not include `Graphviz
-    <http://www.graphviz.org>`_.  If you do not install this package separately
+    <https://www.graphviz.org/>`_.  If you do not install this package separately
     then the documentation build process will produce a very large number of
     lengthy warnings (which can obscure bona fide warnings) and also not
     generate inheritance graphs.

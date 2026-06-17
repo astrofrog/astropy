@@ -16,18 +16,18 @@ to :ref:`ask for help <astropy-org-help>`.
 Set up GitHub and Git
 ---------------------
 
-Astropy is hosted on `GitHub <https://www.github.com/astropy/astropy>`_, and to
+Astropy is hosted on `GitHub <https://github.com/astropy/astropy>`_, and to
 contribute, you will need a `GitHub account
 <https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github>`_.
 
 We use `Git <https://git-scm.com/>`_ for version control and to allow many people to
 work together on the project. See the `GitHub quickstart instructions
-<https://docs.github.com/en/get-started/quickstart/set-up-git>`__ for installing and
+<https://docs.github.com/en/get-started/git-basics/set-up-git>`__ for installing and
 configuring git, as well as the :ref:`git-resources` page.
 
 If you are new to contributing to projects through forking on GitHub, see the
 `GitHub documentation for contributing to projects
-<https://docs.github.com/en/get-started/quickstart/contributing-to-projects>`_.
+<https://docs.github.com/en/get-started/exploring-projects-on-github/contributing-to-a-project>`_.
 
 Install a C compiler if needed
 ------------------------------
@@ -69,7 +69,7 @@ Create a clone of astropy
 -------------------------
 
 If you have not done so already, you will need your own copy of ``astropy`` to
-build it and/or contribute to the source. Astropy is hosted in the `astropy GitHub repository <https://www.github.com/astropy/astropy>`_ and you need to make a clone.
+build it and/or contribute to the source. Astropy is hosted in the `astropy GitHub repository <https://github.com/astropy/astropy>`_ and you need to make a clone.
 
 First, create a `GitHub Fork
 <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo>`_ by going to the `astropy project page <https://github.com/astropy/astropy>`_

@@ -112,11 +112,11 @@ def bayesian_info_criterion(
     .. [2] Wikipedia. Bayesian Information Criterion.
        <https://en.wikipedia.org/wiki/Bayesian_information_criterion>
     .. [3] Origin Lab. Comparing Two Fitting Functions.
-       <https://www.originlab.com/doc/Origin-Help/PostFit-CompareFitFunc>
+       <https://docs.originlab.com/origin-help/postfit-comparefitfunc/>
     .. [4] Liddle, A. R. Information Criteria for Astrophysical Model
-       Selection. 2008. <https://arxiv.org/pdf/astro-ph/0701113v2.pdf>
+       Selection. 2008. <https://arxiv.org/pdf/astro-ph/0701113v2>
     .. [5] Liddle, A. R. How many cosmological parameters? 2008.
-       <https://arxiv.org/pdf/astro-ph/0401198v3.pdf>
+       <https://arxiv.org/pdf/astro-ph/0401198v3>
     """
     return n_params * np.log(n_samples) - 2.0 * log_likelihood
 
@@ -204,7 +204,7 @@ def bayesian_info_criterion_lsq(
     .. [1] Wikipedia. Bayesian Information Criterion.
        <https://en.wikipedia.org/wiki/Bayesian_information_criterion>
     .. [2] Origin Lab. Comparing Two Fitting Functions.
-       <https://www.originlab.com/doc/Origin-Help/PostFit-CompareFitFunc>
+       <https://docs.originlab.com/origin-help/postfit-comparefitfunc/>
     .. [3] Astropy Models and Fitting
         <https://docs.astropy.org/en/stable/modeling>
     """
@@ -306,11 +306,11 @@ def akaike_info_criterion(
     .. [3] Wikipedia. Akaike Information Criterion.
        <https://en.wikipedia.org/wiki/Akaike_information_criterion>
     .. [4] Origin Lab. Comparing Two Fitting Functions.
-       <https://www.originlab.com/doc/Origin-Help/PostFit-CompareFitFunc>
+       <https://docs.originlab.com/origin-help/postfit-comparefitfunc/>
     .. [5] Liddle, A. R. Information Criteria for Astrophysical Model
-       Selection. 2008. <https://arxiv.org/pdf/astro-ph/0701113v2.pdf>
+       Selection. 2008. <https://arxiv.org/pdf/astro-ph/0701113v2>
     .. [6] Liddle, A. R. How many cosmological parameters? 2008.
-       <https://arxiv.org/pdf/astro-ph/0401198v3.pdf>
+       <https://arxiv.org/pdf/astro-ph/0401198v3>
     """
     # Correction in case of small number of observations
     if n_samples / float(n_params) >= 40.0:
@@ -416,7 +416,7 @@ def akaike_info_criterion_lsq(
     .. [1] Akaike Information Criterion.
        <https://en.wikipedia.org/wiki/Akaike_information_criterion>
     .. [2] Origin Lab. Comparing Two Fitting Functions.
-       <https://www.originlab.com/doc/Origin-Help/PostFit-CompareFitFunc>
+       <https://docs.originlab.com/origin-help/postfit-comparefitfunc/>
     """
     return akaike_info_criterion(
         -0.5 * n_samples * np.log(ssr / n_samples), n_params, n_samples

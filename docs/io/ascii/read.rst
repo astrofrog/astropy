@@ -1168,7 +1168,7 @@ Reading Gaia Data Tables
 Gaia data tables are available in `ECSV
 <https://github.com/astropy/astropy-APEs/blob/main/APE6.rst>`_ format including detailed
 metadata for the tables and columns (e.g., column descriptions, units, and data types).
-For example the DR3 tables are at http://cdn.gea.esac.esa.int/Gaia/gdr3/gaia_source/.
+For example the DR3 tables are at https://cdn.gea.esac.esa.int/?prefix=Gaia/gdr3/gaia_source/.
 
 The DR3 data files are not strictly compliant with the ECSV standard because they use
 the marker ``null`` to indicate a missing value instead of the required ``""``. In order

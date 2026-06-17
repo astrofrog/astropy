@@ -182,7 +182,7 @@ There are certain caveats, however:
 * Slicing a table becomes slower due to index relabeling.
 
 See `here
-<https://nbviewer.jupyter.org/github/mdmueller/astropy-notebooks/blob/master/table/indexing-profiling.ipynb>`_
+<https://nbviewer.org/github/mdmueller/astropy-notebooks/blob/master/table/indexing-profiling.ipynb>`_
 for an IPython notebook profiling various aspects of table indexing.
 
 Index Modes

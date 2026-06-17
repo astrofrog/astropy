@@ -506,45 +506,45 @@ global_substitutions: dict[str, str] = {
 links_to_become_substitutions: dict[str, str] = {
     # Python
     "Python": "https://www.python.org",
-    "PEP8": "https://www.python.org/dev/peps/pep-0008",
+    "PEP8": "https://peps.python.org/pep-0008/",
     # Astropy
-    "Astropy mailing list": "https://mail.python.org/mailman/listinfo/astropy",
-    "astropy-dev mailing list": "https://groups.google.com/group/astropy-dev",
+    "Astropy mailing list": "https://mail.python.org/mailman3/lists/astropy.python.org/",
+    "astropy-dev mailing list": "https://groups.google.com/g/astropy-dev",
     # NumPy
     "NumPy": "https://numpy.org",
     "numpydoc": "https://pypi.org/project/numpydoc",
     # erfa
     "ERFA": "https://github.com/liberfa/erfa",
-    "PyERFA": "https://pyerfa.readthedocs.io",
+    "PyERFA": "https://pyerfa.readthedocs.io/en/latest/",
     # matplotlib
     "Matplotlib": "https://matplotlib.org",
     # sofa
     "SOFA": "https://www.iausofa.org",
     # scipy
-    "SciPy": "https://www.scipy.org",
+    "SciPy": "https://scipy.org/",
     # packaging
-    "packaging": "https://packaging.pypa.io",
+    "packaging": "https://packaging.pypa.io/en/stable/",
     # IPython
     "IPython": "https://ipython.org",
     # pip
-    "pip": "https://pip.pypa.io",
+    "pip": "https://pip.pypa.io/en/stable/",
     # pipenv
     "pipenv": "https://pipenv.pypa.io/en/latest",
     # virtualenv
     "virtualenv": "https://pypi.org/project/virtualenv",
     "virtualenvwrapper": "https://pypi.org/project/virtualenvwrapper",
     # conda
-    "conda": "https://conda.io/docs",
+    "conda": "https://docs.conda.io/projects/conda/en/latest/",
     "miniconda": "https://docs.conda.io/en/latest/miniconda.html",
     # pytest
     "pytest": "https://pytest.org/en/latest/index.html",
     "pytest-astropy": "https://github.com/astropy/pytest-astropy",
-    "pytest-doctestplus": "https://github.com/astropy/pytest-doctestplus",
+    "pytest-doctestplus": "https://github.com/scientific-python/pytest-doctestplus",
     "pytest-remotedata": "https://github.com/astropy/pytest-remotedata",
     # fsspec
-    "fsspec": "https://filesystem-spec.readthedocs.io",
+    "fsspec": "https://filesystem-spec.readthedocs.io/en/latest/",
     # s3fs
-    "s3fs": "https://s3fs.readthedocs.io",
+    "s3fs": "https://s3fs.readthedocs.io/en/latest/",
     # TOPCAT
     "STIL": "https://www.star.bristol.ac.uk/mbt/stil",
     "STILTS": "https://www.star.bristol.ac.uk/mbt/stilts",
@@ -552,7 +552,7 @@ links_to_become_substitutions: dict[str, str] = {
     # OpenAstronomy
     "OpenAstronomy Packaging Guide": "https://packaging-guide.openastronomy.org/en/latest",
     # Miscellaneous
-    "HDF5": "https://www.hdfgroup.org/HDF5",
+    "HDF5": "https://www.hdfgroup.org/solutions/hdf5/",
     "h5py": "https://www.h5py.org",
     "Parquet": "https://parquet.apache.org",
 }

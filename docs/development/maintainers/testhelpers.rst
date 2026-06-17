@@ -55,11 +55,11 @@ Removed                                                    Use this
 ``astropy.io.ascii.tests.common.raises``                   ``pytest.raises``
 ``astropy.tests.disable_internet``                         ``pytest_remotedata.disable_internet``
 ``astropy.tests.helper.catch_warnings``                    ``pytest.warns``
-``astropy.tests.helper.enable_deprecations_as_exceptions`` https://docs.pytest.org/en/stable/warnings.html
-``astropy.tests.helper.ignore_warnings``                   https://docs.pytest.org/en/stable/warnings.html
+``astropy.tests.helper.enable_deprecations_as_exceptions`` https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+``astropy.tests.helper.ignore_warnings``                   https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 ``astropy.tests.helper.raises``                            ``pytest.raises``
 ``astropy.tests.helper.remote_data``                       ``pytest.mark.remote_data``
-``astropy.tests.helper.treat_deprecations_as_exceptions``  https://docs.pytest.org/en/stable/warnings.html
+``astropy.tests.helper.treat_deprecations_as_exceptions``  https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 ``astropy.tests.plugins.display``                          ``pytest-astropy-header`` package
 ========================================================== ===============================================
 

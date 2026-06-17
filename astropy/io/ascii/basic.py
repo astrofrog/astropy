@@ -279,7 +279,7 @@ class Csv(Basic):
     By default leading or trailing whitespace in column names is stripped. If
     you pass ``strip_column_names=False`` then this is disabled.
 
-    Since the `CSV format <https://tools.ietf.org/html/rfc4180>`_ does not
+    Since the `CSV format <https://datatracker.ietf.org/doc/html/rfc4180>`_ does not
     formally support comments, any comments defined for the table via
     ``tbl.meta['comments']`` are ignored by default. If you would still like to
     write those comments then include a keyword ``comment='#'`` to the

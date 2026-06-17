@@ -108,7 +108,7 @@ class SLSQP(Optimization):
 
     References
     ----------
-    .. [1] http://www.netlib.org/toms/733
+    .. [1] https://www.netlib.org/toms/733
     """
 
     supported_constraints = ["bounds", "eqcons", "ineqcons", "fixed", "tied"]

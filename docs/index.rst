@@ -117,12 +117,12 @@ processing, and data analysis.
 
         What's new in the latest release, changelog, and other project details.
 
-.. image:: https://github.com/astropy/repo_stats/blob/cache/cache/astropy_user_stats_light.png?raw=true
+.. image:: https://raw.githubusercontent.com/astropy/repo_stats/refs/heads/cache/cache/astropy_user_stats_light.png
     :class: only-light
     :target: https://docs.astropy.org/en/latest/impact_health.html
     :alt: Astropy User Statistics
 
-.. image:: https://github.com/astropy/repo_stats/blob/cache/cache/astropy_user_stats_dark.png?raw=true
+.. image:: https://raw.githubusercontent.com/astropy/repo_stats/refs/heads/cache/cache/astropy_user_stats_dark.png
     :class: only-dark
     :target: https://docs.astropy.org/en/latest/impact_health.html
     :alt: Astropy User Statistics

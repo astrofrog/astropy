@@ -2,7 +2,7 @@ Unit-Aware Type Annotations
 ***************************
 
 Python supports static type analysis using the type syntax of `PEP 484
-<https://www.python.org/dev/peps/pep-0484/>`_. For a detailed guide on type
+<https://peps.python.org/pep-0484/>`_. For a detailed guide on type
 hints, function annotations, and other related syntax see the `Real Python Guide
 <https://realpython.com/python-type-checking/#type-aliases>`_. Below we describe
 how you can be use Quantity type hints and annotations and also include metadata

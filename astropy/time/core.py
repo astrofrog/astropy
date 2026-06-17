@@ -1894,7 +1894,7 @@ class Time(TimeBase):
        'fits', 'byear', 'jyear', 'byear_str', 'jyear_str']
 
 
-    See also: http://docs.astropy.org/en/stable/time/
+    See also: https://docs.astropy.org/en/stable/time/
 
     Parameters
     ----------

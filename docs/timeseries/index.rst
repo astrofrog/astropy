@@ -44,7 +44,7 @@ source::
     more information about the Kepler FITS format, see
     `Section 2.3.1 of the Kepler Archive Manual <https://archive.stsci.edu/files/live/sites/mast/files/home/missions-and-data/k2/_documents/MAST_Kepler_Archive_Manual_2020.pdf>`_.
     To get other light curves for science purposes using Python, see the
-    `astroquery <https://astroquery.readthedocs.io>`_ affiliated package.
+    `astroquery <https://astroquery.readthedocs.io/en/latest/>`_ affiliated package.
 
 We can then use the |TimeSeries| class to read in this file::
 

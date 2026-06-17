@@ -13,7 +13,7 @@ packages used in the field. This repository contains the core library.
 * `Documentation <https://docs.astropy.org/>`_
 * `Slack <https://astropy.slack.com/>`_
 * `Open Astronomy Discourse <https://community.openastronomy.org/c/astropy/8>`_
-* `Astropy users mailing list <https://mail.python.org/mailman/listinfo/astropy>`_
+* `Astropy users mailing list <https://mail.python.org/mailman3/lists/astropy.python.org/>`_
 * `Astropy developers mailing list <https://groups.google.com/g/astropy-dev>`_
 
 Installation

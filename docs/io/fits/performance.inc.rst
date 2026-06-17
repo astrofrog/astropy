@@ -12,7 +12,7 @@ Use dask for lazy compute
 -------------------------
 
 It is possible to set the data array for :class:`~astropy.io.fits.PrimaryHDU`
-and :class:`~astropy.io.fits.ImageHDU` to a `dask <https://dask.org/>`_ array.
+and :class:`~astropy.io.fits.ImageHDU` to a `dask <https://www.dask.org/>`_ array.
 If this is written to disk, the dask array will be computed as it is being
 written, which will avoid using excessive memory:
 

@@ -390,7 +390,7 @@ class W03(VOTableChangeWarning):
 class W04(VOTableSpecWarning):
     """
     The ``content-type`` attribute must use MIME content-type syntax as
-    defined in `RFC 2046 <https://tools.ietf.org/html/rfc2046>`__.
+    defined in `RFC 2046 <https://datatracker.ietf.org/doc/html/rfc2046>`__.
 
     The current check for validity is somewhat over-permissive.
 
@@ -489,7 +489,7 @@ class W10(VOTableSpecWarning):
     The parser has encountered an element that does not exist in the
     specification, or appears in an invalid context.  Check the file
     against the VOTable schema (with a tool such as `xmllint
-    <http://xmlsoft.org/xmllint.html>`__.  If the file validates
+    <https://gnome.pages.gitlab.gnome.org/libxml2/xmllint.html>`__.  If the file validates
     against the schema, and you still receive this warning, this may
     indicate a bug in ``astropy.io.votable``.
 
@@ -507,7 +507,7 @@ class W11(VOTableSpecWarning):
     """
     Earlier versions of the VOTable specification used a ``gref``
     attribute on the ``LINK`` element to specify a `GLU reference
-    <http://aladin.unistra.fr/glu/>`__.  New files should
+    <http://aladin.cds.unistra.fr/glu/>`__.  New files should
     specify a ``glu:`` protocol using the ``href`` attribute.
 
     Since ``astropy.io.votable`` does not currently support GLU references, it
@@ -739,7 +739,7 @@ class W27(VOTableSpecWarning):
     model (see `utype
     <http://www.ivoa.net/documents/VOTable/20091130/REC-VOTable-1.2.html#sec:utype>`__
     and the IVOA note `referencing STC in VOTable
-    <http://ivoa.net/Documents/latest/VOTableSTC.html>`__.
+    <http://ivoa.net/documents/Notes/VOTableSTC/>`__.
     """
 
     message_template = "COOSYS deprecated in VOTable 1.2"
@@ -848,7 +848,7 @@ class W34(VOTableSpecWarning):
     """
     The attribute requires the value to be a valid XML token, as
     defined by `XML 1.0
-    <http://www.w3.org/TR/2000/WD-xml-2e-20000814#NT-Nmtoken>`__.
+    <https://www.w3.org/TR/2000/WD-xml-2e-20000814#NT-Nmtoken>`__.
     """
 
     message_template = "'{}' is an invalid token for attribute '{}'"
@@ -1164,7 +1164,7 @@ class W57(VOTableSpecWarning):
     model (see `utype
     <http://www.ivoa.net/documents/VOTable/20091130/REC-VOTable-1.2.html#sec:utype>`__
     and the IVOA note `referencing STC in VOTable
-    <http://ivoa.net/Documents/latest/VOTableSTC.html>`__.
+    <http://ivoa.net/documents/Notes/VOTableSTC/>`__.
     """
 
     message_template = "refposition only allowed on VOTABLE v1.5 and greater"

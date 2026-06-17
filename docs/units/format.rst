@@ -10,7 +10,7 @@ You can control the way that |Quantity| and |Unit| objects are rendered as
 strings using the `Python Format String Syntax
 <https://docs.python.org/3/library/string.html#format-string-syntax>`_
 (demonstrated below using `f-strings
-<https://www.python.org/dev/peps/pep-0498/>`_).
+<https://peps.python.org/pep-0498/>`_).
 
 For a |Quantity|, format specifiers that are names of `Built-In Formats`_ are
 applied to the |Quantity| unit, and if possible also to the value. Format

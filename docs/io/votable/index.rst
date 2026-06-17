@@ -118,7 +118,7 @@ Standard Compliance
 
 `astropy.io.votable.tree.TableElement` supports the `VOTable Format Definition
 Version 1.1
-<https://www.ivoa.net/documents/REC/VOTable/VOTable-20040811.html>`_,
+<https://www.ivoa.net/documents/VOTable/20040811/REC-VOTable-1.1-20040811.html>`_,
 `Version 1.2
 <https://www.ivoa.net/documents/VOTable/20091130/REC-VOTable-1.2.html>`_,
 `Version 1.3
@@ -263,7 +263,7 @@ File reads will be moderately faster if the ``TABLE`` element includes
 an nrows_ attribute. If the number of rows is not specified, the
 record array must be resized repeatedly during load.
 
-.. _nrows: http://www.ivoa.net/documents/REC/VOTable/VOTable-20040811.html#ToC10
+.. _nrows: http://www.ivoa.net/documents/VOTable/20040811/REC-VOTable-1.1-20040811.html
 
 
 Data Origin
@@ -278,7 +278,7 @@ See Also
 ========
 
 - `VOTable Format Definition Version 1.1
-  <https://www.ivoa.net/documents/REC/VOTable/VOTable-20040811.html>`_
+  <https://www.ivoa.net/documents/VOTable/20040811/REC-VOTable-1.1-20040811.html>`_
 
 - `VOTable Format Definition Version 1.2
   <https://www.ivoa.net/documents/VOTable/20091130/REC-VOTable-1.2.html>`_

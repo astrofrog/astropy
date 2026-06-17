@@ -441,7 +441,7 @@ class TransformGraph:
 
         Optionally saves it (requires `graphviz`_ be installed and on your path).
 
-        .. _graphviz: http://www.graphviz.org/
+        .. _graphviz: https://www.graphviz.org/
 
         Parameters
         ----------
@@ -558,14 +558,14 @@ class TransformGraph:
         Converts this transform graph into a networkx graph.
 
         .. note::
-            You must have the `networkx <https://networkx.github.io/>`_
+            You must have the `networkx <https://networkx.org/>`_
             package installed for this to work.
 
         Returns
         -------
         nxgraph : ``networkx.Graph``
             This `~astropy.coordinates.TransformGraph` as a
-            `networkx.Graph <https://networkx.github.io/documentation/stable/reference/classes/graph.html>`_.
+            `networkx.Graph <https://networkx.org/documentation/stable/reference/classes/graph.html>`_.
         """
         import networkx as nx
 

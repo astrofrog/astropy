@@ -1169,7 +1169,7 @@ class SkyCoord(MaskableShapedLikeNDArray):
 
         Notes
         -----
-        This method requires `SciPy <https://www.scipy.org/>`_ to be
+        This method requires `SciPy <https://scipy.org/>`_ to be
         installed or it will fail.
 
         See Also
@@ -1227,7 +1227,7 @@ class SkyCoord(MaskableShapedLikeNDArray):
 
         Notes
         -----
-        This method requires `SciPy <https://www.scipy.org/>`_ to be
+        This method requires `SciPy <https://scipy.org/>`_ to be
         installed or it will fail.
 
         See Also
@@ -1284,7 +1284,7 @@ class SkyCoord(MaskableShapedLikeNDArray):
 
         Notes
         -----
-        This method requires `SciPy <https://www.scipy.org/>`_ to be
+        This method requires `SciPy <https://scipy.org/>`_ to be
         installed or it will fail.
 
         In the current implementation, the return values are always sorted in
@@ -1335,7 +1335,7 @@ class SkyCoord(MaskableShapedLikeNDArray):
 
         Notes
         -----
-        This method requires `SciPy <https://www.scipy.org/>`_ to be
+        This method requires `SciPy <https://scipy.org/>`_ to be
         installed or it will fail.
 
         In the current implementation, the return values are always sorted in

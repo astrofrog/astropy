@@ -26,7 +26,7 @@ manner if you choose this option.
 
 .. note::
    We **do not recommend** using ``astropy`` with an existing `miniconda
-   <https://docs.anaconda.com/miniconda/>`_ or `Anaconda Python
+   <https://www.anaconda.com/docs/getting-started/miniconda/main>`_ or `Anaconda Python
    <https://www.anaconda.com/download/>`_ distribution. The ``astropy`` package provided
    by Anaconda Inc. in the ``defaults`` channel can be outdated and these distributions
    can require a license for use at a large organisation. Instead, use ``miniforge`` as
@@ -155,7 +155,7 @@ The further dependencies provide more specific features:
   :class:`~astropy.table.table.Table` objects from HTML files using the
   `pandas <https://pandas.pydata.org/>`_ reader.
 
-- `bleach <https://bleach.readthedocs.io/>`_: Used to sanitize text when
+- `bleach <https://bleach.readthedocs.io/en/latest/>`_: Used to sanitize text when
   disabling HTML escaping in the :class:`~astropy.table.Table` HTML writer.
 
 - `ipydatagrid <https://pypi.org/project/ipydatagrid/>`_: Used in
@@ -178,7 +178,7 @@ The further dependencies provide more specific features:
 - `jplephem <https://pypi.org/project/jplephem/>`_: To retrieve JPL
   ephemeris of Solar System objects.
 
-- `setuptools <https://setuptools.readthedocs.io>`_: Used for discovery of
+- `setuptools <https://setuptools.pypa.io/en/latest/>`_: Used for discovery of
   entry points which are used to insert fitters into `astropy.modeling.fitting`.
 
 - `mpmath <https://mpmath.org/>`_: Used for the 'kraft-burrows-nousek'
@@ -226,7 +226,7 @@ The following packages can optionally be used when testing:
 - |IPython| |minimum_ipython_version| or later:
   Used for testing the notebook interface of `~astropy.table.Table`.
 
-- `coverage <https://coverage.readthedocs.io/>`_: Used for code coverage
+- `coverage <https://coverage.readthedocs.io/en/latest/>`_: Used for code coverage
   measurements.
 
 - `skyfield <https://rhodesmill.org/skyfield/>`_: Used for testing Solar System
@@ -234,7 +234,7 @@ The following packages can optionally be used when testing:
 
 - `sgp4 <https://pypi.org/project/sgp4/>`_: Used for testing satellite positions.
 
-- `tox <https://tox.readthedocs.io/en/latest/>`_: Used to automate testing
+- `tox <https://tox.wiki/en/latest/>`_: Used to automate testing
   and documentation builds.
 
 .. _sourcebuildinstructions:
@@ -254,7 +254,7 @@ choose to clone from the main repository::
 Building the documentation is typically not necessary unless you are
 developing code or documentation or do not have internet access, because
 the stable, latest, and archived versions of Astropy's documentation are
-available at `docs.astropy.org <https://docs.astropy.org>`_ . The process
+available at `docs.astropy.org <https://docs.astropy.org/en/stable/>`_ . The process
 is described in :ref:`builddocs`.
 
 {%else%}
@@ -271,7 +271,7 @@ Test Source Code Build
 {% if is_development %}
 
 The easiest way to run the tests in a source checkout of ``astropy``
-is to use `tox <https://tox.readthedocs.io/en/latest/>`_::
+is to use `tox <https://tox.wiki/en/latest/>`_::
 
     tox -e test-alldeps
 

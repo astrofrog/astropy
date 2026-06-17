@@ -523,5 +523,5 @@ to GitHub. GitHub will automatically update your pull request.
 
 .. _Issue 1761: https://github.com/astropy/astropy/issues/1761
 .. _pull request 1917: https://github.com/astropy/astropy/pull/1917
-.. _Sphinx primer: https://www.sphinx-doc.org/
+.. _Sphinx primer: https://www.sphinx-doc.org/en/master/
 .. _test commit: https://github.com/mwcraig/astropy/commit/cf7d5ac15d7c63ae28dac638c6484339bac5f8de

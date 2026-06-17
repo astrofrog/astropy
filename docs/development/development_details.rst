@@ -283,7 +283,7 @@ You are more likely to run into *conflicts* here — places where the changes yo
 conflict with changes that someone else made — than anywhere else. Ask for help if you
 need it. Instructions are available on how to `resolve merge conflicts after a Git
 rebase
-<https://help.github.com/en/articles/resolving-merge-conflicts-after-a-git-rebase>`_.
+<https://docs.github.com/en/get-started/using-git/resolving-merge-conflicts-after-a-git-rebase>`_.
 
 .. _squash-if-necessary:
 
@@ -391,7 +391,7 @@ To build using all of the system libraries, use::
 
 The C libraries currently bundled with ``astropy`` include:
 
-- `wcslib <https://www.atnf.csiro.au/people/mcalabre/WCS/>`_ see
+- `wcslib <https://www.atnf.csiro.au/computing/software/wcs/>`_ see
   ``cextern/wcslib/README`` for the bundled version. To use the
   system version, set ``ASTROPY_USE_SYSTEM_WCSLIB=1``.
 

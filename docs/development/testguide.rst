@@ -20,7 +20,7 @@ dependencies::
 
     python -m pip install --editable . --group dev_all
 
-This will provide all dependencies for running the full test suite using `tox <https://tox.wiki/>`__
+This will provide all dependencies for running the full test suite using `tox <https://tox.wiki/en/latest/>`__
 and |pytest|. It will also allow running tests via any IDE which
 supports ``pytest`` integration.
 
@@ -37,7 +37,7 @@ tox
 ===
 
 The most robust way to run the tests (which can also be the slowest) is
-to make use of `Tox <https://tox.readthedocs.io/en/latest/>`__, which is a
+to make use of `Tox <https://tox.wiki/en/latest/>`__, which is a
 general purpose tool for automating Python testing. One of the benefits of tox
 is that it first creates a source distribution of the package being tested, and
 installs it into a new virtual environment, along with any dependencies that are
@@ -495,7 +495,7 @@ and a clean way to describe even the most complicated data - that's
 property-based testing!
 
 ``pytest-astropy`` includes a dependency on `Hypothesis
-<https://hypothesis.readthedocs.io/>`_, so installation is easy -
+<https://hypothesis.readthedocs.io/en/latest/>`_, so installation is easy -
 you can just read the docs or `work through the tutorial
 <https://github.com/Zac-HD/escape-from-automanual-testing/>`_
 and start writing tests like::
@@ -693,7 +693,7 @@ environment.
 Writing image tests
 -------------------
 
-The `README.rst <https://github.com/matplotlib/pytest-mpl/blob/master/README.rst>`__
+The `README.rst <https://github.com/matplotlib/pytest-mpl/blob/main/README.rst>`__
 for the plugin contains information on writing tests with this plugin. Once you
 have added a test, and push this to a pull request, you will likely start seeing
 a test failure because the figure hash is missing from the hash libraries

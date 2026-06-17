@@ -446,9 +446,9 @@ class EarthLocation(u.Quantity):
         References
         ----------
         .. [1] https://nominatim.openstreetmap.org/
-        .. [2] https://developers.google.com/maps/documentation/geocoding/start
+        .. [2] https://developers.google.com/maps/documentation/geocoding/guides-v3/start
         .. [3] https://developers.google.com/maps/documentation/elevation/start
-        .. [4] https://developers.google.com/maps/documentation/geocoding/get-api-key
+        .. [4] https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key
 
         """
         use_google = google_api_key is not None
@@ -459,7 +459,7 @@ class EarthLocation(u.Quantity):
                 "Currently, `get_height` only works when using the Google geocoding"
                 " API, which requires passing a Google API key with `google_api_key`."
                 " See:"
-                " https://developers.google.com/maps/documentation/geocoding/get-api-key"
+                " https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key"
                 " for information on obtaining an API key."
             )
 

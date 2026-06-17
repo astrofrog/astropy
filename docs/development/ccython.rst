@@ -14,7 +14,7 @@ extensions in the subpackage.
 
 While C extensions must always be defined through the ``get_extensions``
 mechanism, Cython files (ending in ``.pyx``) are automatically located
-by `extension-helpers <https://extension-helpers.readthedocs.io/>`_ and
+by `extension-helpers <https://extension-helpers.readthedocs.io/en/latest/>`_ and
 loaded in separate extensions if they are not in ``get_extensions``. For
 Cython extensions located in this way, headers for numpy C functions are
 included in the build, but no other external headers are included. ``.pyx``

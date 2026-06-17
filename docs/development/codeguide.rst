@@ -124,7 +124,7 @@ Coding Style/Conventions
 ========================
 
 * The code should follow the standard `PEP8 Style Guide for Python Code
-  <https://www.python.org/dev/peps/pep-0008/>`_.
+  <https://peps.python.org/pep-0008/>`_.
 
   * ``astropy`` itself enforces this style guide using the
     `ruff format <https://docs.astral.sh/ruff/formatter/>`_ code formatter, which closely follows the
@@ -262,7 +262,7 @@ Including C Code
   :ref:`external_c_libraries`).
 
 * In cases where C extensions are needed but Cython_ cannot be used, the `PEP 7
-  Style Guide for C Code <https://www.python.org/dev/peps/pep-0007/>`_ is
+  Style Guide for C Code <https://peps.python.org/pep-0007/>`_ is
   recommended.
 
 * C extensions (Cython_ or otherwise) should provide the necessary information
@@ -431,7 +431,7 @@ the hierarchy.
           https://rhettinger.wordpress.com/2011/05/26/super-considered-super/
 
 .. _Numpy: https://numpy.org/
-.. _Scipy: https://www.scipy.org/
+.. _Scipy: https://scipy.org/
 .. _matplotlib: https://matplotlib.org/
 .. _Cython: https://cython.org/
 .. _PyPI: https://pypi.org/project

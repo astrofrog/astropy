@@ -8,7 +8,7 @@ Introduction
 ============
 
 The `~astropy.utils.iers` package provides access to the tables provided by the
-`International Earth Rotation and Reference Systems <https://www.iers.org/>`_
+`International Earth Rotation and Reference Systems <https://www.iers.org/IERS/EN/Home>`_
 (IERS) service, in particular the `Earth Orientation data
 <https://www.iers.org/IERS/EN/DataProducts/EarthOrientationData/eop.html>`_
 allowing interpolation of published UT1-UTC and polar motion values for given

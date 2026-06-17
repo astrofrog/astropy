@@ -16,7 +16,7 @@ The altitude-azimuth coordinates are then found using
 
 This example is meant to demonstrate the capabilities of the
 `astropy.coordinates` package. For more convenient and/or complex observation
-planning, consider the `astroplan <https://astroplan.readthedocs.io/>`_
+planning, consider the `astroplan <https://astroplan.readthedocs.io/en/stable/>`_
 package.
 
 Let's suppose you are planning to visit picturesque Bear Mountain State Park

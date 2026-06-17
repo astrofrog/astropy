@@ -60,7 +60,7 @@ Defining a Plugin Fitter
 defined outside of astropy's core to be inserted into the
 `astropy.modeling.fitting` namespace through the use of entry points.
 Entry points are references to importable objects. A tutorial on defining
-entry points can be found in `setuptools' documentation <https://setuptools.readthedocs.io/en/latest/setuptools.html#dynamic-discovery-of-services-and-plugins>`_.
+entry points can be found in `setuptools' documentation <https://setuptools.pypa.io/en/latest/setuptools.html>`_.
 Plugin fitters must to extend from the `~astropy.modeling.fitting.Fitter`
 base class. For the fitter to be discovered and inserted into
 `astropy.modeling.fitting` the entry points must be inserted into
@@ -75,7 +75,7 @@ This would allow users to import the ``PlugFitterName`` through `astropy.modelin
 
     from astropy.modeling.fitting import PlugFitterName
 
-One project which uses this functionality is `Saba <https://saba.readthedocs.io/>`_
+One project which uses this functionality is `Saba <https://saba.readthedocs.io/en/latest/>`_
 and be can be used as a reference.
 
 Using a Custom Statistic Function

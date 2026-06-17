@@ -83,7 +83,7 @@ source.
     This example requires accessing data from the *Gaia* TGAS and 2MASS
     catalogs. For convenience and speed below, we have created dictionary
     objects that contain the data. We retrieved the data using the Astropy
-    affiliated package `astroquery <https://astroquery.readthedocs.io/>`_ using
+    affiliated package `astroquery <https://astroquery.readthedocs.io/en/latest/>`_ using
     the following queries::
 
         import astropy.coordinates as coord

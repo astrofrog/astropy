@@ -11,19 +11,19 @@
 .. git stuff
 .. _git: https://git-scm.com/
 .. _github: https://github.com/
-.. _GitHub Help: https://help.github.com/
+.. _GitHub Help: https://support.github.com/request/landing
 .. _msysgit: http://code.google.com/p/msysgit/downloads/list
 .. _git-osx-installer: http://code.google.com/p/git-osx-installer/downloads/list
 .. _git cheat sheet: https://www.atlassian.com/git/tutorials/atlassian-git-cheatsheet
 .. _pro git book: https://git-scm.com/book
 .. _git svn crash course: https://git.wiki.kernel.org/index.php/GitSvnCrashCourse
-.. _learn.github: https://services.github.com/
-.. _network graph visualizer: https://github.blog/2008-04-10-say-hello-to-the-network-graph-visualizer/
+.. _learn.github: https://github.com/services/
+.. _network graph visualizer: https://github.blog/news-insights/the-library/say-hello-to-the-network-graph-visualizer/
 .. _git user manual: http://schacon.github.io/git/user-manual.html
 .. _git tutorial: http://schacon.github.io/git/gittutorial.html
 .. _git community book: https://book.git-scm.com/
-.. _git casts: https://services.github.com/
-.. _git concepts: https://www.sbf5.com/~cduan/technical/git/
+.. _git casts: https://github.com/services/
+.. _git concepts: https://www.cduan.com/technical/git/
 .. _git clone: http://schacon.github.io/git/git-clone.html
 .. _git checkout: http://schacon.github.io/git/git-checkout.html
 .. _git commit: http://schacon.github.io/git/git-commit.html
@@ -46,7 +46,7 @@
 .. _rebase without tears: http://matthew-brett.github.io/pydagogue/rebase_without_tears.html
 .. _resolving a merge: http://schacon.github.io/git/user-manual.html#resolving-a-merge
 .. _ipython git workflow: https://mail.python.org/pipermail/ipython-dev/2010-October/005632.html
-.. _ipython notebook on using git in science: https://nbviewer.jupyter.org/github/fperez/reprosw/blob/master/Version%20Control.ipynb
+.. _ipython notebook on using git in science: https://nbviewer.org/github/fperez/reprosw/blob/master/Version%20Control.ipynb
 
 .. other stuff
 .. |emdash| unicode:: U+02014

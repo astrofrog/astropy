@@ -64,7 +64,7 @@ def jackknife_stats(
 ) -> tuple[float | NDArray, float | NDArray, float | NDArray, NDArray]:
     """Performs jackknife estimation on the basis of jackknife resamples.
 
-    This function requires `SciPy <https://www.scipy.org/>`_ to be installed.
+    This function requires `SciPy <https://scipy.org/>`_ to be installed.
 
     Parameters
     ----------

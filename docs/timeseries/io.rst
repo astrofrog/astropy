@@ -11,8 +11,8 @@ Since |TimeSeries| and |BinnedTimeSeries| are subclasses of |Table|, they have
 that can be used to read and write time series from files. We include a few readers for
 well-defined formats in `astropy.timeseries`. For instance we have readers for
 light curves in FITS format from the `Kepler
-<https://www.nasa.gov/mission_pages/kepler/main/index.html>`_ and `TESS
-<https://tess.gsfc.nasa.gov/>`_ missions.
+<https://science.nasa.gov/mission/kepler/>`_ and `TESS
+<https://heasarc.gsfc.nasa.gov/docs/tess/>`_ missions.
 
 Example
 -------
@@ -33,7 +33,7 @@ an example file:
 .. note::
     The light curve provided here is handpicked for example purposes. To get
     other Kepler light curves for science purposes using Python, see the
-    `astroquery <https://astroquery.readthedocs.io>`_ affiliated package.
+    `astroquery <https://astroquery.readthedocs.io/en/latest/>`_ affiliated package.
 
 This will set ``example_data`` to the filename of the downloaded file (so you
 can replace this by the filename for the file you want to read in). We can then

@@ -650,7 +650,7 @@ def poisson_conf_interval(
     insensitive to the choice of prior.
 
     This function has an optional dependency: Either `Scipy
-    <https://www.scipy.org/>`_ or `mpmath <https://mpmath.org/>`_  need
+    <https://scipy.org/>`_ or `mpmath <https://mpmath.org/>`_  need
     to be available.
     This code is very intense numerically, which makes it much slower than
     the other methods, in particular for large count numbers (above 1000

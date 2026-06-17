@@ -270,7 +270,7 @@ class DataInfo(metaclass=DataInfoMeta):
     ``instance`` using the ``info`` key.  Because owner_cls.x is a descriptor,
     Python doesn't use __dict__['x'] normally, and the descriptor can safely
     store stuff there.  Thanks to
-    https://nbviewer.jupyter.org/urls/gist.github.com/ChrisBeaumont/5758381/raw/descriptor_writeup.ipynb
+    https://nbviewer.org/urls/gist.github.com/ChrisBeaumont/5758381/raw/descriptor_writeup.ipynb
     for this trick that works for non-hashable classes.
 
     Parameters

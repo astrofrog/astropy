@@ -1438,7 +1438,7 @@ def __getattr__(key):
     is done for their dynamically created info classes.
 
     See:
-    - https://asdf.readthedocs.io/en/latest/asdf/extending/converters.html#entry-point-performance-considerations
+    - https://www.asdf-format.org/projects/asdf/en/latest/asdf/extending/converters.html
     - https://github.com/astropy/asdf-astropy/pull/253
     """
     if key.startswith(Masked.__name__):

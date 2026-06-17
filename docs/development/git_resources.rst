@@ -122,7 +122,7 @@ these instructions::
 
 (Note the colon ``:`` before ``test-branch``.) See `Github's instructions for
 deleting a branch
-<https://help.github.com/en/articles/creating-and-deleting-branches-within-your-repository>`_
+<https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-and-deleting-branches-within-your-repository>`_
 if you want to delete the GitHub copy through GitHub.
 
 Several people sharing a single repository

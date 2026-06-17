@@ -149,7 +149,7 @@ docs = [
 
 [project.urls]
 homepage = "https://www.astropy.org/"
-documentation = "https://docs.astropy.org"
+documentation = "https://docs.astropy.org/en/stable/"
 repository = "https://github.com/astropy/astropy"
 
 [project.scripts]

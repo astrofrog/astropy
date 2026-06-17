@@ -359,7 +359,7 @@ def with_H0(H0: u.Quantity | None = None) -> u.Equivalency:
     References
     ----------
     For an illuminating discussion on why you may or may not want to use
-    little-h at all, see https://arxiv.org/pdf/1308.4150.pdf
+    little-h at all, see https://arxiv.org/pdf/1308.4150
     """
     if H0 is None:
         H0 = default_cosmology.get().H0

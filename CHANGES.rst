@@ -1231,7 +1231,7 @@ astropy.utils
 
   See:
 
-  - https://asdf.readthedocs.io/en/latest/asdf/extending/converters.html#entry-point-performance-considerations
+  - https://www.asdf-format.org/projects/asdf/en/latest/asdf/extending/converters.html
   - https://github.com/astropy/asdf-astropy/pull/253 [#17685]
 
 - ``astropy.utils.data.download_file`` can now recover from a ``TimeoutError``
@@ -3186,7 +3186,7 @@ astropy.wcs
   overflows in the comment string for the longitude and latitude axes triggered
   by some projections in ``wcshdo()``, and also the formatting for generic
   coordinate systems. For a full list of changes - see
-  http://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES or
+  https://www.atnf.csiro.au/computing/software/wcs/CHANGES or
   ``astropy/cextern/wcslib/CHANGES`` [#15795]
 
 - Fixed a bug in ``fit_wcs_from_points`` that does not set the default value of the ``cdelt`` of the returned WCS object. [#16027]
@@ -3347,7 +3347,7 @@ astropy.wcs
   overflows in the comment string for the longitude and latitude axes triggered
   by some projections in ``wcshdo()``, and also the formatting for generic
   coordinate systems. For a full list of changes - see
-  http://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES or
+  https://www.atnf.csiro.au/computing/software/wcs/CHANGES or
   ``astropy/cextern/wcslib/CHANGES`` [#15795]
 
 - Fixed a bug in ``fit_wcs_from_points`` that does not set the default value of the ``cdelt`` of the returned WCS object. [#16027]
@@ -3493,7 +3493,7 @@ astropy.wcs
 
 - Support WCS descriptions of basic planetary coordinate frames. [#14820]
 
-- Updated bundled WCSLIB version to 8.1. This update adds support planetary keywords ``A_RADIUS``, ``B_RADIUS``, ``C_RADIUS``, ``BLON_OBS``, ``BLAT_OBS``, and ``BDIS_OBS`` in ``auxprm`` and adds ``wcsprm::time`` to the ``wcsprm`` struct to record the ``TIME`` axis. This update also includes several bug fixes. For a full list of changes - see http://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES [#15035]
+- Updated bundled WCSLIB version to 8.1. This update adds support planetary keywords ``A_RADIUS``, ``B_RADIUS``, ``C_RADIUS``, ``BLON_OBS``, ``BLAT_OBS``, and ``BDIS_OBS`` in ``auxprm`` and adds ``wcsprm::time`` to the ``wcsprm`` struct to record the ``TIME`` axis. This update also includes several bug fixes. For a full list of changes - see https://www.atnf.csiro.au/computing/software/wcs/CHANGES [#15035]
 
 
 API Changes
@@ -4920,7 +4920,7 @@ astropy.wcs
   ``wcssub()`` in how it handles temporal axes with -TAB and fixes handling
   of status returns from ``linp2x()`` and ``linx2p()`` relating to distortion
   functions, in particular affecting TPV distortions - see #13509. For a full
-  list of changes - see http://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES or
+  list of changes - see https://www.atnf.csiro.au/computing/software/wcs/CHANGES or
   `astropy/cextern/wcslib/CHANGES <https://github.com/astropy/astropy/blob/24e8730c63902d035cb9110eae2a9ebec12d8905/cextern/wcslib/CHANGES>`_. [#13635]
 
 - Fixed WCS validation not working properly if HDUList is needed
@@ -5368,7 +5368,7 @@ astropy.wcs
 - Updated bundled WCSLIB version to 7.11. This update together with 7.10
   includes bug fixes to ``tabini()`` and ``tabcpy()`` as well as several
   print formatting enhancements. For a full list of
-  changes - see http://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES [#13171]
+  changes - see https://www.atnf.csiro.au/computing/software/wcs/CHANGES [#13171]
 
 - Fixed error that occurred in ``WCS.world_to_pixel`` for ``WCS`` objects with a
   spectral axis and observer location information when passing a ``SpectralCoord``
@@ -5399,7 +5399,7 @@ Other Changes and Additions
   support for time coordinate axes in ``wcsset()`` and ``wcssub()``. The
   four-digit type code for the time axis will have the first digit set to 4,
   i.e., four digit code will be 4xxx where x is a digit 0-9. For a full list of
-  bug fixes see https://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES [#12994]
+  bug fixes see https://www.atnf.csiro.au/computing/software/wcs/CHANGES [#12994]
 
 
 Version 5.0.3 (2022-03-25)
@@ -6583,7 +6583,7 @@ astropy.wcs
 - Add ``STOKES`` FITS WCS keyword to the IVOA UCD mapping. [#11236]
 
 - Updated bundled version of WCSLIB to version 7.6. See
-  https://www.atnf.csiro.au/people/mcalabre/WCS/CHANGES for a list of
+  https://www.atnf.csiro.au/computing/software/wcs/CHANGES for a list of
   included changes. [#11549]
 
 
@@ -7703,7 +7703,7 @@ Other Changes and Additions
   The main changes are that the ``python setup.py test`` and
   ``python setup.py build_docs`` commands will no longer work. The easiest
   way to replicate these commands is to install the tox
-  (https://tox.readthedocs.io) package and run ``tox -e test`` and
+  (https://tox.wiki/en/latest/) package and run ``tox -e test`` and
   ``tox -e build_docs``. It is also possible to run pytest and sphinx
   directly. Other significant changes include switching to setuptools_scm to
   manage the version number, and adding a ``pyproject.toml`` to opt in to
@@ -12500,7 +12500,7 @@ astropy.convolution
   double-interpolates interpolates over NaNs, although that is now available
   as a separate ``astropy.convolution.interpolate_replace_nans`` function. See
   `the backwards compatibility note
-  <https://docs.astropy.org/en/v2.0.16/convolution/index.html#a-note-on-backward-compatibility-pre-v2-0>`_
+  <https://docs.astropy.org/en/older-docs-archive/v2.0/convolution/index.html#a-note-on-backward-compatibility-pre-v2-0>`_
   for more on how to get the old behavior (and why you probably don't want to.)
   [#5782]
 
@@ -14900,7 +14900,7 @@ Other Changes and Additions
   cluttering the ``astropy.coordinates`` documentation with increasingly
   irrelevant material.  To see the migration guide, we recommend you simply look
   to the archived documentation for previous versions, e.g.
-  https://docs.astropy.org/en/v1.0/coordinates/index.html#migrating-from-pre-v0-4-coordinates
+  https://docs.astropy.org/en/older-docs-archive/v1.0/coordinates/index.html#migrating-from-pre-v0-4-coordinates
   [#4203]
 
 - In ``astropy.coordinates``, the transformations between GCRS, CIRS,
@@ -16602,7 +16602,7 @@ astropy.table
 - The list of modules displayed in the pytest header can now be customized.
   [#3157]
 
-- `jinja2 <http://jinja.pocoo.org/docs/dev/>`_>=2.7 is now required to build the
+- `jinja2 <https://jinja.palletsprojects.com/en/latest/>`_>=2.7 is now required to build the
   source code from the git repository, in order to allow the ERFA wrappers to
   be generated. [#3166]
 
@@ -17332,7 +17332,7 @@ astropy.config
   configuration items have moved, and some have been changed to science state
   values.  The old locations should continue to work until astropy 0.5, but
   deprecation warnings will be displayed.  See the `Configuration transition
-  <https://docs.astropy.org/en/v0.4/config/config_0_4_transition.html>`_
+  <https://docs.astropy.org/en/older-docs-archive/v0.4/config/config_0_4_transition.html>`_
   docs for a detailed description of the changes and how to update existing
   code. [#2094]
 
@@ -17750,7 +17750,7 @@ Other Changes and Additions
   doing ``import astropy; astropy.test()``, so the ``coverage``
   keyword to ``astropy.test`` has been removed.  Coverage testing now
   depends only on `coverage.py
-  <http://coverage.readthedocs.io/en/latest/>`__, not
+  <https://coverage.readthedocs.io/en/latest/>`__, not
   ``pytest-cov``. [#2112]
 
 - The included version of py.test has been upgraded to 2.5.1. [#1970]
@@ -18219,7 +18219,7 @@ New Features
       °
 
   See `handling-unicode
-  <https://docs.astropy.org/en/v0.3/development/codeguide.html#unicode-guidelines>`_
+  <https://docs.astropy.org/en/older-docs-archive/v0.3/development/codeguide.html#unicode-guidelines>`_
   for more information. [#1441]
 
 - ``astropy.utils.misc.find_api_page`` is now imported into the top-level.

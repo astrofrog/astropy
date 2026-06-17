@@ -349,7 +349,7 @@ names, city names, etc:
 By default the `OpenStreetMap Nominatim service
 <https://wiki.openstreetmap.org/wiki/Nominatim>`_ is used, but by providing a
 `Google Geocoding API key
-<https://developers.google.com/maps/documentation/geocoding/get-api-key>`_ with
+<https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key>`_ with
 the ``google_api_key`` argument it is possible to use Google Maps instead. It
 is also possible to query the height of the location in addition to its
 longitude and latitude, but only with the Google queries::
@@ -367,8 +367,8 @@ longitude and latitude, but only with the Google queries::
     convenience, not accuracy. If you need accurate coordinates for an
     object you should find the appropriate reference and input the coordinates
     manually, or use more specialized functionality like that in the `astroquery
-    <https://astroquery.readthedocs.io/>`_ or `astroplan
-    <https://astroplan.readthedocs.io/>`_ affiliated packages.
+    <https://astroquery.readthedocs.io/en/latest/>`_ or `astroplan
+    <https://astroplan.readthedocs.io/en/stable/>`_ affiliated packages.
 
     Also note that these methods retrieve data from the internet to
     determine the celestial or geographic coordinates. The online data may be
@@ -392,7 +392,7 @@ While ``astropy.coordinates`` does not natively support converting an Earth
 location to a timezone, the longitude and latitude can be retrieved from any
 `~astropy.coordinates.EarthLocation` object, which could then be passed to any
 third-party package that supports timezone solving, such as `timezonefinder
-<https://timezonefinder.readthedocs.io/>`_, in which case you might have to
+<https://timezonefinder.readthedocs.io/en/latest/>`_, in which case you might have to
 pass in their ``.degree`` attributes.
 
 The resulting timezone name could then be used with any packages that support

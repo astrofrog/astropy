@@ -92,7 +92,7 @@ Two of the most common deprecation warnings related to Headers are:
   is necessary, use :attr:`Header.cards`, which returns an iterator over the
   cards. More on that below.
 
-.. _PEP 8: https://www.python.org/dev/peps/pep-0008/
+.. _PEP 8: https://peps.python.org/pep-0008/
 
 New Header Design
 =================

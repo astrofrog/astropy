@@ -23,7 +23,7 @@ u.def_physical_type(redshift, "redshift")
 
 # This is not formally a unit, but is used in that way in many contexts, and
 # an appropriate equivalency is only possible if it's treated as a unit (see
-# https://arxiv.org/pdf/1308.4150.pdf for more)
+# https://arxiv.org/pdf/1308.4150 for more)
 # Also note that h or h100 or h_100 would be a better name, but they either
 # conflict or have numbers in them, which is disallowed
 littleh: Final = u.def_unit(
