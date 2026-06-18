@@ -12,7 +12,7 @@
 #include "astropy_wcs/wcslib_units_wrap.h"
 #include "astropy_wcs/wcslib_wtbarr_wrap.h"
 #include "astropy_wcs/distortion_wrap.h"
-#include "astropy_wcs/sip_wrap.h"
+#include "astropy_wcs/disprm_wrap.h"
 #include "astropy_wcs/docstrings.h"
 #include "astropy_wcs/astropy_wcs_api.h"
 #include "astropy_wcs/unit_list_proxy.h"
@@ -117,6 +117,50 @@ Wcs_new(
   return (PyObject*)self;
 }
 
+/*
+ * Resolve the forward distortion engine (a WCSLIB disprm) from `obj`, which
+ * may be a `_wcs.Distortion` object or a Python wrapper (astropy.wcs.Sip is a
+ * pure-Python class) exposing its forward `_wcs.Distortion` as `_fwd`.
+ *
+ * Writes the disprm pointer to *out (NULL means "no distortion", which is not
+ * an error) and returns 0 on success, or -1 with a Python exception set.  The
+ * disprm is kept alive by `obj`, which the caller retains.
+ */
+static int
+resolve_sip_engine(PyObject* obj, struct disprm** out) {
+  PyObject* fwd;
+  int rc = 0;
+
+  *out = NULL;
+  if (obj == NULL || obj == Py_None) {
+    return 0;
+  }
+
+  if (PyObject_TypeCheck(obj, DisprmType)) {
+    *out = &(((PyDisprm*)obj)->x);
+    return 0;
+  }
+
+  fwd = PyObject_GetAttrString(obj, "_fwd");
+  if (fwd == NULL) {
+    PyErr_SetString(PyExc_TypeError, "sip must be a Sip object");
+    return -1;
+  }
+
+  if (fwd == Py_None) {
+    *out = NULL;  /* a Sip with no forward (A/B) coefficients: no-op */
+  } else if (PyObject_TypeCheck(fwd, DisprmType)) {
+    *out = &(((PyDisprm*)fwd)->x);
+  } else {
+    PyErr_SetString(PyExc_TypeError, "sip._fwd must be a _wcs.Distortion");
+    rc = -1;
+  }
+
+  /* `obj` keeps `_fwd` (and hence the disprm) alive; drop our temp ref. */
+  Py_DECREF(fwd);
+  return rc;
+}
+
 static int
 Wcs_init(
     Wcs* self,
@@ -158,16 +202,15 @@ Wcs_init(
 
   /* Check and set SIP */
   if (py_sip != NULL && py_sip != Py_None) {
-    if (!PyObject_TypeCheck(py_sip, (PyTypeObject*)SipType)) {
-      PyErr_SetString(PyExc_TypeError,
-                      "Arg 1 must be Sip object");
+    struct disprm* dis;
+    if (resolve_sip_engine(py_sip, &dis) != 0) {
       return -1;
     }
 
     Py_CLEAR(self->py_sip);
     self->py_sip = py_sip;
     Py_INCREF(py_sip);
-    self->x.sip = &(((Sip*)py_sip)->x);
+    self->x.sip = dis;
   }
 
   /* Check and set Distortion lookup tables */
@@ -733,15 +776,14 @@ Wcs_set_sip(
   self->x.sip = NULL;
 
   if (value != NULL && value != Py_None) {
-    if (!PyObject_TypeCheck(value, (PyTypeObject*)SipType)) {
-      PyErr_SetString(PyExc_TypeError,
-                      "sip must be Sip object");
+    struct disprm* dis;
+    if (resolve_sip_engine(value, &dis) != 0) {
       return -1;
     }
 
     Py_INCREF(value);
     self->py_sip = value;
-    self->x.sip = &(((Sip*)value)->x);
+    self->x.sip = dis;
   }
 
   return 0;
@@ -884,7 +926,7 @@ PyInit__wcs(void)
       _setup_tabprm_type(m)         ||
       _setup_wtbarr_type(m)         ||
       _setup_distortion_type(m)     ||
-      _setup_sip_type(m)            ||
+      _setup_disprm_type(m)         ||
       _setup_wcs_type(m)          ||
       _define_exceptions(m)) {
     Py_DECREF(m);

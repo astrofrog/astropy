@@ -1579,12 +1579,13 @@ Wcsprm_p2s(
   PyArrayObject* stat       = NULL;
   PyObject*      result     = NULL;
   int            status     = 0;
+  int            flags      = 0;
   const char*    keywords[] = {
-    "pixcrd", "origin", NULL };
+    "pixcrd", "origin", "flags", NULL };
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "Oi:p2s", (char **)keywords,
-          &pixcrd_obj, &origin)) {
+          args, kwds, "Oi|i:p2s", (char **)keywords,
+          &pixcrd_obj, &origin, &flags)) {
     return NULL;
   }
 
@@ -1662,7 +1663,7 @@ Wcsprm_p2s(
    */
   Py_BEGIN_ALLOW_THREADS
   preoffset_array(pixcrd, origin);
-  status = wcsp2s(
+  status = wcsp2sflags(
       &self->x,
       ncoord,
       nelem,
@@ -1671,7 +1672,8 @@ Wcsprm_p2s(
       (double*)PyArray_DATA(phi),
       (double*)PyArray_DATA(theta),
       (double*)PyArray_DATA(world),
-      (int*)PyArray_DATA(stat));
+      (int*)PyArray_DATA(stat),
+      flags);
   unoffset_array(pixcrd, origin);
   /* unoffset_array(world, origin); */
   unoffset_array(imgcrd, origin);
@@ -1751,12 +1753,13 @@ Wcsprm_s2p(
   PyObject*      result    = NULL;
   int            status    = -1;
   double*        world_copy = NULL;
+  int            flags      = 0;
   const char*    keywords[] = {
-    "world", "origin", NULL };
+    "world", "origin", "flags", NULL };
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "Oi:s2p", (char **)keywords,
-          &world_obj, &origin)) {
+          args, kwds, "Oi|i:s2p", (char **)keywords,
+          &world_obj, &origin, &flags)) {
     return NULL;
   }
 
@@ -1854,7 +1857,7 @@ Wcsprm_s2p(
    *. */
   Py_BEGIN_ALLOW_THREADS
   /* preoffset_array(world, origin); */
-  status = wcss2p(
+  status = wcss2pflags(
       &self->x,
       ncoord,
       nelem,
@@ -1863,7 +1866,8 @@ Wcsprm_s2p(
       (double*)PyArray_DATA(theta),
       (double*)PyArray_DATA(imgcrd),
       (double*)PyArray_DATA(pixcrd),
-      (int*)PyArray_DATA(stat));
+      (int*)PyArray_DATA(stat),
+      flags);
   /* unoffset_array(world, origin); */
   unoffset_array(pixcrd, origin);
   unoffset_array(imgcrd, origin);
@@ -4739,6 +4743,7 @@ _setup_wcsprm_type(
     CONSTANT(WCSHDR_PIXLIST)   ||
     CONSTANT(WCSHDR_none)      ||
     CONSTANT(WCSHDR_all)       ||
+    CONSTANT(LIN_NODISPRE)     ||
     CONSTANT(WCSHDR_reject)    ||
 #ifdef WCSHDR_strict
     CONSTANT(WCSHDR_strict)    ||

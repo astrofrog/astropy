@@ -104,7 +104,6 @@ from ._wcs import (
     NoWcsKeywordsFoundError,
     Prjprm,
     SingularMatrixError,
-    Sip,
     Tabprm,
     WcsError,
     WCSHDO_all,
@@ -139,6 +138,10 @@ from ._wcs import (
 )
 from ._wcs import _Wcs as WCSBase
 from ._wcs import find_all_wcs as find_all_wcs_c
+
+# Pure-Python Sip class (thin wrapper over the compiled _wcs.Sip transform
+# engine, which evaluates the SIP polynomials via WCSLIB).
+from ._sip import Sip
 
 # Mix-in class that provides the APE 14 API
 from .wcsapi.fitswcs import FITSWCSAPIMixin, SlicedFITSWCS

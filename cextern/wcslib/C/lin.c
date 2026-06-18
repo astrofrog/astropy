@@ -768,12 +768,13 @@ int linset(struct linprm *lin)
 
 //----------------------------------------------------------------------------
 
-int linp2x(
+static int linp2x_(
   struct linprm *lin,
   int ncoord,
   int nelem,
   const double pixcrd[],
-  double imgcrd[])
+  double imgcrd[],
+  int flags)
 
 {
   static const char *function = "linp2x";
@@ -845,7 +846,7 @@ int linp2x(
     }
 
     for (int k = 0; k < ncoord; k++) {
-      if (lin->dispre) {
+      if (lin->dispre && !(flags & LIN_NODISPRE)) {
         int status = disp2x(lin->dispre, pix, tmp);
         if (status) {
           return wcserr_set(LIN_ERRMSG(lin_diserr[status]));
@@ -906,14 +907,38 @@ int linp2x(
   return 0;
 }
 
+int linp2x(
+  struct linprm *lin,
+  int ncoord,
+  int nelem,
+  const double pixcrd[],
+  double imgcrd[])
+
+{
+  return linp2x_(lin, ncoord, nelem, pixcrd, imgcrd, 0);
+}
+
+int linp2xflags(
+  struct linprm *lin,
+  int ncoord,
+  int nelem,
+  const double pixcrd[],
+  double imgcrd[],
+  int flags)
+
+{
+  return linp2x_(lin, ncoord, nelem, pixcrd, imgcrd, flags);
+}
+
 //----------------------------------------------------------------------------
 
-int linx2p(
+static int linx2p_(
   struct linprm *lin,
   int ncoord,
   int nelem,
   const double imgcrd[],
-  double pixcrd[])
+  double pixcrd[],
+  int flags)
 
 {
   static const char *function = "linx2p";
@@ -1028,7 +1053,7 @@ int linx2p(
         }
       }
 
-      if (lin->dispre) {
+      if (lin->dispre && !(flags & LIN_NODISPRE)) {
         memcpy(tmp, pix, ndbl);
 
         if ((status = disx2p(lin->dispre, tmp, pix))) {
@@ -1045,6 +1070,29 @@ int linx2p(
   }
 
   return 0;
+}
+
+int linx2p(
+  struct linprm *lin,
+  int ncoord,
+  int nelem,
+  const double imgcrd[],
+  double pixcrd[])
+
+{
+  return linx2p_(lin, ncoord, nelem, imgcrd, pixcrd, 0);
+}
+
+int linx2pflags(
+  struct linprm *lin,
+  int ncoord,
+  int nelem,
+  const double imgcrd[],
+  double pixcrd[],
+  int flags)
+
+{
+  return linx2p_(lin, ncoord, nelem, imgcrd, pixcrd, flags);
 }
 
 //----------------------------------------------------------------------------

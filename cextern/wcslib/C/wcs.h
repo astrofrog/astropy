@@ -2306,6 +2306,18 @@ int wcss2p(struct wcsprm *wcs, int ncoord, int nelem, const double world[],
            double phi[], double theta[], double imgcrd[], double pixcrd[],
            int stat[]);
 
+// Variants of wcsp2s()/wcss2p() that take distortion-control flags (see
+// LIN_NODISPRE in lin.h), allowing, e.g., a SIP prior distortion to be skipped
+// while retaining a TPV sequent distortion and the linear/projection chain.
+// wcsp2s()/wcss2p() are equivalent to passing flags = 0.
+int wcsp2sflags(struct wcsprm *wcs, int ncoord, int nelem, const double pixcrd[],
+                double imgcrd[], double phi[], double theta[], double world[],
+                int stat[], int flags);
+
+int wcss2pflags(struct wcsprm *wcs, int ncoord, int nelem, const double world[],
+                double phi[], double theta[], double imgcrd[], double pixcrd[],
+                int stat[], int flags);
+
 int wcsmix(struct wcsprm *wcs, int mixpix, int mixcel, const double vspan[2],
            double vstep, int viter, double world[], double phi[],
            double theta[], double imgcrd[], double pixcrd[]);

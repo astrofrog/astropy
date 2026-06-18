@@ -785,6 +785,18 @@ int linp2x(struct linprm *lin, int ncoord, int nelem, const double pixcrd[],
 int linx2p(struct linprm *lin, int ncoord, int nelem, const double imgcrd[],
            double pixcrd[]);
 
+// Distortion-control flags for linp2xflags()/linx2pflags() (and wcsp2sflags()/
+// wcss2pflags()).  LIN_NODISPRE suppresses the prior distortion (lin.dispre,
+// e.g. SIP) while leaving the sequent distortion (lin.disseq, e.g. TPV) and
+// the linear transform in place.
+#define LIN_NODISPRE 0x1
+
+int linp2xflags(struct linprm *lin, int ncoord, int nelem,
+                const double pixcrd[], double imgcrd[], int flags);
+
+int linx2pflags(struct linprm *lin, int ncoord, int nelem,
+                const double imgcrd[], double pixcrd[], int flags);
+
 int linwarp(struct linprm *lin, const double pixblc[], const double pixtrc[],
             const double pixsamp[], int *nsamp,
             double maxdis[], double *maxtot,

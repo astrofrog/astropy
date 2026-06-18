@@ -3447,7 +3447,7 @@ static int wcs_fletcher32(int chksum, const void *data, size_t len)
 
 //----------------------------------------------------------------------------
 
-int wcsp2s(
+static int wcsp2s_(
   struct wcsprm *wcs,
   int ncoord,
   int nelem,
@@ -3456,7 +3456,8 @@ int wcsp2s(
   double phi[],
   double theta[],
   double world[],
-  int stat[])
+  int stat[],
+  int flags)
 
 {
   static const char *function = "wcsp2s";
@@ -3491,7 +3492,7 @@ int wcsp2s(
   struct linprm *lin = &(wcs->lin);
   if (!(lin->dispre || lin->disseq)) {
     // No distortions present, do vector call.
-    int istat = linp2x(lin, ncoord, nelem, pixcrd, imgcrd);
+    int istat = linp2xflags(lin, ncoord, nelem, pixcrd, imgcrd, flags);
     if (istat) {
       // If one fails then all fail.
       status = wcserr_set(WCS_ERRMSG(wcs_linerr[istat]));
@@ -3506,7 +3507,7 @@ int wcsp2s(
     double *img = imgcrd;
     int *statp = stat;
     for (int k = 0 ; k < ncoord; k++, pix += nelem, img += nelem, statp++) {
-      int istat = linp2x(lin, 1, nelem, pix, img);
+      int istat = linp2xflags(lin, 1, nelem, pix, img, flags);
       if (istat) {
         status = wcserr_set(WCS_ERRMSG(wcs_linerr[istat]));
         if (status != WCSERR_BAD_PIX) {
@@ -3730,9 +3731,41 @@ cleanup:
   return status;
 }
 
+int wcsp2s(
+  struct wcsprm *wcs,
+  int ncoord,
+  int nelem,
+  const double pixcrd[],
+  double imgcrd[],
+  double phi[],
+  double theta[],
+  double world[],
+  int stat[])
+
+{
+  return wcsp2s_(wcs, ncoord, nelem, pixcrd, imgcrd, phi, theta, world, stat, 0);
+}
+
+int wcsp2sflags(
+  struct wcsprm *wcs,
+  int ncoord,
+  int nelem,
+  const double pixcrd[],
+  double imgcrd[],
+  double phi[],
+  double theta[],
+  double world[],
+  int stat[],
+  int flags)
+
+{
+  return wcsp2s_(wcs, ncoord, nelem, pixcrd, imgcrd, phi, theta, world, stat,
+                 flags);
+}
+
 //----------------------------------------------------------------------------
 
-int wcss2p(
+static int wcss2p_(
   struct wcsprm* wcs,
   int ncoord,
   int nelem,
@@ -3741,7 +3774,8 @@ int wcss2p(
   double theta[],
   double imgcrd[],
   double pixcrd[],
-  int stat[])
+  int stat[],
+  int flags)
 
 {
   static const char *function = "wcss2p";
@@ -3947,7 +3981,7 @@ int wcss2p(
   struct linprm *lin = &(wcs->lin);
   if (!(lin->dispre || lin->disseq)) {
     // No distortions present, do vector call.
-    int istat = linx2p(lin, ncoord, nelem, imgcrd, pixcrd);
+    int istat = linx2pflags(lin, ncoord, nelem, imgcrd, pixcrd, flags);
     if (istat) {
       status = wcserr_set(WCS_ERRMSG(wcs_linerr[istat]));
       goto cleanup;
@@ -3961,7 +3995,7 @@ int wcss2p(
     double *pix = pixcrd;
     int *statp = stat;
     for (int k = 0 ; k < ncoord; k++, pix += nelem, img += nelem, statp++) {
-      int istat = linx2p(lin, 1, nelem, img, pix);
+      int istat = linx2pflags(lin, 1, nelem, img, pix, flags);
       if (istat) {
         status = wcserr_set(WCS_ERRMSG(wcs_linerr[istat]));
         if (status != WCSERR_BAD_WORLD) {
@@ -3995,6 +4029,38 @@ int wcss2p(
 cleanup:
   free(istatp);
   return status;
+}
+
+int wcss2p(
+  struct wcsprm* wcs,
+  int ncoord,
+  int nelem,
+  const double world[],
+  double phi[],
+  double theta[],
+  double imgcrd[],
+  double pixcrd[],
+  int stat[])
+
+{
+  return wcss2p_(wcs, ncoord, nelem, world, phi, theta, imgcrd, pixcrd, stat, 0);
+}
+
+int wcss2pflags(
+  struct wcsprm* wcs,
+  int ncoord,
+  int nelem,
+  const double world[],
+  double phi[],
+  double theta[],
+  double imgcrd[],
+  double pixcrd[],
+  int stat[],
+  int flags)
+
+{
+  return wcss2p_(wcs, ncoord, nelem, world, phi, theta, imgcrd, pixcrd, stat,
+                 flags);
 }
 
 //----------------------------------------------------------------------------
