@@ -18,14 +18,16 @@ void* AstropyWcs_API[] = {
   /*  5 */ (void *)get_distortion_offset,
   /*  6 */ (void *)p4_pix2foc,
   /*  7 */ (void *)p4_pix2deltas,
-  /* sip.h */
-  /*  8 */ (void *)sip_clear,
-  /*  9 */ (void *)sip_init,
-  /* 10 */ (void *)sip_free,
-  /* 11 */ (void *)sip_pix2foc,
-  /* 12 */ (void *)sip_pix2deltas,
-  /* 13 */ (void *)sip_foc2pix,
-  /* 14 */ (void *)sip_foc2deltas,
+  /* sip.h -- SIP is now handled by WCSLIB (disprm); these C-API slots are
+     retired but kept as NULL placeholders so the remaining indices are
+     unchanged for any downstream consumer. */
+  /*  8 */ NULL,
+  /*  9 */ NULL,
+  /* 10 */ NULL,
+  /* 11 */ NULL,
+  /* 12 */ NULL,
+  /* 13 */ NULL,
+  /* 14 */ NULL,
   /* pipeline.h */
   /* 15 */ (void *)pipeline_clear,
   /* 16 */ (void *)pipeline_init,

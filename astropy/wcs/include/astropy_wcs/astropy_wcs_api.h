@@ -5,7 +5,6 @@
 #include "pyutil.h"
 #include "distortion.h"
 #include "pipeline.h"
-#include "sip.h"
 #include "wcs.h"
 #include "wcsprintf.h"
 
@@ -56,15 +55,11 @@ void** AstropyWcs_API;
 #define get_distortion_offset (*(double (*)(const distortion_lookup_t*, const double* const)) AstropyWcs_API[5])
 #define p4_pix2foc (*(int (*)(const unsigned int, const distortion_lookup_t**, const unsigned int, const double *, double *)) AstropyWcs_API[6])
 #define p4_pix2deltas (*(int (*)(const unsigned int, const distortion_lookup_t**, const unsigned int, const double *, double *)) AstropyWcs_API[7])
-#define sip_clear (*(void (*)(sip_t*) AstropyWcs_API[8]))
-#define sip_init (*(int (*)(sip_t*, unsigned int, double*, unsigned int, double*, unsigned int, double*, unsigned int, double*, double*)) AstropyWcs_API[9])
-#define sip_free (*(void (*)(sip_t*) AstropyWcs_API[10]))
-#define sip_pix2foc (*(int (*)(sip_t*, unsigned int, unsigned int, double*, double*)) AstropyWcs_API[11])
-#define sip_pix2deltas (*(int (*)(sip_t*, unsigned int, unsigned int, double*, double*)) AstropyWcs_API[12])
-#define sip_foc2pix (*(int (*)(sip_t*, unsigned int, unsigned int, double*, double*)) AstropyWcs_API[13])
-#define sip_foc2deltas (*(int (*)(sip_t*, unsigned int, unsigned int, double*, double*)) AstropyWcs_API[14])
+/* Indices 8-14 (the SIP C-API) are retired: SIP is now handled by WCSLIB
+   (disprm) and built from pure Python.  The slots remain as NULL placeholders
+   in the table so the remaining indices are unchanged. */
 #define pipeline_clear (*(void (*)(pipeline_t*)) AstropyWcs_API[15])
-#define pipeline_init (*(void (*)(pipeline_t*, sip_t*, distortion_lookup_t**, struct wcsprm*)) AstropyWcs_API[16])
+#define pipeline_init (*(void (*)(pipeline_t*, struct disprm*, distortion_lookup_t**, struct wcsprm*)) AstropyWcs_API[16])
 #define pipeline_free (*(void (*)(pipeline_t*)) AstropyWcs_API[17])
 #define pipeline_all_pixel2world (*(int (*)(pipeline_t*, unsigned int, unsigned int, double*, double*)) AstropyWcs_API[18])
 #define pipeline_pix2foc (*(int (*)(pipeline_t*, unsigned int, unsigned int, double*, double*)) AstropyWcs_API[19])

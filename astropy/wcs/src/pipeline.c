@@ -6,11 +6,50 @@
 #include "astropy_wcs/pipeline.h"
 #include "astropy_wcs/util.h"
 #include "wcserr.h"
+#include "dis.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define PIP_ERRMSG(status) WCSERR_SET(status)
+
+/*
+ * Apply a WCSLIB distortion (e.g. SIP) as an additive correction in the
+ * pipeline: for each coordinate, foc[k] += disp2x(input)[k] - input[k].
+ * disp2x() returns the full corrected coordinate; subtracting the input
+ * yields the delta that is accumulated alongside det2im/cpdis.  This is the
+ * generic replacement for the former hand-coded sip_pix2deltas().
+ */
+static int
+disprm_pix2deltas(
+    struct disprm* dis,
+    const unsigned int ncoord,
+    const double* input /* [ncoord][2] */,
+    double* foc /* [ncoord][2] */) {
+
+  unsigned int i;
+  double rawcrd[2];
+  double discrd[2];
+  int status;
+
+  if (dis == NULL) {
+    return 0;
+  }
+
+  for (i = 0; i < ncoord; ++i) {
+    rawcrd[0] = input[2 * i];
+    rawcrd[1] = input[2 * i + 1];
+
+    if ((status = disp2x(dis, rawcrd, discrd))) {
+      return status;
+    }
+
+    foc[2 * i]     += discrd[0] - rawcrd[0];
+    foc[2 * i + 1] += discrd[1] - rawcrd[1];
+  }
+
+  return 0;
+}
 
 void
 pipeline_clear(
@@ -29,7 +68,7 @@ void
 pipeline_init(
     pipeline_t* pipeline,
     /*@shared@*/ distortion_lookup_t** det2im /* [2] */,
-    /*@shared@*/ sip_t* sip,
+    /*@shared@*/ struct disprm* sip,
     /*@shared@*/ distortion_lookup_t** cpdis /* [2] */,
     /*@shared@*/ struct wcsprm* wcs) {
 
@@ -244,12 +283,14 @@ int pipeline_pix2foc(
   }
 
   if (has_sip) {
-    status = sip_pix2deltas(pipeline->sip, 2, ncoord, input, foc);
+    status = disprm_pix2deltas(pipeline->sip, ncoord, input, foc);
     if (status) {
       if (pipeline->err == NULL) {
         pipeline->err = calloc(1, sizeof(struct wcserr));
       }
-      wcserr_copy(pipeline->sip->err, pipeline->err);
+      if (pipeline->sip->err) {
+        wcserr_copy(pipeline->sip->err, pipeline->err);
+      }
       goto exit;
     }
   }

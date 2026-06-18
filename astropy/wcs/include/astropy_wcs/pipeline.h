@@ -6,13 +6,14 @@
 #ifndef __PIPELINE_H__
 #define __PIPELINE_H__
 
-#include "sip.h"
 #include "distortion.h"
 #include "wcs.h"
+#include "dis.h"
 
 typedef struct {
   distortion_lookup_t*                   det2im[2];
-  /*@shared@*/ /*@null@*/ sip_t*         sip;
+  /* SIP (and any prior) distortion, applied via WCSLIB's disprm/disp2x. */
+  /*@shared@*/ /*@null@*/ struct disprm* sip;
   distortion_lookup_t*                   cpdis[2];
   /*@shared@*/ /*@null@*/ struct wcsprm* wcs;
   struct wcserr*                         err;
@@ -32,7 +33,7 @@ void
 pipeline_init(
     pipeline_t* pipeline,
     /*@shared@*/ distortion_lookup_t** det2im /* [2] */,
-    /*@shared@*/ sip_t* sip,
+    /*@shared@*/ struct disprm* sip,
     /*@shared@*/ distortion_lookup_t** cpdis /* [2] */,
     /*@shared@*/ struct wcsprm* wcs);
 
