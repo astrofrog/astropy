@@ -1164,8 +1164,13 @@ int disp2x(
 
   int naxis = dis->naxis;
 
+  // Use a stack buffer for the common small-naxis case to avoid a per-call
+  // heap allocation on the coordinate transformation hot path.
+  double stackcrd[16];
   double *tmpcrd;
-  if ((tmpcrd = calloc(naxis, sizeof(double))) == 0x0) {
+  if (naxis <= 16) {
+    tmpcrd = stackcrd;
+  } else if ((tmpcrd = calloc(naxis, sizeof(double))) == 0x0) {
     status = wcserr_set(DIS_ERRMSG(DISERR_MEMORY));
     goto cleanup;
   }
@@ -1204,7 +1209,7 @@ int disp2x(
   }
 
 cleanup:
-  if (tmpcrd) free(tmpcrd);
+  if (tmpcrd != stackcrd) free(tmpcrd);
   return status;
 }
 
@@ -1247,8 +1252,13 @@ int disx2p(
 
   int naxis = dis->naxis;
 
+  // Use a stack buffer for the common small-naxis case to avoid a per-call
+  // heap allocation on the (iterative) inverse transformation hot path.
+  double stackmem[5*16];
   double *tmpmem;
-  if ((tmpmem = calloc(5*naxis, sizeof(double))) == 0x0) {
+  if (naxis <= 16) {
+    tmpmem = stackmem;
+  } else if ((tmpmem = calloc(5*naxis, sizeof(double))) == 0x0) {
     status = wcserr_set(DIS_ERRMSG(DISERR_MEMORY));
     goto cleanup;
   }
@@ -1416,7 +1426,7 @@ int disx2p(
 
 
 cleanup:
-  if (tmpmem) free(tmpmem);
+  if (tmpmem != stackmem) free(tmpmem);
   return status;
 }
 
