@@ -884,7 +884,25 @@ def _split_matrix(matrix):
     return split_info
 
 
-def pixel_to_pixel(wcs_in, wcs_out, *inputs):
+def _transform_pixel_values(wcs_in, wcs_out, pixel_inputs):
+    """
+    Convert pixel coordinates in ``wcs_in`` to pixel coordinates in
+    ``wcs_out``, returning a tuple with one array per output pixel dimension.
+    """
+    world_outputs = wcs_in.pixel_to_world(*pixel_inputs)
+
+    if not isinstance(world_outputs, (tuple, list)):
+        world_outputs = (world_outputs,)
+
+    pixel_outputs = wcs_out.world_to_pixel(*world_outputs)
+
+    if wcs_out.pixel_n_dim == 1:
+        pixel_outputs = (pixel_outputs,)
+
+    return pixel_outputs
+
+
+def pixel_to_pixel(wcs_in, wcs_out, *inputs, chunk_size=200_000):
     """
     Transform pixel coordinates in a dataset with a WCS to pixel coordinates
     in another dataset with a different WCS.
@@ -903,6 +921,14 @@ def pixel_to_pixel(wcs_in, wcs_out, *inputs):
         high-level shared APE 14 WCS API.
     *inputs :
         Scalars or arrays giving the pixel coordinates to transform.
+    chunk_size : int or None, optional
+        Maximum number of pixel coordinates to transform at a time. Inputs
+        larger than this are transformed in chunks, which limits the peak
+        memory usage caused by temporary arrays allocated inside the
+        underlying world coordinate transformations, and is typically also
+        faster than transforming all coordinates in one step due to better
+        CPU cache usage. Set this to `None` to transform all coordinates in
+        a single step.
     """
     # Shortcut for scalars
     if np.isscalar(inputs[0]):
@@ -929,15 +955,24 @@ def pixel_to_pixel(wcs_in, wcs_out, *inputs):
 
         pixel_inputs = np.broadcast_arrays(*pixel_inputs)
 
-        world_outputs = wcs_in.pixel_to_world(*pixel_inputs)
+        size = pixel_inputs[0].size
 
-        if not isinstance(world_outputs, (tuple, list)):
-            world_outputs = (world_outputs,)
-
-        pixel_outputs = wcs_out.world_to_pixel(*world_outputs)
-
-        if wcs_out.pixel_n_dim == 1:
-            pixel_outputs = (pixel_outputs,)
+        if chunk_size is not None and size > chunk_size:
+            # Transform the coordinates in chunks - slicing the flat
+            # iterator copies out each chunk without ever expanding
+            # broadcasted inputs into full-size arrays.
+            pixel_outputs = [None] * wcs_out.pixel_n_dim
+            for ipix in pixel_out_indices:
+                pixel_outputs[ipix] = np.empty(pixel_inputs[0].shape)
+            for start in range(0, size, chunk_size):
+                stop = start + chunk_size
+                chunk_outputs = _transform_pixel_values(
+                    wcs_in, wcs_out, [x.flat[start:stop] for x in pixel_inputs]
+                )
+                for ipix in pixel_out_indices:
+                    pixel_outputs[ipix].flat[start:stop] = chunk_outputs[ipix]
+        else:
+            pixel_outputs = _transform_pixel_values(wcs_in, wcs_out, pixel_inputs)
 
         for ipix in range(wcs_out.pixel_n_dim):
             if ipix in pixel_out_indices:

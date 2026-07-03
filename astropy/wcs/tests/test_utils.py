@@ -1326,6 +1326,52 @@ def test_pixel_to_pixel_1d():
     assert unbroadcast(x).shape == (10,)
 
 
+def test_pixel_to_pixel_chunked():
+    wcs_in = WCS(naxis=3)
+    wcs_in.wcs.ctype = "DEC--TAN", "FREQ", "RA---TAN"
+    wcs_in.wcs.set()
+
+    wcs_out = WCS(naxis=3)
+    wcs_out.wcs.ctype = "GLON-CAR", "GLAT-CAR", "FREQ"
+    wcs_out.wcs.set()
+
+    x = np.linspace(10, 20, 10)
+    y = np.linspace(10, 20, 20)
+    z = np.linspace(10, 20, 30)
+    Z1, Y1, X1 = np.meshgrid(z, y, x, indexing="ij", copy=False)
+
+    X2, Y2, Z2 = pixel_to_pixel(wcs_in, wcs_out, X1, Y1, Z1, chunk_size=None)
+    X3, Y3, Z3 = pixel_to_pixel(wcs_in, wcs_out, X1, Y1, Z1, chunk_size=17)
+
+    # Chunking should not change the results
+    assert np.array_equal(X2, X3)
+    assert np.array_equal(Y2, Y3)
+    assert np.array_equal(Z2, Z3)
+
+    # The broadcasting of the input should be retained even when chunking
+    assert unbroadcast(X3).shape == (30, 1, 10)
+    assert unbroadcast(Y3).shape == (30, 1, 10)
+    assert unbroadcast(Z3).shape == (20, 1)
+
+
+def test_pixel_to_pixel_1d_chunked():
+    wcs_in = WCS(naxis=1)
+    wcs_in.wcs.ctype = ("COORD1",)
+    wcs_in.wcs.cunit = ("nm",)
+    wcs_in.wcs.set()
+
+    wcs_out = WCS(naxis=1)
+    wcs_out.wcs.ctype = ("COORD2",)
+    wcs_out.wcs.cunit = ("cm",)
+    wcs_out.wcs.set()
+
+    x = np.linspace(10, 20, 100)
+    assert np.array_equal(
+        pixel_to_pixel(wcs_in, wcs_out, x, chunk_size=None),
+        pixel_to_pixel(wcs_in, wcs_out, x, chunk_size=7),
+    )
+
+
 header_str_linear = """
 XTENSION= 'IMAGE   '           / Image extension
 BITPIX  =                  -32 / array data type
