@@ -1,5 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 import numpy as np
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
 from astropy.tests.figures import figure_test
@@ -153,6 +154,9 @@ class TestFrame(BaseImageTests):
         wcs = WCS(self.msx_header)
 
         fig = Figure(figsize=(4, 4))
+        # Attach a real canvas so that fig.canvas.draw() actually renders and
+        # therefore triggers the automatic placement logic.
+        FigureCanvasAgg(fig)
         ax = WCSAxes(fig, [0.15, 0.15, 0.7, 0.7], wcs=wcs, frame_class=HexagonalFrame)
         fig.add_axes(ax)
 
@@ -160,25 +164,37 @@ class TestFrame(BaseImageTests):
 
         lon, lat = ax.coords
 
-        # '#' is the automatic placement sentinel and is not drawn, so exclude
-        # it when checking which spines the labels actually appear on.
-        lon_spines = set(lon._axislabels.get_visible_axes()) - {"#"}
-        lat_spines = set(lat._axislabels.get_visible_axes()) - {"#"}
-        assert len(lon_spines) <= 1
-        assert len(lat_spines) <= 1
-        assert not (lon_spines & lat_spines)
+        def assert_one_spine_each():
+            # After a real draw, the automatic placement should have assigned
+            # each coordinate's axis label and tick labels to exactly one
+            # concrete spine, distinct between the two coordinates. The '#'
+            # automatic placement sentinel is kept in the positions (so that
+            # subsequent draws stay dynamic) but is never drawn, so exclude it
+            # when checking which spines the labels actually appear on.
+            lon_spines = set(lon._axislabels.get_visible_axes()) - {"#"}
+            lat_spines = set(lat._axislabels.get_visible_axes()) - {"#"}
+            assert len(lon_spines) == 1
+            assert len(lat_spines) == 1
+            assert not (lon_spines & lat_spines)
 
-        lon_spines = set(lon._ticklabels.get_visible_axes()) - {"#"}
-        lat_spines = set(lat._ticklabels.get_visible_axes()) - {"#"}
-        assert len(lon_spines) <= 1
-        assert len(lat_spines) <= 1
-        assert not (lon_spines & lat_spines)
+            lon_spines = set(lon._ticklabels.get_visible_axes()) - {"#"}
+            lat_spines = set(lat._ticklabels.get_visible_axes()) - {"#"}
+            assert len(lon_spines) == 1
+            assert len(lat_spines) == 1
+            assert not (lon_spines & lat_spines)
+
+        assert_one_spine_each()
 
         # Requesting automatic placement explicitly on a custom frame should
-        # also work (this used to raise an AttributeError).
+        # also work (this used to raise an AttributeError inside draw because
+        # custom frames did not define _spine_auto_position_order).
         lon.set_ticklabel_position("#")
         lat.set_ticklabel_position("#")
+        lon.set_axislabel_position("#")
+        lat.set_axislabel_position("#")
         fig.canvas.draw()
+
+        assert_one_spine_each()
 
     def test_copy_frame_properties_change_wcs(self):
         # When WCS is changed, a new frame is created, so we need to make sure
