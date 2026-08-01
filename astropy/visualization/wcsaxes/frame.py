@@ -188,6 +188,13 @@ class BaseFrame(OrderedDict, metaclass=abc.ABCMeta):
         return "lower" if ymin < ymax else "upper"
 
     @property
+    def _spine_auto_position_order(self):
+        # The order in which the automatic placement of ticks, tick labels and
+        # axis labels should consider spines. Built-in frames override this
+        # with a class attribute; custom frames fall back to the spine order.
+        return self.spine_names
+
+    @property
     def transform(self):
         return self._transform
 
