@@ -113,8 +113,30 @@ int wcsprintf(const char *format, ...)
       wcsprintf_bufp = wcsprintf_buff + used;
     }
 
+    // vsnprintf() returns the number of bytes the message would have occupied
+    // had it not been truncated, so a single message longer than the free
+    // space would otherwise advance wcsprintf_bufp past the end of the buffer.
+    // Grow the buffer to fit and reformat if that happens.
+    va_list arg_copy;
+    va_copy(arg_copy, arg_list);
     size_t size = wcsprintf_size - used;
     nbytes = vsnprintf(wcsprintf_bufp, size, format, arg_list);
+    if (nbytes >= 0 && (size_t)nbytes >= size) {
+      wcsprintf_size = used + nbytes + 1024;
+      char *realloc_buff = realloc(wcsprintf_buff, wcsprintf_size);
+      if (realloc_buff == NULL) {
+        free(wcsprintf_buff);
+        wcsprintf_buff = 0x0;
+        va_end(arg_copy);
+        va_end(arg_list);
+        return 1;
+      }
+      wcsprintf_buff = realloc_buff;
+      wcsprintf_bufp = wcsprintf_buff + used;
+      nbytes = vsnprintf(wcsprintf_bufp, wcsprintf_size - used, format,
+                         arg_copy);
+    }
+    va_end(arg_copy);
     wcsprintf_bufp += nbytes;
   }
 
@@ -158,8 +180,30 @@ int wcsfprintf(FILE *stream, const char *format, ...)
       wcsprintf_bufp = wcsprintf_buff + used;
     }
 
+    // vsnprintf() returns the number of bytes the message would have occupied
+    // had it not been truncated, so a single message longer than the free
+    // space would otherwise advance wcsprintf_bufp past the end of the buffer.
+    // Grow the buffer to fit and reformat if that happens.
+    va_list arg_copy;
+    va_copy(arg_copy, arg_list);
     size_t size = wcsprintf_size - used;
     nbytes = vsnprintf(wcsprintf_bufp, size, format, arg_list);
+    if (nbytes >= 0 && (size_t)nbytes >= size) {
+      wcsprintf_size = used + nbytes + 1024;
+      char *realloc_buff = realloc(wcsprintf_buff, wcsprintf_size);
+      if (realloc_buff == NULL) {
+        free(wcsprintf_buff);
+        wcsprintf_buff = 0x0;
+        va_end(arg_copy);
+        va_end(arg_list);
+        return 1;
+      }
+      wcsprintf_buff = realloc_buff;
+      wcsprintf_bufp = wcsprintf_buff + used;
+      nbytes = vsnprintf(wcsprintf_bufp, wcsprintf_size - used, format,
+                         arg_copy);
+    }
+    va_end(arg_copy);
     wcsprintf_bufp += nbytes;
   }
 
