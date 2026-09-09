@@ -1,0 +1,5 @@
+Fixed a heap buffer overflow in the bundled WCSLIB ``wcsprintf``/``wcsfprintf``
+diagnostic buffer that could corrupt memory when parsing headers (for example
+via ``find_all_wcs``) that generate a single rejection message longer than the
+remaining free space in the buffer. The truncated length reported by
+``vsnprintf`` is no longer used to advance past the end of the allocation.
