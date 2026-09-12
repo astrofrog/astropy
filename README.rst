@@ -1,5 +1,7 @@
 |Astropy Logo|
 
+Blast radius
+
 :Versions:   |Zenodo| |PyPI Status| |Supported Python Versions|
 :Status:     |Coverage Status| |Actions Status| |CircleCI Status| |Documentation Status|
 :Tools:      |Pre-Commit| |Ruff|
