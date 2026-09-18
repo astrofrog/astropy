@@ -1,16 +1,24 @@
 import numbers
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from typing import Any, cast
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from astropy.utils.decorators import lazyproperty
+from astropy.wcs.wcsapi.low_level_api import (
+    BaseLowLevelWCS,
+    _WorldAxisClass,
+    _WorldAxisComponent,
+)
 
 from .base import BaseWCSWrapper
 
 __all__ = ["SlicedLowLevelWCS", "sanitize_slices"]
 
 
-def sanitize_slices(slices, ndim):
+def sanitize_slices(slices: Any, ndim: int) -> list[slice | int]:
     """
     Given a slice as input sanitise it to an easier to parse format.format.
 
@@ -58,7 +66,7 @@ def sanitize_slices(slices, ndim):
     return slices
 
 
-def combine_slices(slice1, slice2):
+def combine_slices(slice1: Any, slice2: Any) -> slice | int:
     """
     Given two slices that can be applied to a 1-d array, find the resulting
     slice that corresponds to the combination of both slices. We assume that
@@ -72,7 +80,7 @@ def combine_slices(slice1, slice2):
 
     if isinstance(slice2, numbers.Integral):
         if slice1.start is None:
-            return slice2
+            return cast(int, slice2)
         else:
             return slice2 + slice1.start
 
@@ -119,7 +127,12 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
 
     """
 
-    def __init__(self, wcs, slices):
+    _slices_array: list[Any]
+    _slices_pixel: list[Any]
+    _pixel_keep: np.ndarray
+    _world_keep: np.ndarray
+
+    def __init__(self, wcs: BaseLowLevelWCS, slices: Any) -> None:
         slices = sanitize_slices(slices, wcs.pixel_n_dim)
 
         if isinstance(wcs, SlicedLowLevelWCS):
@@ -161,12 +174,12 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
             )
 
     @lazyproperty
-    def dropped_world_dimensions(self):
+    def dropped_world_dimensions(self) -> dict[str, Any]:
         """
         Information describing the dropped world dimensions.
         """
         world_coords = self._pixel_to_world_values_all(*[0] * len(self._pixel_keep))
-        dropped_info = defaultdict(list)
+        dropped_info: defaultdict[str, Any] = defaultdict(list)
 
         for i in range(self._wcs.world_n_dim):
             if i in self._world_keep:
@@ -194,30 +207,30 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
         return dict(dropped_info)
 
     @property
-    def pixel_n_dim(self):
+    def pixel_n_dim(self) -> int:
         return len(self._pixel_keep)
 
     @property
-    def world_n_dim(self):
+    def world_n_dim(self) -> int:
         return len(self._world_keep)
 
     @property
-    def world_axis_physical_types(self):
-        return [self._wcs.world_axis_physical_types[i] for i in self._world_keep]
+    def world_axis_physical_types(self) -> Sequence[str | None]:
+        return [self._wcs.world_axis_physical_types[int(i)] for i in self._world_keep]
 
     @property
-    def world_axis_units(self):
-        return [self._wcs.world_axis_units[i] for i in self._world_keep]
+    def world_axis_units(self) -> Sequence[str]:
+        return [self._wcs.world_axis_units[int(i)] for i in self._world_keep]
 
     @property
-    def pixel_axis_names(self):
-        return [self._wcs.pixel_axis_names[i] for i in self._pixel_keep]
+    def pixel_axis_names(self) -> Sequence[str]:
+        return [self._wcs.pixel_axis_names[int(i)] for i in self._pixel_keep]
 
     @property
-    def world_axis_names(self):
-        return [self._wcs.world_axis_names[i] for i in self._world_keep]
+    def world_axis_names(self) -> Sequence[str]:
+        return [self._wcs.world_axis_names[int(i)] for i in self._world_keep]
 
-    def _pixel_to_world_values_all(self, *pixel_arrays):
+    def _pixel_to_world_values_all(self, *pixel_arrays: Any) -> Any:
         pixel_arrays = tuple(map(np.asanyarray, pixel_arrays))
         pixel_arrays_new = []
         ipix_curr = -1
@@ -233,11 +246,10 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
                 else:
                     pixel_arrays_new.append(pixel_arrays[ipix_curr])
 
-        pixel_arrays_new = np.broadcast_arrays(*pixel_arrays_new)
-        return self._wcs.pixel_to_world_values(*pixel_arrays_new)
+        return self._wcs.pixel_to_world_values(*np.broadcast_arrays(*pixel_arrays_new))
 
-    def pixel_to_world_values(self, *pixel_arrays):
-        world_arrays = self._pixel_to_world_values_all(*pixel_arrays)
+    def pixel_to_world_values(self, *pixel_arrays: ArrayLike) -> Any:
+        world_arrays: Any = self._pixel_to_world_values_all(*pixel_arrays)
 
         # Detect the case of a length 0 array
         if isinstance(world_arrays, np.ndarray) and not world_arrays.shape:
@@ -252,25 +264,26 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
 
         return world_arrays
 
-    def world_to_pixel_values(self, *world_arrays):
+    def world_to_pixel_values(self, *world_arrays: ArrayLike) -> Any:
         sliced_out_world_coords = self._pixel_to_world_values_all(
             *[0] * len(self._pixel_keep)
         )
 
-        world_arrays = tuple(map(np.asanyarray, world_arrays))
-        world_arrays_new = []
+        world_values = tuple(map(np.asanyarray, world_arrays))
+        world_arrays_new: list[Any] = []
         iworld_curr = -1
         for iworld in range(self._wcs.world_n_dim):
             if iworld in self._world_keep:
                 iworld_curr += 1
-                world_arrays_new.append(world_arrays[iworld_curr])
+                world_arrays_new.append(world_values[iworld_curr])
             else:
                 world_arrays_new.append(sliced_out_world_coords[iworld])
 
-        world_arrays_new = np.broadcast_arrays(*world_arrays_new)
-        pixel_arrays = self._wcs.world_to_pixel_values(*world_arrays_new)
-        pixel_arrays = (
-            list(pixel_arrays) if self._wcs.pixel_n_dim > 1 else [pixel_arrays]
+        pixel_values: Any = self._wcs.world_to_pixel_values(
+            *np.broadcast_arrays(*world_arrays_new)
+        )
+        pixel_values = (
+            list(pixel_values) if self._wcs.pixel_n_dim > 1 else [pixel_values]
         )
 
         for ipixel in range(self._wcs.pixel_n_dim):
@@ -278,22 +291,22 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
                 isinstance(self._slices_pixel[ipixel], slice)
                 and self._slices_pixel[ipixel].start is not None
             ):
-                pixel_arrays[ipixel] -= self._slices_pixel[ipixel].start
+                pixel_values[ipixel] -= self._slices_pixel[ipixel].start
 
         # Detect the case of a length 0 array
-        if isinstance(pixel_arrays, np.ndarray) and not pixel_arrays.shape:
-            return pixel_arrays
-        pixel = tuple(pixel_arrays[ip] for ip in self._pixel_keep)
-        if self.pixel_n_dim == 1:
-            pixel = pixel[0]
-        return pixel
+        if isinstance(pixel_values, np.ndarray) and not pixel_values.shape:
+            return pixel_values
+        pixel = tuple(pixel_values[ip] for ip in self._pixel_keep)
+        return pixel[0] if self.pixel_n_dim == 1 else pixel
 
     @property
-    def world_axis_object_components(self):
-        return [self._wcs.world_axis_object_components[idx] for idx in self._world_keep]
+    def world_axis_object_components(self) -> Sequence[_WorldAxisComponent]:
+        return [
+            self._wcs.world_axis_object_components[int(idx)] for idx in self._world_keep
+        ]
 
     @property
-    def world_axis_object_classes(self):
+    def world_axis_object_classes(self) -> Mapping[str, _WorldAxisClass]:
         keys_keep = [item[0] for item in self.world_axis_object_components]
         return dict(
             [
@@ -304,33 +317,37 @@ class SlicedLowLevelWCS(BaseWCSWrapper):
         )
 
     @property
-    def array_shape(self):
+    def array_shape(self) -> tuple[int, ...] | None:
         if self._wcs.array_shape:
             return np.broadcast_to(0, self._wcs.array_shape)[
                 tuple(self._slices_array)
             ].shape
+        return None
 
     @property
-    def pixel_shape(self):
+    def pixel_shape(self) -> tuple[int, ...] | None:
         if self.array_shape:
             return tuple(self.array_shape[::-1])
+        return None
 
     @property
-    def pixel_bounds(self):
+    def pixel_bounds(self) -> Sequence[tuple[float, float] | None] | None:
         if self._wcs.pixel_bounds is None:
-            return
+            return None
 
-        bounds = []
+        bounds: list[Any] = []
         for idx in self._pixel_keep:
             if self._slices_pixel[idx].start is None:
-                bounds.append(self._wcs.pixel_bounds[idx])
+                bounds.append(self._wcs.pixel_bounds[int(idx)])
             else:
-                imin, imax = self._wcs.pixel_bounds[idx]
+                imin, imax = cast(
+                    "tuple[float, float]", self._wcs.pixel_bounds[int(idx)]
+                )
                 start = self._slices_pixel[idx].start
                 bounds.append((imin - start, imax - start))
 
         return tuple(bounds)
 
     @property
-    def axis_correlation_matrix(self):
+    def axis_correlation_matrix(self) -> np.ndarray:
         return self._wcs.axis_correlation_matrix[self._world_keep][:, self._pixel_keep]

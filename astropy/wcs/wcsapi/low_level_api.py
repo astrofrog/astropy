@@ -1,9 +1,28 @@
 import abc
 import os
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy.typing import ArrayLike
+
+if TYPE_CHECKING:
+    from astropy.visualization.wcsaxes import WCSAxes
 
 __all__ = ["BaseLowLevelWCS", "validate_physical_types"]
+
+# A tuple describing how to construct the world value for one world axis from a
+# high-level object, as returned by ``world_axis_object_components``.
+type _WorldAxisComponent = tuple[str, str | int, str | Callable[[Any], Any]]
+
+# A tuple describing the high-level class corresponding to a key in
+# ``world_axis_object_components``, as stored in ``world_axis_object_classes``.
+# The tuple has three elements plus an optional callable as a fourth element.
+# The first element is a string only if the classes are given in serialized
+# form (see ``serialized_classes``).
+type _WorldAxisClass = tuple[
+    type[Any] | str, tuple[Any, ...], dict[str, Any], *tuple[Callable[..., Any], ...]
+]
 
 
 class BaseLowLevelWCS(metaclass=abc.ABCMeta):
@@ -16,21 +35,21 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def pixel_n_dim(self):
+    def pixel_n_dim(self) -> int:
         """
         The number of axes in the pixel coordinate system.
         """
 
     @property
     @abc.abstractmethod
-    def world_n_dim(self):
+    def world_n_dim(self) -> int:
         """
         The number of axes in the world coordinate system.
         """
 
     @property
     @abc.abstractmethod
-    def world_axis_physical_types(self):
+    def world_axis_physical_types(self) -> Sequence[str | None]:
         """
         An iterable of strings describing the physical type for each world axis.
 
@@ -43,7 +62,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def world_axis_units(self):
+    def world_axis_units(self) -> Sequence[str]:
         """
         An iterable of strings given the units of the world coordinates for each
         axis.
@@ -55,7 +74,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    def pixel_to_world_values(self, *pixel_arrays):
+    def pixel_to_world_values(self, *pixel_arrays: ArrayLike) -> Any:
         """
         Convert pixel coordinates to world coordinates.
 
@@ -74,7 +93,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         arrays is returned.
         """
 
-    def array_index_to_world_values(self, *index_arrays):
+    def array_index_to_world_values(self, *index_arrays: ArrayLike) -> Any:
         """
         Convert array indices to world coordinates.
 
@@ -90,7 +109,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return self.pixel_to_world_values(*index_arrays[::-1])
 
     @abc.abstractmethod
-    def world_to_pixel_values(self, *world_arrays):
+    def world_to_pixel_values(self, *world_arrays: ArrayLike) -> Any:
         """
         Convert world coordinates to pixel coordinates.
 
@@ -108,7 +127,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         arrays is returned.
         """
 
-    def world_to_array_index_values(self, *world_arrays):
+    def world_to_array_index_values(self, *world_arrays: ArrayLike) -> Any:
         """
         Convert world coordinates to array indices.
 
@@ -122,19 +141,19 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         method returns a single scalar or array, otherwise a tuple of scalars or
         arrays is returned.
         """
-        pixel_arrays = self.world_to_pixel_values(*world_arrays)
+        pixel_values = self.world_to_pixel_values(*world_arrays)
         if self.pixel_n_dim == 1:
-            pixel_arrays = (pixel_arrays,)
+            pixel_values = (pixel_values,)
         else:
-            pixel_arrays = pixel_arrays[::-1]
+            pixel_values = pixel_values[::-1]
         array_indices = tuple(
-            np.asarray(np.floor(pixel + 0.5), dtype=int) for pixel in pixel_arrays
+            np.asarray(np.floor(pixel + 0.5), dtype=int) for pixel in pixel_values
         )
         return array_indices[0] if self.pixel_n_dim == 1 else array_indices
 
     @property
     @abc.abstractmethod
-    def world_axis_object_components(self):
+    def world_axis_object_components(self) -> Sequence[_WorldAxisComponent]:
         """
         A list with `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_n_dim` elements giving information
         on constructing high-level objects for the world coordinates.
@@ -167,7 +186,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def world_axis_object_classes(self):
+    def world_axis_object_classes(self) -> Mapping[str, _WorldAxisClass]:
         """
         A dictionary giving information on constructing high-level objects for
         the world coordinates.
@@ -225,7 +244,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
     # they are not abstract.
 
     @property
-    def array_shape(self):
+    def array_shape(self) -> tuple[int, ...] | None:
         """
         The shape of the data that the WCS applies to as a tuple of length
         `~astropy.wcs.wcsapi.BaseLowLevelWCS.pixel_n_dim` in ``(row, column)``
@@ -243,7 +262,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
             return self.pixel_shape[::-1]
 
     @property
-    def pixel_shape(self):
+    def pixel_shape(self) -> tuple[int, ...] | None:
         """
         The shape of the data that the WCS applies to as a tuple of length
         `~astropy.wcs.wcsapi.BaseLowLevelWCS.pixel_n_dim` in ``(x, y)``
@@ -263,7 +282,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return None
 
     @property
-    def pixel_bounds(self):
+    def pixel_bounds(self) -> Sequence[tuple[float, float] | None] | None:
         """
         The bounds (in pixel coordinates) inside which the WCS is defined,
         as a list with `~astropy.wcs.wcsapi.BaseLowLevelWCS.pixel_n_dim`
@@ -281,7 +300,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return None
 
     @property
-    def pixel_axis_names(self):
+    def pixel_axis_names(self) -> Sequence[str]:
         """
         An iterable of strings describing the name for each pixel axis.
 
@@ -293,7 +312,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return [""] * self.pixel_n_dim
 
     @property
-    def world_axis_names(self):
+    def world_axis_names(self) -> Sequence[str]:
         """
         An iterable of strings describing the name for each world axis.
 
@@ -306,7 +325,7 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return [""] * self.world_n_dim
 
     @property
-    def axis_correlation_matrix(self):
+    def axis_correlation_matrix(self) -> np.ndarray:
         """
         Returns an (`~astropy.wcs.wcsapi.BaseLowLevelWCS.world_n_dim`,
         `~astropy.wcs.wcsapi.BaseLowLevelWCS.pixel_n_dim`) matrix that
@@ -320,14 +339,14 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return np.ones((self.world_n_dim, self.pixel_n_dim), dtype=bool)
 
     @property
-    def serialized_classes(self):
+    def serialized_classes(self) -> bool:
         """
         Indicates whether Python objects are given in serialized form or as
         actual Python objects.
         """
         return False
 
-    def _as_mpl_axes(self):
+    def _as_mpl_axes(self) -> tuple[type["WCSAxes"], dict[str, Any]]:
         """Compatibility hook for Matplotlib and WCSAxes.
 
         With this method, one can do::
@@ -352,7 +371,7 @@ with open(UCDS_FILE) as f:
     VALID_UCDS = {x.strip() for x in f.read().splitlines()[1:]}
 
 
-def validate_physical_types(physical_types):
+def validate_physical_types(physical_types: Iterable[str | None]) -> None:
     """
     Validate a list of physical types against the UCD1+ standard.
     """

@@ -4,8 +4,12 @@
 # long.
 
 import warnings
+from collections.abc import Mapping, Sequence
+from types import TracebackType
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 import astropy.constants
 from astropy import units as u
@@ -18,14 +22,21 @@ from astropy.units import allclose as quantity_allclose
 from astropy.utils.exceptions import AstropyDeprecationWarning, AstropyUserWarning
 
 from .high_level_api import HighLevelWCSMixin
-from .low_level_api import BaseLowLevelWCS
+from .low_level_api import (
+    BaseLowLevelWCS,
+    _WorldAxisClass,
+    _WorldAxisComponent,
+)
 from .wrappers import SlicedLowLevelWCS
+
+if TYPE_CHECKING:
+    from astropy.time import Time
 
 __all__ = ["FITSWCSAPIMixin", "SlicedFITSWCS", "custom_ctype_to_ucd_mapping"]
 
-C_SI = astropy.constants.c.si.value
+C_SI = astropy.constants.c.si.value  # type: ignore[attr-defined]
 
-VELOCITY_FRAMES = {
+VELOCITY_FRAMES: dict[str, Any] = {
     "GEOCENT": "gcrs",
     "BARYCENT": "icrs",
     "HELIOCENT": "hcrs",
@@ -99,7 +110,9 @@ VELOCITY_FRAMES["CMBDIPOL"] = Galactic(
     l=263.85 * u.deg,
     b=48.25 * u.deg,
     distance=0 * u.km,
-    radial_velocity=-(3.346e-3 / 2.725 * astropy.constants.c).to(u.km / u.s),
+    radial_velocity=-(3.346e-3 / 2.725 * astropy.constants.c).to(  # type: ignore[attr-defined]
+        u.km / u.s
+    ),
 )
 
 
@@ -160,7 +173,7 @@ CTYPE_TO_UCD1 = {
 
 # Keep a list of additional custom mappings that have been registered. This
 # is kept as a list in case nested context managers are used
-CTYPE_TO_UCD1_CUSTOM = []
+CTYPE_TO_UCD1_CUSTOM: list[dict[str, str]] = []
 
 
 class custom_ctype_to_ucd_mapping:
@@ -191,14 +204,19 @@ class custom_ctype_to_ucd_mapping:
         ['food.spam']
     """
 
-    def __init__(self, mapping):
+    def __init__(self, mapping: dict[str, str]) -> None:
         CTYPE_TO_UCD1_CUSTOM.insert(0, mapping)
         self.mapping = mapping
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         pass
 
-    def __exit__(self, type, value, tb):
+    def __exit__(
+        self,
+        type: type[BaseException] | None,
+        value: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         CTYPE_TO_UCD1_CUSTOM.remove(self.mapping)
 
 
@@ -212,37 +230,59 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
     :class:`~astropy.wcs.WCS` class and provides the low- and high-level WCS API.
     """
 
+    if TYPE_CHECKING:
+        # These attributes and methods are provided by the WCS class that this
+        # class is mixed into.
+        naxis: int
+        _naxis: list[int]
+        wcs: Any
+
+        @property
+        def has_celestial(self) -> bool: ...
+
+        @property
+        def has_spectral(self) -> bool: ...
+
+        @property
+        def has_distortion(self) -> bool: ...
+
+        def all_pix2world(self, *args: Any, **kwargs: Any) -> Any: ...
+
+        def all_world2pix(self, *args: Any, **kwargs: Any) -> Any: ...
+
+        def _array_converter(self, *args: Any, **kwargs: Any) -> Any: ...
+
     @property
-    def pixel_n_dim(self):
+    def pixel_n_dim(self) -> int:
         return self.naxis
 
     @property
-    def world_n_dim(self):
+    def world_n_dim(self) -> int:
         return len(self.wcs.ctype)
 
     @property
-    def array_shape(self):
+    def array_shape(self) -> tuple[int, ...] | None:
         if self.pixel_shape is None:
             return None
         else:
             return self.pixel_shape[::-1]
 
     @array_shape.setter
-    def array_shape(self, value):
+    def array_shape(self, value: Sequence[int] | None) -> None:
         if value is None:
             self.pixel_shape = None
         else:
             self.pixel_shape = value[::-1]
 
     @property
-    def pixel_shape(self):
+    def pixel_shape(self) -> tuple[int, ...] | None:
         if all(i == 0 for i in self._naxis):
             return None
         else:
             return tuple(self._naxis)
 
     @pixel_shape.setter
-    def pixel_shape(self, value):
+    def pixel_shape(self, value: Sequence[int] | None) -> None:
         if value is None:
             self._naxis = self.naxis * [0]
         else:
@@ -254,11 +294,11 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
             self._naxis = list(value)
 
     @property
-    def pixel_bounds(self):
+    def pixel_bounds(self) -> Sequence[tuple[float, float] | None] | None:
         return self._pixel_bounds
 
     @pixel_bounds.setter
-    def pixel_bounds(self, value):
+    def pixel_bounds(self, value: Sequence[Any] | None) -> None:
         if value is None:
             self._pixel_bounds = value
         else:
@@ -271,8 +311,8 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
             self._pixel_bounds = list(value)
 
     @property
-    def world_axis_physical_types(self):
-        types = []
+    def world_axis_physical_types(self) -> Sequence[str | None]:
+        types: list[str | None] = []
         # TODO: need to support e.g. TT(TAI)
         for ctype in self.wcs.ctype:
             if ctype.upper().startswith(("UT(", "TT(")):
@@ -288,8 +328,8 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         return types
 
     @property
-    def world_axis_units(self):
-        units = []
+    def world_axis_units(self) -> Sequence[str]:
+        units: list[str] = []
         for unit in self.wcs.cunit:
             if unit is None:
                 unit = ""
@@ -304,11 +344,11 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         return units
 
     @property
-    def world_axis_names(self):
+    def world_axis_names(self) -> Sequence[str]:
         return list(self.wcs.cname)
 
     @property
-    def axis_correlation_matrix(self):
+    def axis_correlation_matrix(self) -> np.ndarray:
         # If there are any distortions present, we assume that there may be
         # correlations between all axes. Maybe if some distortions only apply
         # to the image plane we can improve this?
@@ -333,14 +373,15 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
 
         return matrix
 
-    def _out_of_bounds_to_nan(self, pixel_arrays):
+    def _out_of_bounds_to_nan(self, pixel_arrays: Sequence[Any]) -> Sequence[Any]:
         if self.pixel_bounds is not None:
             pixel_arrays = list(pixel_arrays)
             for idim in range(self.pixel_n_dim):
-                if self.pixel_bounds[idim] is None:
+                bounds = self.pixel_bounds[idim]
+                if bounds is None:
                     continue
-                out_of_bounds = (pixel_arrays[idim] < self.pixel_bounds[idim][0]) | (
-                    pixel_arrays[idim] > self.pixel_bounds[idim][1]
+                out_of_bounds = (pixel_arrays[idim] < bounds[0]) | (
+                    pixel_arrays[idim] > bounds[1]
                 )
                 if np.any(out_of_bounds):
                     pix = pixel_arrays[idim]
@@ -352,12 +393,12 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     pixel_arrays[idim] = pix
         return pixel_arrays
 
-    def pixel_to_world_values(self, *pixel_arrays):
-        pixel_arrays = self._out_of_bounds_to_nan(pixel_arrays)
-        world = self.all_pix2world(*pixel_arrays, 0)
+    def pixel_to_world_values(self, *pixel_arrays: ArrayLike) -> Any:
+        pixel_values = self._out_of_bounds_to_nan(pixel_arrays)
+        world = self.all_pix2world(*pixel_values, 0)
         return world[0] if self.world_n_dim == 1 else tuple(world)
 
-    def world_to_pixel_values(self, *world_arrays):
+    def world_to_pixel_values(self, *world_arrays: ArrayLike) -> Any:
         # avoid circular import
         from astropy.wcs.wcs import NoConvergence
 
@@ -376,18 +417,20 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         return pixel[0] if self.pixel_n_dim == 1 else tuple(pixel)
 
     @property
-    def world_axis_object_components(self):
+    def world_axis_object_components(self) -> Sequence[_WorldAxisComponent]:
         return self._get_components_and_classes()[0]
 
     @property
-    def world_axis_object_classes(self):
+    def world_axis_object_classes(self) -> Mapping[str, _WorldAxisClass]:
         return self._get_components_and_classes()[1]
 
     @property
-    def serialized_classes(self):
+    def serialized_classes(self) -> bool:
         return False
 
-    def _get_components_and_classes(self):
+    def _get_components_and_classes(
+        self,
+    ) -> tuple[list[_WorldAxisComponent], dict[str, _WorldAxisClass]]:
         # The aim of this function is to return whatever is needed for
         # world_axis_object_components and world_axis_object_classes. It's easier
         # to figure it out in one go and then return the values and let the
@@ -425,8 +468,8 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
         from astropy.time.formats import FITS_DEPRECATED_SCALES
         from astropy.wcs.utils import wcs_to_celestial_frame
 
-        components = [None] * self.naxis
-        classes = {}
+        components: list[Any] = [None] * self.naxis
+        classes: dict[str, _WorldAxisClass] = {}
 
         # Let's start off by checking whether the WCS has a pair of celestial
         # components
@@ -439,7 +482,7 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                 # celestial but we don't necessarily have frames for them.
                 celestial_frame = None
             else:
-                kwargs = {}
+                kwargs: dict[str, Any] = {}
                 kwargs["frame"] = celestial_frame
                 # Very occasionally (i.e. with TAB) wcs does not convert the units
                 lon_unit = u.Unit(self.wcs.cunit[self.wcs.lng])
@@ -575,7 +618,9 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
             # of SpectralCoord - this is because we want to also be able to
             # accept plain quantities.
 
-            def apply_velocity_frame_change(spectralcoord):
+            def apply_velocity_frame_change(
+                spectralcoord: SpectralCoord,
+            ) -> SpectralCoord:
                 if observer is None and spectralcoord.observer is None:
                     # When both observers are missing we silently skip the frame
                     # change since this is a common case and not worth warning
@@ -602,7 +647,7 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
 
             if ctype == "ZOPT":
 
-                def spectralcoord_from_redshift(redshift):
+                def spectralcoord_from_redshift(redshift: Any) -> SpectralCoord:
                     if isinstance(redshift, SpectralCoord):
                         return redshift
                     return SpectralCoord(
@@ -612,7 +657,7 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                         target=target,
                     )
 
-                def redshift_from_spectralcoord(spectralcoord):
+                def redshift_from_spectralcoord(spectralcoord: SpectralCoord) -> Any:
                     # TODO: check target is consistent between WCS and SpectralCoord,
                     # if they are not the transformation doesn't make conceptual sense.
                     return (
@@ -626,7 +671,7 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
 
             elif ctype == "BETA":
 
-                def spectralcoord_from_beta(beta):
+                def spectralcoord_from_beta(beta: Any) -> SpectralCoord:
                     if isinstance(beta, SpectralCoord):
                         return beta
                     return SpectralCoord(
@@ -638,7 +683,7 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                         target=target,
                     )
 
-                def beta_from_spectralcoord(spectralcoord):
+                def beta_from_spectralcoord(spectralcoord: SpectralCoord) -> Any:
                     # TODO: check target is consistent between WCS and SpectralCoord,
                     # if they are not the transformation doesn't make conceptual sense.
                     doppler_equiv = u.doppler_relativistic(self.wcs.restwav * u.m)
@@ -696,14 +741,14 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                             kwargs["doppler_convention"] = "optical"
                             kwargs["doppler_rest"] = restwav
 
-                def spectralcoord_from_value(value):
+                def spectralcoord_from_value(value: Any) -> SpectralCoord:
                     if isinstance(value, SpectralCoord):
                         return value
                     return SpectralCoord(
                         value, observer=observer, target=target, **kwargs
                     )
 
-                def value_from_spectralcoord(spectralcoord):
+                def value_from_spectralcoord(spectralcoord: SpectralCoord) -> Any:
                     # TODO: check target is consistent between WCS and SpectralCoord,
                     # if they are not the transformation doesn't make conceptual sense.
                     return apply_velocity_frame_change(spectralcoord).to_value(**kwargs)
@@ -796,12 +841,12 @@ class FITSWCSAPIMixin(BaseLowLevelWCS, HighLevelWCSMixin):
                     if reference_time_delta is not None:
                         reference_time = reference_time + reference_time_delta
 
-                    def time_from_reference_and_offset(offset):
+                    def time_from_reference_and_offset(offset: Any) -> "Time":
                         if isinstance(offset, Time):
                             return offset
                         return reference_time + TimeDelta(offset, format="sec")
 
-                    def offset_from_time_and_reference(time):
+                    def offset_from_time_and_reference(time: "Time") -> Any:
                         return (time - reference_time).sec
 
                     classes[name] = (Time, (), {}, time_from_reference_and_offset)

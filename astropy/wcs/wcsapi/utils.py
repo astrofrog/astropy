@@ -1,22 +1,26 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 import importlib
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .low_level_api import BaseLowLevelWCS
 
 __all__ = ["deserialize_class", "wcs_info_str"]
 
 
-def deserialize_class(tpl, construct=True):
+def deserialize_class(tpl: tuple[Any, ...], construct: bool = True) -> Any:
     """
     Deserialize classes recursively.
     """
     if not isinstance(tpl, tuple) or len(tpl) != 3:
         raise ValueError("Expected a tuple of three values")
 
-    module, klass = tpl[0].rsplit(".", 1)
-    module = importlib.import_module(module)
-    klass = getattr(module, klass)
+    module_name, klass_name = tpl[0].rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    klass = getattr(module, klass_name)
 
     args = tuple(
         deserialize_class(arg) if isinstance(arg, tuple) else arg for arg in tpl[1]
@@ -33,7 +37,7 @@ def deserialize_class(tpl, construct=True):
         return klass, args, kwargs
 
 
-def wcs_info_str(wcs):
+def wcs_info_str(wcs: "BaseLowLevelWCS") -> str:
     # Overall header
 
     if wcs.array_shape is None:
@@ -66,14 +70,15 @@ def wcs_info_str(wcs):
     # fmt: on
 
     if wcs.pixel_bounds is None:
-        pixel_bounds = [None for _ in range(wcs.pixel_n_dim)]
+        pixel_bounds: list[Any] = [None for _ in range(wcs.pixel_n_dim)]
     else:
         # converting to scalar arrays and back to Python with np.array(val).item()
         # guarantees that we end up with Python scalars (int or float) with
         # simple reprs, while not making any unnecessary type promotion
         # (e.g. int to float)
         pixel_bounds = [
-            tuple(np.array(b).item() for b in bounds) for bounds in wcs.pixel_bounds
+            None if bounds is None else tuple(np.array(b).item() for b in bounds)
+            for bounds in wcs.pixel_bounds
         ]
 
     for ipix in range(wcs.pixel_n_dim):
