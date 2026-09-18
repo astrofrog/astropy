@@ -480,7 +480,8 @@ def test_time_cube():
     assert wcs.world_axis_object_classes["time"][0] is Time
     assert wcs.world_axis_object_classes["time"][1] == ()
     assert wcs.world_axis_object_classes["time"][2] == {}
-    assert callable(wcs.world_axis_object_classes["time"][3])
+    # Mypy cannot index into the variadic part of the world axis class tuple
+    assert callable(wcs.world_axis_object_classes["time"][3])  # type: ignore[misc]
 
     assert_allclose(
         wcs.pixel_to_world_values(-449.2, 2955.6, 0),
@@ -1684,8 +1685,8 @@ class TestMaskedData:
 
     def test_world_to_pixel(self):
         coord = SkyCoord(
-            l=Masked([0, 1] * u.deg, mask=[False, True]),
-            b=Masked([0, 1] * u.deg, mask=[False, True]),
+            l=Masked(u.Quantity([0, 1], u.deg), mask=[False, True]),
+            b=Masked(u.Quantity([0, 1], u.deg), mask=[False, True]),
             frame="galactic",
         )
         x, y = self.wcs.world_to_pixel(coord)

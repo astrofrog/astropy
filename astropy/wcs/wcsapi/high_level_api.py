@@ -1,14 +1,19 @@
 import abc
 import numbers
 from collections import OrderedDict, defaultdict
-from collections.abc import Callable
-from typing import Any, Protocol
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any, Protocol, cast
 
 import numpy as np
 from numpy.typing import ArrayLike
 
 from astropy.utils.masked import Masked, MaskedNDArray, combine_masks
 
+from .low_level_api import (
+    BaseLowLevelWCS,
+    _WorldAxisClass,
+    _WorldAxisComponent,
+)
 from .utils import deserialize_class
 
 __all__ = [
@@ -17,13 +22,6 @@ __all__ = [
     "high_level_objects_to_values",
     "values_to_high_level_objects",
 ]
-
-
-_WorldAxisComponent = tuple[str, str | int, str | Callable[[Any], Any]]
-_WorldAxisClass = (
-    tuple[type[Any] | str, tuple[Any, ...], dict[str, Any]]
-    | tuple[type[Any] | str, tuple[Any, ...], dict[str, Any], Callable[..., Any]]
-)
 
 
 class _WorldAxisMetadata(Protocol):
@@ -37,25 +35,28 @@ class _WorldAxisMetadata(Protocol):
     is recognised when present and otherwise treated as ``False``.
     """
 
-    world_axis_object_classes: dict[str, _WorldAxisClass]
-    world_axis_object_components: list[_WorldAxisComponent]
+    @property
+    def world_axis_object_classes(self) -> Mapping[str, _WorldAxisClass]: ...
+
+    @property
+    def world_axis_object_components(self) -> Sequence[_WorldAxisComponent]: ...
 
 
-def rec_getattr(obj, att):
+def rec_getattr(obj: Any, att: str) -> Any:
     for a in att.split("."):
         obj = getattr(obj, a)
     return obj
 
 
-def default_order(components):
-    order = []
+def default_order(components: Iterable[_WorldAxisComponent]) -> list[str]:
+    order: list[str] = []
     for key, _, _ in components:
         if key not in order:
             order.append(key)
     return order
 
 
-def _toindex(value):
+def _toindex(value: Any) -> np.ndarray:
     """Convert value to an int or an int array.
 
     Input coordinates converted to integers
@@ -73,7 +74,7 @@ def _toindex(value):
     >>> _toindex(np.array([1.5, 2.49999]))
     array([2, 2])
     """
-    arr = np.floor(np.asarray(value) + 0.5)
+    arr: Any = np.floor(np.asarray(value) + 0.5)
 
     fill_value = np.iinfo(int).min
     if np.isscalar(arr):
@@ -94,13 +95,13 @@ class BaseHighLevelWCS(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def low_level_wcs(self):
+    def low_level_wcs(self) -> BaseLowLevelWCS:
         """
         Returns a reference to the underlying low-level WCS object.
         """
 
     @abc.abstractmethod
-    def pixel_to_world(self, *pixel_arrays):
+    def pixel_to_world(self, *pixel_arrays: Any) -> Any:
         """
         Convert pixel coordinates to world coordinates (represented by
         high-level objects).
@@ -113,7 +114,7 @@ class BaseHighLevelWCS(metaclass=abc.ABCMeta):
         indexing and ordering conventions.
         """
 
-    def array_index_to_world(self, *index_arrays):
+    def array_index_to_world(self, *index_arrays: Any) -> Any:
         """
         Convert array indices to world coordinates (represented by Astropy
         objects).
@@ -128,7 +129,7 @@ class BaseHighLevelWCS(metaclass=abc.ABCMeta):
         return self.pixel_to_world(*index_arrays[::-1])
 
     @abc.abstractmethod
-    def world_to_pixel(self, *world_objects):
+    def world_to_pixel(self, *world_objects: Any) -> Any:
         """
         Convert world coordinates (represented by Astropy objects) to pixel
         coordinates.
@@ -140,7 +141,7 @@ class BaseHighLevelWCS(metaclass=abc.ABCMeta):
         indexing and ordering conventions.
         """
 
-    def world_to_array_index(self, *world_objects):
+    def world_to_array_index(self, *world_objects: Any) -> Any:
         """
         Convert world coordinates (represented by Astropy objects) to array
         indices.
@@ -163,7 +164,7 @@ class BaseHighLevelWCS(metaclass=abc.ABCMeta):
 
 def high_level_objects_to_values(
     *world_objects: Any, low_level_wcs: _WorldAxisMetadata
-) -> list[float | int | np.ndarray]:
+) -> list[Any]:
     """
     Convert the input high level object to low level values.
 
@@ -195,7 +196,7 @@ def high_level_objects_to_values(
     components = low_level_wcs.world_axis_object_components
 
     # Deserialize world_axis_object_classes using the default order
-    classes = OrderedDict()
+    classes: OrderedDict[str, _WorldAxisClass] = OrderedDict()
     for key in default_order(components):
         if getattr(low_level_wcs, "serialized_classes", False):
             classes[key] = deserialize_class(serialized_classes[key], construct=False)
@@ -211,12 +212,12 @@ def high_level_objects_to_values(
 
     # Determine whether the classes are uniquely matched, that is we check
     # whether there is only one of each class.
-    world_by_key = {}
+    world_by_key: dict[str, Any] = {}
     unique_match = True
     for w in world_objects:
         matches = []
         for key, (klass, *_) in classes.items():
-            if isinstance(w, klass):
+            if isinstance(w, cast(type, klass)):
                 matches.append(key)
         if len(matches) == 1:
             world_by_key[matches[0]] = w
@@ -228,12 +229,13 @@ def high_level_objects_to_values(
     # whereas if all classes are unique, we can still intelligently match
     # them even if the order is wrong.
 
-    objects = {}
+    objects: dict[str, Any] = {}
 
     if unique_match:
         for key, (klass, args, kwargs, *rest) in classes.items():
+            klass_gen: Callable[..., Any]
             if len(rest) == 0:
-                klass_gen = klass
+                klass_gen = cast(Callable[..., Any], klass)
             elif len(rest) == 1:
                 klass_gen = rest[0]
             else:
@@ -258,7 +260,7 @@ def high_level_objects_to_values(
             klass, args, kwargs, *rest = classes[key]
 
             if len(rest) == 0:
-                klass_gen = klass
+                klass_gen = cast(Callable[..., Any], klass)
             elif len(rest) == 1:
                 klass_gen = rest[0]
             else:
@@ -267,10 +269,10 @@ def high_level_objects_to_values(
                 )
 
             w = world_objects[ikey]
-            if not isinstance(w, klass):
+            if not isinstance(w, cast(type, klass)):
                 raise ValueError(
                     "Expected the following order of world arguments:"
-                    f" {', '.join([k.__name__ for (k, *_) in classes.values()])}"
+                    f" {', '.join([cast(type, k).__name__ for (k, *_) in classes.values()])}"
                 )
 
             # FIXME: For now SkyCoord won't auto-convert upon initialization
@@ -286,7 +288,7 @@ def high_level_objects_to_values(
                 objects[key] = klass_gen(w, *args, **kwargs)
 
     # We now extract the attributes needed for the world values
-    world = []
+    world: list[Any] = []
     for key, _, attr in components:
         if callable(attr):
             world.append(attr(objects[key]))
@@ -364,8 +366,8 @@ def values_to_high_level_objects(
             classes_new[key] = deserialize_class(value, construct=False)
         classes = classes_new
 
-    args = defaultdict(list)
-    kwargs = defaultdict(dict)
+    args: defaultdict[str, list[Any]] = defaultdict(list)
+    kwargs: defaultdict[str, dict[str, Any]] = defaultdict(dict)
 
     for i, (key, attr, _) in enumerate(components):
         if isinstance(attr, str):
@@ -375,12 +377,13 @@ def values_to_high_level_objects(
                 args[key].append(None)
             args[key][attr] = world_values[i]
 
-    result = []
+    result: list[Any] = []
 
     for key in default_order(components):
         klass, ar, kw, *rest = classes[key]
+        klass_gen: Callable[..., Any]
         if len(rest) == 0:
-            klass_gen = klass
+            klass_gen = cast(Callable[..., Any], klass)
         elif len(rest) == 1:
             klass_gen = rest[0]
         else:
@@ -400,25 +403,27 @@ class HighLevelWCSMixin(BaseHighLevelWCS):
     """
 
     @property
-    def low_level_wcs(self):
-        return self
+    def low_level_wcs(self) -> BaseLowLevelWCS:
+        # This mix-in is intended for classes that also implement the
+        # low-level API, so returning self is only valid in that combination.
+        return cast(BaseLowLevelWCS, self)
 
-    def world_to_pixel(self, *world_objects):
+    def world_to_pixel(self, *world_objects: Any) -> Any:
         values, masks = MaskedNDArray._get_data_and_masks(world_objects)
         world_values = high_level_objects_to_values(
             *values, low_level_wcs=self.low_level_wcs
         )
 
         # Finally we convert to pixel coordinates
-        pixel_values = self.low_level_wcs.world_to_pixel_values(*world_values)
+        pixel_values: Any = self.low_level_wcs.world_to_pixel_values(*world_values)
         if (mask := combine_masks(masks)) is not False:
             pixel_values = tuple(Masked(value, mask) for value in pixel_values)
         return pixel_values
 
-    def pixel_to_world(self, *pixel_arrays):
+    def pixel_to_world(self, *pixel_arrays: Any) -> Any:
         values, masks = MaskedNDArray._get_data_and_masks(pixel_arrays)
         # Compute the world coordinate values
-        world_values = self.low_level_wcs.pixel_to_world_values(*values)
+        world_values: Any = self.low_level_wcs.pixel_to_world_values(*values)
 
         if self.low_level_wcs.world_n_dim == 1:
             world_values = (world_values,)

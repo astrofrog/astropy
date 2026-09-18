@@ -1024,6 +1024,21 @@ cache-control = { api = "max-age=600", files = "max-age=43200, immutable" }
 
 [tool.mypy]
 follow_imports = "silent"
+check_untyped_defs = true
 packages = [
     "astropy.coordinates.sites",
+    "astropy.wcs.wcsapi",
 ]
+
+[[tool.mypy.overrides]]
+module = "astropy.wcs.wcsapi.*"
+disallow_untyped_defs = true
+
+# Test functions are deliberately left unannotated, but their bodies are still
+# checked thanks to check_untyped_defs above.
+[[tool.mypy.overrides]]
+module = [
+    "astropy.wcs.wcsapi.tests.*",
+    "astropy.wcs.wcsapi.wrappers.tests.*",
+]
+disallow_untyped_defs = false
