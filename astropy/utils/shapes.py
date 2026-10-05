@@ -3,6 +3,7 @@
 
 import abc
 import numbers
+import operator
 from collections.abc import Sequence
 from itertools import zip_longest
 from math import prod
@@ -495,8 +496,9 @@ def simplify_basic_index(
     shape
         The shape of the array being indexed. Entries can be `None` if the
         size along a dimension is not known, in which case the index for that
-        dimension is returned unchanged, except that a negative integer or
-        slice start raises an error since it cannot be interpreted.
+        dimension is validated but otherwise returned unchanged, except that a
+        negative integer or slice start raises an error since it cannot be
+        interpreted.
     """
     ndim = len(shape)
 
@@ -526,11 +528,19 @@ def simplify_basic_index(
     for i, (slc, size) in enumerate(zip(new_index, shape)):
         if isinstance(slc, slice):
             if size is None:
-                if slc.start is not None and slc.start < 0:
+                # Validate the values in the same way as slice.indices would
+                start, stop, step = (
+                    None if value is None else operator.index(value)
+                    for value in (slc.start, slc.stop, slc.step)
+                )
+                if step == 0:
+                    raise ValueError("slice step cannot be zero")
+                if start is not None and start < 0:
                     raise ValueError(
                         f"Cannot use a negative slice start for dimension {i} "
                         "since its size is not known"
                     )
+                new_index[i] = slice(start, stop, step)
             else:
                 indices = list(slc.indices(size))
                 # The following case is the only one where slice(*indices) does

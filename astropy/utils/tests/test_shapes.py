@@ -90,6 +90,13 @@ def test_simplify_basic_index_unknown_size_negative(index):
         simplify_basic_index(index, shape=(None, None))
 
 
+def test_simplify_basic_index_unknown_size_invalid():
+    with pytest.raises(TypeError):
+        simplify_basic_index(slice(1.5, None), shape=(None,))
+    with pytest.raises(ValueError, match="step cannot be zero"):
+        simplify_basic_index(slice(None, None, 0), shape=(None,))
+
+
 class TestSimplifyBasicIndex:
     # We use a class here so that we can allocate the data once and for all to
     # speed up the testing.

@@ -3515,12 +3515,7 @@ reduce these to 2 dimensions using the naxis kwarg.
         shape = [n or None for n in self._naxis]
         if numpy_order:
             shape.reverse()
-        try:
-            view = simplify_basic_index(view, shape=shape)
-        except TypeError:
-            # Non-integer slice values are tolerated, in which case the values
-            # cannot be resolved so the shape is treated as unknown.
-            view = simplify_basic_index(view, shape=[None] * self.naxis)
+        view = simplify_basic_index(view, shape=shape)
 
         if not numpy_order:
             view = view[::-1]
@@ -3626,20 +3621,9 @@ reduce these to 2 dimensions using the naxis kwarg.
                     for bound in pixel_bounds[wcs_index]
                 )
 
-            try:
-                # range requires integers but the other attributes can also
-                # handle arbitrary values, so this needs to be in a try/except.
-                nitems = len(builtins.range(self._naxis[wcs_index])[iview])
-            except TypeError as exc:
-                if "indices must be integers" not in str(exc):
-                    raise
-                warnings.warn(
-                    f"NAXIS{wcs_index} attribute is not updated because at "
-                    f"least one index ('{iview}') is no integer.",
-                    AstropyUserWarning,
-                )
-            else:
-                wcs_new._naxis[wcs_index] = nitems
+            wcs_new._naxis[wcs_index] = len(
+                builtins.range(self._naxis[wcs_index])[iview]
+            )
 
         if wcs_new.sip is not None:
             wcs_new.sip = Sip(

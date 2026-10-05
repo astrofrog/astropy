@@ -26,7 +26,6 @@ from astropy.units import Quantity
 from astropy.utils import unbroadcast
 from astropy.utils.compat.optional_deps import HAS_SCIPY
 from astropy.utils.data import get_pkg_data_contents, get_pkg_data_filename
-from astropy.utils.exceptions import AstropyUserWarning
 from astropy.wcs.utils import (
     FRAME_WCS_MAPPINGS,
     WCS_FRAME_MAPPINGS,
@@ -152,16 +151,9 @@ def test_slice():
     assert np.all(slice_wcs.wcs.cdelt == np.array([0.2, 0.2]))
     assert slice_wcs._naxis == [500, 250]
 
-    # Non-integral values do not alter the naxis attribute
-    with pytest.warns(AstropyUserWarning):
-        slice_wcs = mywcs.slice([slice(50.0), slice(20.0)])
-    assert slice_wcs._naxis == [1000, 500]
-    with pytest.warns(AstropyUserWarning):
-        slice_wcs = mywcs.slice([slice(50.0), slice(20)])
-    assert slice_wcs._naxis == [20, 500]
-    with pytest.warns(AstropyUserWarning):
-        slice_wcs = mywcs.slice([slice(50), slice(20.5)])
-    assert slice_wcs._naxis == [1000, 50]
+    # Non-integral values are not allowed, as for Numpy arrays
+    with pytest.raises(TypeError, match="slice indices must be integers"):
+        mywcs.slice([slice(50.0), slice(20)])
 
 
 def test_slice_with_sip():
