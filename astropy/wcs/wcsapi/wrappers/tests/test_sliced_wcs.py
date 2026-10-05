@@ -10,6 +10,7 @@ from astropy.io.fits import Header
 from astropy.io.fits.verify import VerifyWarning
 from astropy.time import Time
 from astropy.units import Quantity
+from astropy.utils.exceptions import AstropyDeprecationWarning
 from astropy.wcs.wcs import WCS, FITSFixedWarning
 from astropy.wcs.wcsapi.tests.helpers import assert_celestial_component
 from astropy.wcs.wcsapi.wrappers.sliced_wcs import (
@@ -75,7 +76,8 @@ def test_invalid_slices():
     ),
 )
 def test_sanitize_slice(item, ndim, expected):
-    new_item = sanitize_slices(item, ndim)
+    with pytest.warns(AstropyDeprecationWarning):
+        new_item = sanitize_slices(item, ndim)
     # FIXME: do we still need the first two since the third assert
     # should cover it all?
     assert len(new_item) == ndim
@@ -761,6 +763,9 @@ CASES = [
     (slice(2, None), 3, 5),
     (slice(None, 10), 3, 3),
     (slice(2, 10), 3, 5),
+    # Explicit steps of 1 are equivalent to no step
+    (slice(2, 10, 1), slice(3, 8, 1), slice(5, 10)),
+    (slice(None, None, 1), 3, 3),
 ]
 
 
@@ -980,7 +985,7 @@ def test_dropped_dimensions():
     assert isinstance(wao_classes["celestial"][2]["frame"], Galactic)
     assert wao_classes["celestial"][2]["unit"] == (u.deg, u.deg)
 
-    sub = SlicedLowLevelWCS(wcs, np.s_[5, :5, 12])
+    sub = SlicedLowLevelWCS(wcs, np.s_[5, :5, 7])
 
     dwd = sub.dropped_world_dimensions
     wao_classes = dwd.pop("world_axis_object_classes")
@@ -988,7 +993,7 @@ def test_dropped_dimensions():
     validate_info_dict(
         dwd,
         {
-            "value": [11.67648267, 21.01921192],
+            "value": [12.17644624, 21.01304306],
             "world_axis_physical_types": ["pos.galactic.lat", "pos.galactic.lon"],
             "world_axis_names": ["Latitude", "Longitude"],
             "world_axis_units": ["deg", "deg"],
