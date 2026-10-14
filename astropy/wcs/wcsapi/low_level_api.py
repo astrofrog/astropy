@@ -306,6 +306,64 @@ class BaseLowLevelWCS(metaclass=abc.ABCMeta):
         return [""] * self.world_n_dim
 
     @property
+    def world_axis_coordinate_systems(self):
+        """
+        A dictionary describing, as plain data, the coordinate systems in
+        which the world coordinates are expressed.
+
+        Each key of the dictionary is a string key from
+        `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_axis_object_components`, so
+        that a coordinate system description applies to the group of world
+        axes that share that key (for example a longitude/latitude pair). Each
+        value is a dictionary mapping strings to plain (JSON-serializable)
+        values - strings, numbers, booleans, or lists/tuples of these - and
+        must contain at least a ``"type"`` item identifying the kind of
+        coordinate system (one of ``"space"``, ``"spectral"``, ``"time"``,
+        ``"stokes"``, or ``"generic"``). Items whose values name a reference
+        system *must* use terms from the corresponding IVOA controlled
+        vocabulary - the ``refframe`` vocabulary
+        (http://www.ivoa.net/rdf/refframe) for the ``"frame"`` item of
+        ``"space"`` systems, and the ``refposition`` and ``timescale``
+        vocabularies for ``"spectral"`` and ``"time"`` systems. A coordinate
+        system that cannot be fully described with vocabulary terms must be
+        omitted entirely rather than described partially or with invented
+        terms: a description lacking, say, its standard of rest would compare
+        as equivalent to a physically different one, and an invented term is
+        not interoperable. The way to make a currently inexpressible system
+        describable is to propose the missing term to the IVOA through a
+        Vocabulary Enhancement Proposal.
+
+        This property expands on
+        `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_axis_physical_types`, which
+        describes what kind of quantity each world axis is but not the
+        reference system it is expressed in: two WCSes can both report
+        ``pos.eq.ra`` while one is ICRS and the other FK5 with a B1950
+        equinox. The descriptions here are *assertions* of semantics: two
+        world axis groups whose descriptions compare equal (along with
+        matching physical types and units) can be assumed to accept and
+        produce interchangeable world values in the low-level API, without
+        constructing high-level objects. This enables consumers such as
+        `~astropy.wcs.utils.pixel_to_pixel` to skip the high-level object
+        round-trip when transforming between datasets that share equivalent
+        world coordinate systems.
+
+        This property is optional and best-effort. A key that is absent from
+        the dictionary means the coordinate system for that group of axes is
+        *unknown*, and consumers must never treat two unknowns as equivalent.
+        This is distinct from an explicit minimal assertion such as
+        ``{"type": "generic"}``, which positively states that the values
+        carry no richer semantics than their physical type and unit, and may
+        therefore match another identical assertion. The default
+        implementation returns an empty dictionary (nothing is asserted).
+
+        Implementations must keep this property consistent with
+        `~astropy.wcs.wcsapi.BaseLowLevelWCS.world_axis_object_classes`; if
+        the two ever disagree, the object classes are authoritative and the
+        descriptions here should be omitted rather than guessed.
+        """
+        return {}
+
+    @property
     def axis_correlation_matrix(self):
         """
         Returns an (`~astropy.wcs.wcsapi.BaseLowLevelWCS.world_n_dim`,
