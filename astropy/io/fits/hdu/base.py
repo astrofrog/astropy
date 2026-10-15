@@ -48,6 +48,7 @@ BITPIX2DTYPE = {
     16: "int16",
     32: "int32",
     64: "int64",
+    -16: "float16",
     -32: "float32",
     -64: "float64",
 }
@@ -62,6 +63,7 @@ DTYPE2BITPIX = {
     "uint32": 32,
     "int64": 64,
     "uint64": 64,
+    "float16": -16,
     "float32": -32,
     "float64": -64,
 }
