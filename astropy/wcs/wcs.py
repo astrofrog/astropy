@@ -524,6 +524,8 @@ class WCS(FITSWCSAPIMixin, WCSBase):
     ):
         close_fds = []
 
+        raise ValueError("I'm feeling buggy")
+
         self._preserve_units = preserve_units
 
         # these parameters are stored to be used when unpickling a WCS object:

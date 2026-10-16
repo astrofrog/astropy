@@ -52,7 +52,7 @@ jobs:
   compare:
     needs: refs
     # integration-dashboard has no releases yet, so track its main branch.
-    uses: OpenAstronomy/integration-dashboard/.github/workflows/compare.yml@main  # zizmor: ignore[unpinned-uses]
+    uses: astrofrog/integration-dashboard/.github/workflows/compare.yml@compare-command  # zizmor: ignore[unpinned-uses]
     with:
       config-repository: astropy/astropy-integration-testing
       package: astropy
