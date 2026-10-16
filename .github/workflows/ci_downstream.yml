@@ -1,0 +1,62 @@
+name: Downstream
+
+# Compare the tests of downstream packages before and after this change, using
+# the package list in astropy/astropy-integration-testing. On a pull request,
+# add the 'needs-downstream-testing' label; the comparison then reruns on every
+# push while the label is there. "Run workflow" compares a branch with main.
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+    inputs:
+      tiers:
+        description: Tiers of downstream packages to test
+        default: coordinated
+      packages:
+        description: Or a comma-separated list of downstream packages
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: downstream-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refs:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'needs-downstream-testing')
+    runs-on: ubuntu-latest
+    outputs:
+      before: ${{ steps.refs.outputs.before }}
+      after: ${{ steps.refs.outputs.after }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # On a pull request the checkout is the PR's test merge commit, whose
+      # first parent is the base branch it was merged into.
+      - id: refs
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            before=$(git rev-parse HEAD^1)
+          else
+            before=$(git merge-base HEAD origin/main)
+          fi
+          echo "before=$before" >> "$GITHUB_OUTPUT"
+          echo "after=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  compare:
+    needs: refs
+    # integration-dashboard has no releases yet, so track its main branch.
+    uses: OpenAstronomy/integration-dashboard/.github/workflows/compare.yml@main  # zizmor: ignore[unpinned-uses]
+    with:
+      config-repository: astropy/astropy-integration-testing
+      package: astropy
+      before: git+https://github.com/${{ github.repository }}@${{ needs.refs.outputs.before }}
+      after: git+https://github.com/${{ github.repository }}@${{ needs.refs.outputs.after }}
+      tiers: ${{ inputs.tiers || 'coordinated' }}
+      packages: ${{ inputs.packages }}
